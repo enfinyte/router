@@ -1,5 +1,5 @@
 {
-  "name": "provider_model_resolution",
+  "name": "resolver",
   "module": "index.ts",
   "type": "module",
   "private": true,
