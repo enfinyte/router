@@ -15,6 +15,9 @@
     "packages/*"
   ],
   "dependencies": {
-    "effect": "^3.19.15"
+    "@effect/platform-bun": "^0.87.1",
+    "api_platform": "./packages/api_platform",
+    "effect": "^3.19.15",
+    "elysia": "^1.4.22"
   }
 }

@@ -1,15 +1,15 @@
 {
   "name": "api_platform",
-  "module": "index.ts",
-  "type": "module",
   "private": true,
+  "type": "module",
+  "module": "src/index.ts",
+  "dependencies": {
+    "common": "workspace:*"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5"
-  },
-  "dependencies": {
-    "common": "workspace:*"
   }
 }
