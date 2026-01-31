@@ -2,7 +2,10 @@
   "name": "llm-router",
   "module": "index.ts",
   "devDependencies": {
-    "@types/bun": "latest"
+    "@effect/language-service": "^0.72.0",
+    "@types/bun": "latest",
+    "oxfmt": "^0.27.0",
+    "oxlint": "^1.42.0"
   },
   "peerDependencies": {
     "typescript": "^5"
