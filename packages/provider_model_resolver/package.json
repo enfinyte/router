@@ -1,17 +1,16 @@
 {
-  "name": "llm-router",
+  "name": "provider_model_resolution",
   "module": "index.ts",
+  "type": "module",
+  "private": true,
   "devDependencies": {
     "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
-  "type": "module",
-  "workspaces": [
-    "packages/*"
-  ],
   "dependencies": {
-    "effect": "^3.19.15"
+    "common": "workspace:*",
+    "openai": "^6.17.0"
   }
 }
