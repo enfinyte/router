@@ -1,4 +1,9 @@
-import { Effect, Context, Data, Layer } from "effect";
+import { Effect, Context, Data, Layer, Schema } from "effect";
+import type { components } from "./model";
+
+type requestBody = components["schemas"]["CreateResponseBody"];
+
+const CreateResponseBodySchema = Schema.Struct<requestBody>({});
 
 export class ResponsesServiceErrror extends Data.TaggedError("ResponsesServiceErrror")<{
   cause?: unknown;
@@ -17,7 +22,7 @@ interface ResponsesServiceImpl {
   >;
 }
 
-export class ResponsesService extends Context.Tag("Redis")<
+export class ResponsesService extends Context.Tag("ResponsesService")<
   ResponsesService,
   ResponsesServiceImpl
 >() {}
