@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { ParseError } from "./types";
 import type { ResolvedResponse } from "./types";
 
-export const parse = (input: string): Effect.Effect<ResolvedResponse, ParseError> =>
+export const parseModelImpl = (input: string): Effect.Effect<ResolvedResponse, ParseError> =>
   Effect.gen(function* () {
     const firstSlashIndex = input.indexOf("/");
 
