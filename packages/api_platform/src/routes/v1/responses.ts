@@ -1,6 +1,7 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect, Schema } from "effect";
 import { ResponsesService } from "../../services/responses";
+import { withProperContentTypeValidation } from "../../middlewares";
 
 const ResponsesGetRoutePathParams = Schema.Struct({
   id: Schema.String,
@@ -22,6 +23,7 @@ export const responsesRouter = HttpRouter.empty.pipe(
       return yield* HttpServerResponse.json(responsesObject);
     }),
   ),
+  HttpRouter.use(withProperContentTypeValidation()),
   HttpRouter.get(
     "/:id",
     HttpRouter.schemaPathParams(ResponsesGetRoutePathParams).pipe(

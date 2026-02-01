@@ -3,6 +3,9 @@
   "private": true,
   "type": "module",
   "module": "src/index.ts",
+  "scripts": {
+    "gen:responses-types": "bunx openapi-typescript https://www.openresponses.org/openapi/openapi.json -o ./src/services/responses/model.d.ts"
+  },
   "dependencies": {
     "common": "workspace:*"
   },

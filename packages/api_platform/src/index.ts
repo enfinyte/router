@@ -2,7 +2,7 @@ import { HttpMiddleware, HttpServer } from "@effect/platform";
 import { BunHttpServer, BunRuntime } from "@effect/platform-bun";
 import { flow, Layer } from "effect";
 import { router } from "./routes/index";
-import * as ResponsesService from "./services/responses";
+import * as ResponsesService from "./services/responses/";
 
 export const app = router.pipe(
   HttpServer.serve(
