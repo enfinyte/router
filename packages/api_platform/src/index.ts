@@ -1,8 +1,17 @@
-import { BunRuntime } from "@effect/platform-bun";
-import { main } from "./main";
-import * as HTTPServer from "./services/http";
-import { Effect, Layer } from "effect";
+import { HttpMiddleware, HttpServer } from "@effect/platform";
+import { BunHttpServer, BunRuntime } from "@effect/platform-bun";
+import { flow, Layer } from "effect";
+import { router } from "./routes/index";
+import * as ResponsesService from "./services/responses";
 
-const ALL_SERVICES = Layer.mergeAll(HTTPServer.fromEnv);
+export const app = router.pipe(
+  HttpServer.serve(
+    flow(HttpMiddleware.logger, HttpMiddleware.cors(), HttpMiddleware.xForwardedHeaders),
+  ),
+  HttpServer.withLogAddress,
+);
 
-main.pipe(Effect.provide(ALL_SERVICES), BunRuntime.runMain);
+const AllServices = Layer.mergeAll(ResponsesService.layer());
+const AllServicesAndHttpServer = Layer.mergeAll(AllServices, BunHttpServer.layer({ port: 8080 }));
+
+BunRuntime.runMain(Layer.launch(Layer.provide(app, AllServicesAndHttpServer)));
