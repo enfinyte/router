@@ -504,7 +504,7 @@ export const ResponseResourceSchema = Schema.Struct({
   store: Schema.Boolean,
   background: Schema.Boolean,
   service_tier: Schema.String,
-  metadata: Schema.Unknown,
+  metadata: Schema.NullOr(Schema.Record({ key: Schema.String, value: Schema.String })),
   safety_identifier: Schema.NullOr(Schema.String),
   prompt_cache_key: Schema.NullOr(Schema.String),
 });
