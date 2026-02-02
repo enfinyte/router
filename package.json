@@ -1,6 +1,14 @@
 {
   "name": "llm-router",
+  "workspaces": [
+    "packages/*"
+  ],
+  "type": "module",
   "module": "index.ts",
+  "dependencies": {
+    "@effect/platform-bun": "^0.87.1",
+    "effect": "^3.19.15"
+  },
   "devDependencies": {
     "@effect/language-service": "^0.72.0",
     "@types/bun": "latest",
@@ -9,12 +17,5 @@
   },
   "peerDependencies": {
     "typescript": "^5"
-  },
-  "type": "module",
-  "workspaces": [
-    "packages/*"
-  ],
-  "dependencies": {
-    "effect": "^3.19.15"
   }
 }
