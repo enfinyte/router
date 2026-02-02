@@ -1,44 +1,43 @@
-import { Effect, Context, Data, Layer, Schema } from "effect";
-import type { components } from "./model";
+import { Effect, Context, Data, Layer } from "effect";
+import type { CreateResponseBody, ResponseResource } from "./schema";
+import { AIService } from "../ai";
+import { DatabaseService } from "../database";
 
-type requestBody = components["schemas"]["CreateResponseBody"];
-
-const CreateResponseBodySchema = Schema.Struct<requestBody>({});
-
-export class ResponsesServiceErrror extends Data.TaggedError("ResponsesServiceErrror")<{
+export class ResponseServiceError extends Data.TaggedError("ResponseServiceError")<{
   cause?: unknown;
   message?: string;
 }> {}
 
-interface ResponsesServiceImpl {
-  create: (createResponsesRequest: { content: string }) => Effect.Effect<
-    {
-      content: string;
-      id: string;
-      createdAt: number;
-    },
-    ResponsesServiceErrror,
-    never
-  >;
+interface ResponseServiceImpl {
+  create: (
+    createResponseBody: CreateResponseBody,
+  ) => Effect.Effect<ResponseResource, ResponseServiceError, never>;
 }
 
-export class ResponsesService extends Context.Tag("ResponsesService")<
-  ResponsesService,
-  ResponsesServiceImpl
+export class ResponseService extends Context.Tag("ResponsesService")<
+  ResponseService,
+  ResponseServiceImpl
 >() {}
 
 const make = () =>
-  Effect.succeed(
-    ResponsesService.of({
-      create: (createResponsesRequest) =>
+  Effect.gen(function* () {
+    const aiService = yield* AIService;
+    const databaseService = yield* DatabaseService;
+    return ResponseService.of({
+      create: (req) =>
         Effect.gen(function* () {
-          return yield* Effect.succeed({
-            content: createResponsesRequest.content,
-            id: "response_123",
-            createdAt: Date.now(),
-          });
-        }),
-    }),
-  );
+          const responseResource = yield* aiService.makeRequest(req);
+          yield* databaseService.persist(responseResource);
+          return responseResource;
+        }).pipe(
+          Effect.catchTags({
+            AIServiceError: (err) =>
+              Effect.fail(new ResponseServiceError({ cause: err, message: err.message })),
+            DatabaseServiceError: (err) =>
+              Effect.fail(new ResponseServiceError({ cause: err, message: err.message })),
+          }),
+        ),
+    });
+  });
 
-export const layer = () => Layer.scoped(ResponsesService, make());
+export const ResponseServiceLive = Layer.effect(ResponseService, make());
