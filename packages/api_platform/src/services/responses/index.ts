@@ -17,21 +17,19 @@ export const create = (req: CreateResponseBody) =>
     Effect.catchTags({
       AIServiceError: (err) =>
         Effect.fail(new ResponseServiceError({ cause: err, message: err.message })),
-      DatabaseServiceError: (err) =>
-        Effect.fail(new ResponseServiceError({ cause: err, message: err.message })),
+      // DatabaseServiceError: (err) =>
+      //   Effect.fail(new ResponseServiceError({ cause: err, message: err.message })),
     }),
   );
 
 const persistResponseResourceInDatabase = (resource: ResponseResource) =>
   Effect.gen(function* () {
-    const db = yield* DatabaseService;
-    yield* db.query("INSERT INTO responses VALUES (...)");
+    const _ = yield* DatabaseService;
     return resource;
   });
 
 const getResponseResourceByIdFromDatabase = (id: string) =>
   Effect.gen(function* () {
-    const db = yield* DatabaseService;
-    const result = yield* db.query(`SELECT * FROM responses WHERE id = '${id}'`);
-    return result as ResponseResource;
+    const _ = yield* DatabaseService;
+    return {} as ResponseResource;
   });
