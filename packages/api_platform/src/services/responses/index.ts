@@ -1,6 +1,6 @@
-import { Effect, Context, Data, Layer } from "effect";
+import { Effect, Data } from "effect";
 import type { CreateResponseBody, ResponseResource } from "./schema";
-import { AIService } from "../ai";
+import * as AIService from "../ai";
 import { DatabaseService } from "../database";
 
 export class ResponseServiceError extends Data.TaggedError("ResponseServiceError")<{
@@ -8,36 +8,30 @@ export class ResponseServiceError extends Data.TaggedError("ResponseServiceError
   message?: string;
 }> {}
 
-interface ResponseServiceImpl {
-  create: (
-    createResponseBody: CreateResponseBody,
-  ) => Effect.Effect<ResponseResource, ResponseServiceError, never>;
-}
-
-export class ResponseService extends Context.Tag("ResponsesService")<
-  ResponseService,
-  ResponseServiceImpl
->() {}
-
-const make = () =>
+export const create = (req: CreateResponseBody) =>
   Effect.gen(function* () {
-    const aiService = yield* AIService;
-    const databaseService = yield* DatabaseService;
-    return ResponseService.of({
-      create: (req) =>
-        Effect.gen(function* () {
-          const responseResource = yield* aiService.makeRequest(req);
-          yield* databaseService.persist(responseResource);
-          return responseResource;
-        }).pipe(
-          Effect.catchTags({
-            AIServiceError: (err) =>
-              Effect.fail(new ResponseServiceError({ cause: err, message: err.message })),
-            DatabaseServiceError: (err) =>
-              Effect.fail(new ResponseServiceError({ cause: err, message: err.message })),
-          }),
-        ),
-    });
+    const responseResource = yield* AIService.makeRequest(req);
+    yield* persistResponseResourceInDatabase(responseResource);
+    return responseResource;
+  }).pipe(
+    Effect.catchTags({
+      AIServiceError: (err) =>
+        Effect.fail(new ResponseServiceError({ cause: err, message: err.message })),
+      DatabaseServiceError: (err) =>
+        Effect.fail(new ResponseServiceError({ cause: err, message: err.message })),
+    }),
+  );
+
+const persistResponseResourceInDatabase = (resource: ResponseResource) =>
+  Effect.gen(function* () {
+    const db = yield* DatabaseService;
+    yield* db.query("INSERT INTO responses VALUES (...)");
+    return resource;
   });
 
-export const ResponseServiceLive = Layer.effect(ResponseService, make());
+const getResponseResourceByIdFromDatabase = (id: string) =>
+  Effect.gen(function* () {
+    const db = yield* DatabaseService;
+    const result = yield* db.query(`SELECT * FROM responses WHERE id = '${id}'`);
+    return result as ResponseResource;
+  });

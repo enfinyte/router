@@ -1,6 +1,6 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Data, Effect, Schema } from "effect";
-import { ResponseService } from "../../services/responses";
+import * as ResponsesService from "../../services/responses";
 import { withProperContentTypeValidation } from "../../middlewares";
 import { CreateResponseBodySchema, type CreateResponseBody } from "../../services/responses/schema";
 
@@ -86,12 +86,9 @@ export const responsesRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/",
     Effect.gen(function* () {
-      const [createResponseBody, responsesService] = yield* Effect.all(
-        [HttpServerRequest.schemaBodyJson(CreateResponseBodySchema), ResponseService],
-        { concurrency: "unbounded" },
-      );
+      const createResponseBody = yield* HttpServerRequest.schemaBodyJson(CreateResponseBodySchema);
       yield* validateCreateResponseBody(createResponseBody);
-      const responsesObject = yield* responsesService.create(createResponseBody);
+      const responsesObject = yield* ResponsesService.create(createResponseBody);
       return yield* HttpServerResponse.json(responsesObject);
     }).pipe(
       Effect.catchTag("RequestValidationError", (err) =>

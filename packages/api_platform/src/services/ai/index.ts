@@ -1,4 +1,4 @@
-import { Effect, Context, Data, Layer } from "effect";
+import { Effect, Data } from "effect";
 import type { CreateResponseBody, ResponseResource } from "../responses/schema";
 
 const DEFAULT_TEMPERATURE = 1.0;
@@ -21,12 +21,6 @@ export class AIServiceError extends Data.TaggedError("AIServiceError")<{
   cause?: unknown;
   message?: string;
 }> {}
-
-interface AIServiceImpl {
-  makeRequest: (body: CreateResponseBody) => Effect.Effect<ResponseResource, AIServiceError, never>;
-}
-
-export class AIService extends Context.Tag("AIService")<AIService, AIServiceImpl>() {}
 
 const resolveToolChoice = (
   tc: CreateResponseBody["tool_choice"],
@@ -51,72 +45,65 @@ const resolveReasoning = (
 ): ResponseResource["reasoning"] =>
   reasoning ? { effort: reasoning.effort ?? null, summary: reasoning.summary ?? null } : null;
 
-const make = () =>
-  Effect.succeed(
-    AIService.of({
-      makeRequest: (req) =>
-        Effect.gen(function* () {
-          if (!req.model)
-            return yield* Effect.fail(new AIServiceError({ message: "`model` field is required" }));
+export const makeRequest = (req: CreateResponseBody) =>
+  Effect.gen(function* () {
+    if (!req.model)
+      return yield* Effect.fail(new AIServiceError({ message: "`model` field is required" }));
 
-          const now = Date.now();
+    const now = Date.now();
 
-          return yield* Effect.succeed({
-            id: crypto.randomUUID(),
-            object: "response" as const,
-            created_at: now,
-            completed_at: now,
-            status: "completed",
-            incomplete_details: null,
-            model: req.model,
-            previous_response_id: req.previous_response_id ?? null,
-            instructions: req.instructions ?? null,
-            output: [
-              {
-                type: "Message" as const,
-                id: crypto.randomUUID(),
-                status: "completed" as const,
-                role: "assistant" as const,
-                content: [
-                  {
-                    type: "OutputTextContent" as const,
-                    text: "Hello There!!",
-                    annotations: [],
-                    logprobs: [],
-                  },
-                ],
-              },
-            ],
-            error: null,
-            tools: resolveTools(req.tools),
-            tool_choice: resolveToolChoice(req.tool_choice),
-            truncation: req.truncation ?? DEFAULT_TRUNCATION,
-            parallel_tool_calls: req.parallel_tool_calls ?? DEFAULT_PARALLEL_TOOL_CALLS,
-            text: { format: { type: "text" as const } },
-            top_p: req.top_p ?? DEFAULT_TOP_P,
-            presence_penalty: req.presence_penalty ?? DEFAULT_PRESENCE_PENALTY,
-            frequency_penalty: req.frequency_penalty ?? DEFAULT_FREQUENCY_PENALTY,
-            top_logprobs: req.top_logprobs ?? DEFAULT_TOP_LOGPROBS,
-            temperature: req.temperature ?? DEFAULT_TEMPERATURE,
-            reasoning: resolveReasoning(req.reasoning),
-            usage: {
-              input_tokens: MOCK_INPUT_TOKENS,
-              output_tokens: MOCK_OUTPUT_TOKENS,
-              input_tokens_details: { cached_tokens: MOCK_CACHED_TOKENS },
-              output_tokens_details: { reasoning_tokens: MOCK_REASONING_TOKENS },
-              total_tokens: MOCK_INPUT_TOKENS + MOCK_OUTPUT_TOKENS,
+    return yield* Effect.succeed({
+      id: crypto.randomUUID(),
+      object: "response" as const,
+      created_at: now,
+      completed_at: now,
+      status: "completed",
+      incomplete_details: null,
+      model: req.model,
+      previous_response_id: req.previous_response_id ?? null,
+      instructions: req.instructions ?? null,
+      output: [
+        {
+          type: "Message" as const,
+          id: crypto.randomUUID(),
+          status: "completed" as const,
+          role: "assistant" as const,
+          content: [
+            {
+              type: "OutputTextContent" as const,
+              text: "Hello There!!",
+              annotations: [],
+              logprobs: [],
             },
-            max_output_tokens: req.max_output_tokens ?? null,
-            max_tool_calls: req.max_tool_calls ?? null,
-            store: req.store ?? DEFAULT_STORE,
-            background: req.background ?? DEFAULT_BACKGROUND,
-            service_tier: req.service_tier ?? DEFAULT_SERVICE_TIER,
-            metadata: req.metadata ?? null,
-            safety_identifier: req.safety_identifier ?? null,
-            prompt_cache_key: req.prompt_cache_key ?? null,
-          } satisfies ResponseResource);
-        }),
-    }),
-  );
-
-export const AIServiceLive = Layer.effect(AIService, make());
+          ],
+        },
+      ],
+      error: null,
+      tools: resolveTools(req.tools),
+      tool_choice: resolveToolChoice(req.tool_choice),
+      truncation: req.truncation ?? DEFAULT_TRUNCATION,
+      parallel_tool_calls: req.parallel_tool_calls ?? DEFAULT_PARALLEL_TOOL_CALLS,
+      text: { format: { type: "text" as const } },
+      top_p: req.top_p ?? DEFAULT_TOP_P,
+      presence_penalty: req.presence_penalty ?? DEFAULT_PRESENCE_PENALTY,
+      frequency_penalty: req.frequency_penalty ?? DEFAULT_FREQUENCY_PENALTY,
+      top_logprobs: req.top_logprobs ?? DEFAULT_TOP_LOGPROBS,
+      temperature: req.temperature ?? DEFAULT_TEMPERATURE,
+      reasoning: resolveReasoning(req.reasoning),
+      usage: {
+        input_tokens: MOCK_INPUT_TOKENS,
+        output_tokens: MOCK_OUTPUT_TOKENS,
+        input_tokens_details: { cached_tokens: MOCK_CACHED_TOKENS },
+        output_tokens_details: { reasoning_tokens: MOCK_REASONING_TOKENS },
+        total_tokens: MOCK_INPUT_TOKENS + MOCK_OUTPUT_TOKENS,
+      },
+      max_output_tokens: req.max_output_tokens ?? null,
+      max_tool_calls: req.max_tool_calls ?? null,
+      store: req.store ?? DEFAULT_STORE,
+      background: req.background ?? DEFAULT_BACKGROUND,
+      service_tier: req.service_tier ?? DEFAULT_SERVICE_TIER,
+      metadata: req.metadata ?? null,
+      safety_identifier: req.safety_identifier ?? null,
+      prompt_cache_key: req.prompt_cache_key ?? null,
+    } satisfies ResponseResource);
+  });

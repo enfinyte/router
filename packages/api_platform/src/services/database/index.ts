@@ -1,5 +1,4 @@
 import { Effect, Context, Data, Layer } from "effect";
-import type { ResponseResource } from "../responses/schema";
 
 export class DatabaseServiceError extends Data.TaggedError("DatabaseServiceError")<{
   cause?: unknown;
@@ -7,7 +6,7 @@ export class DatabaseServiceError extends Data.TaggedError("DatabaseServiceError
 }> {}
 
 interface DatabaseServiceImpl {
-  persist: (resource: ResponseResource) => Effect.Effect<void, DatabaseServiceError, never>;
+  readonly query: (sql: string) => Effect.Effect<unknown, DatabaseServiceError, never>;
 }
 
 export class DatabaseService extends Context.Tag("DatabaseService")<
@@ -18,7 +17,7 @@ export class DatabaseService extends Context.Tag("DatabaseService")<
 const make = () =>
   Effect.succeed(
     DatabaseService.of({
-      persist: (_resource) => Effect.void,
+      query: (_sql) => Effect.succeed({ rows: [] }),
     }),
   );
 
