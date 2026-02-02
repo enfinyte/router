@@ -1,14 +1,16 @@
 import { Effect } from "effect";
-import { ParseError } from "./types";
-import type { ResolvedResponse } from "./types";
+import { ProviderModelParseError } from "../types";
+import { ProviderModelPair } from "../types";
 
-export const parseModelImpl = (input: string): Effect.Effect<ResolvedResponse, ParseError> =>
+export const parseProviderModelImpl = (
+  input: string,
+): Effect.Effect<ProviderModelPair, ProviderModelParseError> =>
   Effect.gen(function* () {
     const firstSlashIndex = input.indexOf("/");
 
     if (firstSlashIndex === -1) {
       return yield* Effect.fail(
-        new ParseError({
+        new ProviderModelParseError({
           reason: "BadFormatting",
           message: `Expected format "provider/model", got: "${input}"`,
         }),
@@ -20,7 +22,7 @@ export const parseModelImpl = (input: string): Effect.Effect<ResolvedResponse, P
 
     if (!provider) {
       return yield* Effect.fail(
-        new ParseError({
+        new ProviderModelParseError({
           reason: "EmptyProvider",
           message: `Provider must be non-empty, got: "${input}"`,
         }),
@@ -29,7 +31,7 @@ export const parseModelImpl = (input: string): Effect.Effect<ResolvedResponse, P
 
     if (!model) {
       return yield* Effect.fail(
-        new ParseError({
+        new ProviderModelParseError({
           reason: "EmptyModel",
           message: `Model must be non-empty, got: "${input}"`,
         }),
@@ -42,7 +44,7 @@ export const parseModelImpl = (input: string): Effect.Effect<ResolvedResponse, P
 
     if (!providerRegex.test(provider)) {
       return yield* Effect.fail(
-        new ParseError({
+        new ProviderModelParseError({
           reason: "InvalidCharacters",
           message: `Provider contains invalid characters (only alphanumeric, underscore, dot, and hyphen allowed), got: "${provider}"`,
         }),
@@ -51,12 +53,12 @@ export const parseModelImpl = (input: string): Effect.Effect<ResolvedResponse, P
 
     if (!modelRegex.test(model)) {
       return yield* Effect.fail(
-        new ParseError({
+        new ProviderModelParseError({
           reason: "InvalidCharacters",
           message: `Model contains invalid characters (only alphanumeric, underscore, dot, and hyphen allowed), got: "${model}"`,
         }),
       );
     }
 
-    return { provider, model } as ResolvedResponse;
+    return new ProviderModelPair({ provider, model });
   });
