@@ -6,7 +6,7 @@ const DEFAULT_TOP_P = 1.0;
 const DEFAULT_PRESENCE_PENALTY = 0.0;
 const DEFAULT_FREQUENCY_PENALTY = 0.0;
 const DEFAULT_TOP_LOGPROBS = 0;
-const DEFAULT_TRUNCATION = "disabled" as const;
+const DEFAULT_TRUNCATION = "auto" as const;
 const DEFAULT_PARALLEL_TOOL_CALLS = false;
 const DEFAULT_STORE = true;
 const DEFAULT_BACKGROUND = false;
@@ -62,22 +62,7 @@ export const makeRequest = (req: CreateResponseBody) =>
       model: req.model,
       previous_response_id: req.previous_response_id ?? null,
       instructions: req.instructions ?? null,
-      output: [
-        {
-          type: "Message" as const,
-          id: crypto.randomUUID(),
-          status: "completed" as const,
-          role: "assistant" as const,
-          content: [
-            {
-              type: "OutputTextContent" as const,
-              text: "Hello There!!",
-              annotations: [],
-              logprobs: [],
-            },
-          ],
-        },
-      ],
+      output: [],
       error: null,
       tools: resolveTools(req.tools),
       tool_choice: resolveToolChoice(req.tool_choice),
