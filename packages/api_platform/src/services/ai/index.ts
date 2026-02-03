@@ -33,7 +33,7 @@ const resolveToolChoice = (
 
 const resolveTools = (tools: CreateResponseBody["tools"]): ResponseResource["tools"] =>
   tools?.map((t) => ({
-    type: "FunctionTool" as const,
+    type: "function" as const,
     name: t.name,
     description: t.description ?? null,
     parameters: t.parameters ?? null,
@@ -62,7 +62,22 @@ export const makeRequest = (req: CreateResponseBody) =>
       model: req.model,
       previous_response_id: req.previous_response_id ?? null,
       instructions: req.instructions ?? null,
-      output: [],
+      output: [
+        {
+          id: crypto.randomUUID(),
+          type: "message",
+          role: "assistant",
+          status: "completed",
+          content: [
+            {
+              type: "output_text",
+              text: "ahoy there mate",
+              annotations: [],
+              logprobs: [],
+            },
+          ],
+        },
+      ],
       error: null,
       tools: resolveTools(req.tools),
       tool_choice: resolveToolChoice(req.tool_choice),
