@@ -27,25 +27,25 @@ const ReasoningSummaryContentParamSchema = Schema.Struct({
 });
 
 const InputTextContentParamSchema = Schema.Struct({
-  type: Schema.Literal("InputTextContentParam"),
+  type: Schema.Literal("input_text"),
   text: Schema.String,
 });
 
 const InputImageContentParamAutoParamSchema = Schema.Struct({
-  type: Schema.Literal("InputImageContentParamAutoParam"),
+  type: Schema.Literal("input_image"),
   image_url: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
   detail: Schema.optionalWith(Schema.NullOr(ImageDetailSchema), { exact: true }),
 });
 
 const InputFileContentParamSchema = Schema.Struct({
-  type: Schema.Literal("InputFileContentParam"),
+  type: Schema.Literal("input_file"),
   filename: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
   file_data: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
   file_url: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
 });
 
 const InputVideoContentSchema = Schema.Struct({
-  type: Schema.Literal("InputVideoContent"),
+  type: Schema.Literal("input_video"),
   video_url: Schema.String,
 });
 
@@ -58,24 +58,24 @@ const UrlCitationParamSchema = Schema.Struct({
 });
 
 const OutputTextContentParamSchema = Schema.Struct({
-  type: Schema.Literal("OutputTextContentParam"),
+  type: Schema.Literal("output_text"),
   text: Schema.String,
   annotations: Schema.optionalWith(Schema.Array(UrlCitationParamSchema), { exact: true }),
 });
 
 const RefusalContentParamSchema = Schema.Struct({
-  type: Schema.Literal("RefusalContentParam"),
+  type: Schema.Literal("refusal"),
   refusal: Schema.String,
 });
 
 const ItemReferenceParamSchema = Schema.Struct({
-  type: Schema.Literal("ItemReferenceParam"),
+  type: Schema.Literal("item_reference"),
   id: Schema.String,
 });
 
 const ReasoningItemParamSchema = Schema.Struct({
   id: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
-  type: Schema.Literal("ReasoningItemParam"),
+  type: Schema.Literal("reasoning"),
   summary: Schema.Array(ReasoningSummaryContentParamSchema),
   content: Schema.optionalWith(Schema.Null, { exact: true }),
   encrypted_content: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
@@ -83,7 +83,7 @@ const ReasoningItemParamSchema = Schema.Struct({
 
 const UserMessageItemParamSchema = Schema.Struct({
   id: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
-  type: Schema.Literal("UserMessageItemParam"),
+  type: Schema.Literal("message"),
   role: Schema.Literal("user"),
   content: Schema.Union(
     Schema.Array(
@@ -100,7 +100,7 @@ const UserMessageItemParamSchema = Schema.Struct({
 
 const SystemMessageItemParamSchema = Schema.Struct({
   id: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
-  type: Schema.Literal("SystemMessageItemParam"),
+  type: Schema.Literal("message"),
   role: Schema.Literal("system"),
   content: Schema.Union(Schema.Array(InputTextContentParamSchema), Schema.String),
   status: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
@@ -108,7 +108,7 @@ const SystemMessageItemParamSchema = Schema.Struct({
 
 const DeveloperMessageItemParamSchema = Schema.Struct({
   id: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
-  type: Schema.Literal("DeveloperMessageItemParam"),
+  type: Schema.Literal("message"),
   role: Schema.Literal("developer"),
   content: Schema.Union(Schema.Array(InputTextContentParamSchema), Schema.String),
   status: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
@@ -116,7 +116,7 @@ const DeveloperMessageItemParamSchema = Schema.Struct({
 
 const AssistantMessageItemParamSchema = Schema.Struct({
   id: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
-  type: Schema.Literal("AssistantMessageItemParam"),
+  type: Schema.Literal("message"),
   role: Schema.Literal("assistant"),
   content: Schema.Union(
     Schema.Array(Schema.Union(OutputTextContentParamSchema, RefusalContentParamSchema)),
@@ -128,7 +128,7 @@ const AssistantMessageItemParamSchema = Schema.Struct({
 const FunctionCallItemParamSchema = Schema.Struct({
   id: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
   call_id: Schema.String,
-  type: Schema.Literal("FunctionCallItemParam"),
+  type: Schema.Literal("function_call"),
   name: Schema.String,
   arguments: Schema.String,
   status: Schema.optionalWith(Schema.NullOr(FunctionCallStatusSchema), { exact: true }),
@@ -137,7 +137,7 @@ const FunctionCallItemParamSchema = Schema.Struct({
 const FunctionCallOutputItemParamSchema = Schema.Struct({
   id: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
   call_id: Schema.String,
-  type: Schema.Literal("FunctionCallOutputItemParam"),
+  type: Schema.Literal("function_call_output"),
   output: Schema.Union(
     Schema.String,
     Schema.Array(
@@ -163,14 +163,14 @@ const ItemParamSchema = Schema.Union(
   FunctionCallOutputItemParamSchema,
 );
 
-const EmptyModelParamSchema = Schema.Record({ key: Schema.String, value: Schema.Never });
+const EmptyModelParamSchema = Schema.Record({ key: Schema.String, value: Schema.Unknown });
 
 const FunctionToolParamSchema = Schema.Struct({
   name: Schema.String,
   description: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
   parameters: Schema.optionalWith(Schema.NullOr(EmptyModelParamSchema), { exact: true }),
   strict: Schema.optionalWith(Schema.Boolean, { exact: true }),
-  type: Schema.Literal("FunctionToolParam"),
+  type: Schema.Literal("function"),
 });
 
 const SpecificFunctionParamSchema = Schema.Struct({
@@ -263,12 +263,12 @@ const MessageStatusSchema = Schema.Literal("in_progress", "completed", "incomple
 const MessageRoleSchema = Schema.Literal("user", "assistant", "system", "developer");
 
 const InputTextContentSchema = Schema.Struct({
-  type: Schema.Literal("InputTextContent"),
+  type: Schema.Literal("input_text"),
   text: Schema.String,
 });
 
 const UrlCitationBodySchema = Schema.Struct({
-  type: Schema.Literal("UrlCitationBody"),
+  type: Schema.Literal("url_citation"),
   url: Schema.String,
   start_index: Schema.Number,
   end_index: Schema.Number,
@@ -289,40 +289,40 @@ const LogProbSchema = Schema.Struct({
 });
 
 const OutputTextContentSchema = Schema.Struct({
-  type: Schema.Literal("OutputTextContent"),
+  type: Schema.Literal("output_text"),
   text: Schema.String,
   annotations: Schema.Array(UrlCitationBodySchema),
   logprobs: Schema.Array(LogProbSchema),
 });
 
 const TextContentSchema = Schema.Struct({
-  type: Schema.Literal("TextContent"),
+  type: Schema.Literal("text_content"),
   text: Schema.String,
 });
 
 const SummaryTextContentSchema = Schema.Struct({
-  type: Schema.Literal("SummaryTextContent"),
+  type: Schema.Literal("summary_text"),
   text: Schema.String,
 });
 
 const ReasoningTextContentSchema = Schema.Struct({
-  type: Schema.Literal("ReasoningTextContent"),
+  type: Schema.Literal("reasoning"),
   text: Schema.String,
 });
 
 const RefusalContentSchema = Schema.Struct({
-  type: Schema.Literal("RefusalContent"),
+  type: Schema.Literal("refusal"),
   refusal: Schema.String,
 });
 
 const InputImageContentSchema = Schema.Struct({
-  type: Schema.Literal("InputImageContent"),
+  type: Schema.Literal("input_image"),
   image_url: Schema.NullOr(Schema.String),
   detail: ImageDetailSchema,
 });
 
 const InputFileContentSchema = Schema.Struct({
-  type: Schema.Literal("InputFileContent"),
+  type: Schema.Literal("input_file"),
   filename: Schema.optionalWith(Schema.String, { exact: true }),
   file_url: Schema.optionalWith(Schema.String, { exact: true }),
 });
@@ -351,7 +351,7 @@ const MessageContentPartSchema = Schema.Union(
 );
 
 const MessageSchema = Schema.Struct({
-  type: Schema.Literal("Message"),
+  type: Schema.Literal("message"),
   id: Schema.String,
   status: MessageStatusSchema,
   role: MessageRoleSchema,
@@ -359,7 +359,7 @@ const MessageSchema = Schema.Struct({
 });
 
 const FunctionCallSchema = Schema.Struct({
-  type: Schema.Literal("FunctionCall"),
+  type: Schema.Literal("function_call"),
   id: Schema.String,
   call_id: Schema.String,
   name: Schema.String,
@@ -368,7 +368,7 @@ const FunctionCallSchema = Schema.Struct({
 });
 
 const FunctionCallOutputSchema = Schema.Struct({
-  type: Schema.Literal("FunctionCallOutput"),
+  type: Schema.Literal("function_call_output"),
   id: Schema.String,
   call_id: Schema.String,
   output: Schema.Union(
@@ -381,7 +381,7 @@ const FunctionCallOutputSchema = Schema.Struct({
 });
 
 const ReasoningBodySchema = Schema.Struct({
-  type: Schema.Literal("ReasoningBody"),
+  type: Schema.Literal("reasoning"),
   id: Schema.String,
   content: Schema.optionalWith(Schema.Array(ResponseContentPartSchema), { exact: true }),
   summary: Schema.Array(ResponseContentPartSchema),
@@ -412,7 +412,7 @@ const ResponseErrorSchema = Schema.Struct({
 });
 
 const FunctionToolSchema = Schema.Struct({
-  type: Schema.Literal("FunctionTool"),
+  type: Schema.Literal("function"),
   name: Schema.String,
   description: Schema.NullOr(Schema.String),
   parameters: Schema.NullOr(Schema.Record({ key: Schema.String, value: Schema.Unknown })),
@@ -504,7 +504,7 @@ export const ResponseResourceSchema = Schema.Struct({
   store: Schema.Boolean,
   background: Schema.Boolean,
   service_tier: Schema.String,
-  metadata: Schema.Unknown,
+  metadata: Schema.NullOr(Schema.Record({ key: Schema.String, value: Schema.String })),
   safety_identifier: Schema.NullOr(Schema.String),
   prompt_cache_key: Schema.NullOr(Schema.String),
 });
