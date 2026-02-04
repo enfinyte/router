@@ -1,62 +1,61 @@
 import { Effect, Data } from "effect";
 import type { CreateResponseBody, ResponseResource } from "../responses/schema";
-
-const DEFAULT_TEMPERATURE = 1.0;
-const DEFAULT_TOP_P = 1.0;
-const DEFAULT_PRESENCE_PENALTY = 0.0;
-const DEFAULT_FREQUENCY_PENALTY = 0.0;
-const DEFAULT_TOP_LOGPROBS = 0;
-const DEFAULT_TRUNCATION = "auto" as const;
-const DEFAULT_PARALLEL_TOOL_CALLS = false;
-const DEFAULT_STORE = true;
-const DEFAULT_BACKGROUND = false;
-const DEFAULT_SERVICE_TIER = "default";
-
-const MOCK_INPUT_TOKENS = 1000;
-const MOCK_OUTPUT_TOKENS = 100;
-const MOCK_REASONING_TOKENS = 0;
-const MOCK_CACHED_TOKENS = 0;
+import {
+  resolveReasoning,
+  resolveTools,
+  resolveToolChoice,
+} from "./createRequestBodyFieldsToResponseResourceFieldsResolvers";
+import {
+  DEFAULT_BACKGROUND,
+  DEFAULT_FREQUENCY_PENALTY,
+  DEFAULT_PARALLEL_TOOL_CALLS,
+  DEFAULT_PRESENCE_PENALTY,
+  DEFAULT_SERVICE_TIER,
+  DEFAULT_STORE,
+  DEFAULT_TEMPERATURE,
+  DEFAULT_TOP_LOGPROBS,
+  DEFAULT_TOP_P,
+  DEFAULT_TRUNCATION,
+  MOCK_CACHED_TOKENS,
+  MOCK_INPUT_TOKENS,
+  MOCK_OUTPUT_TOKENS,
+  MOCK_REASONING_TOKENS,
+} from "./consts";
+import * as pmrService from "../pmr";
+import { buildLanguageModelFromResolvedModelAndProvider } from "./buildLanguageModelFromResolvedModelAndProvider";
 
 export class AIServiceError extends Data.TaggedError("AIServiceError")<{
   cause?: unknown;
   message?: string;
 }> {}
 
-const resolveToolChoice = (
-  tc: CreateResponseBody["tool_choice"],
-): ResponseResource["tool_choice"] => {
-  if (!tc) return "none";
-  if (typeof tc === "string") return tc;
-  if (tc.type === "function") return tc;
-  return { ...tc, mode: tc.mode ?? "auto" };
-};
-
-const resolveTools = (tools: CreateResponseBody["tools"]): ResponseResource["tools"] =>
-  tools?.map((t) => ({
-    type: "function" as const,
-    name: t.name,
-    description: t.description ?? null,
-    parameters: t.parameters ?? null,
-    strict: t.strict ?? null,
-  })) ?? [];
-
-const resolveReasoning = (
-  reasoning: CreateResponseBody["reasoning"],
-): ResponseResource["reasoning"] =>
-  reasoning ? { effort: reasoning.effort ?? null, summary: reasoning.summary ?? null } : null;
-
-export const makeRequest = (req: CreateResponseBody) =>
+export const execute = (req: CreateResponseBody) =>
   Effect.gen(function* () {
-    if (!req.model)
-      return yield* Effect.fail(new AIServiceError({ message: "`model` field is required" }));
+    const created_at = Date.now();
 
-    const now = Date.now();
+    const requestedModel = req.model;
+    if (!requestedModel)
+      // XXX: THIS SHOULD BE HANDLED BY ROUTE VALIDATION, BUT JUST IN CASE TO SATISFY TYPESCRIPT
+      return yield* Effect.fail(
+        new AIServiceError({ message: "`model` field is required or should not be empty" }),
+      );
+
+    const resolvedModelAndProvider = yield* pmrService.resolve({ ...req, model: requestedModel });
+
+    const languageModel =
+      yield* buildLanguageModelFromResolvedModelAndProvider(resolvedModelAndProvider);
+
+    if (req.text && req.text.format?.type === "json_schema") {
+      // DO GENERATE OBJECT BASED ON SCHEMA
+    } else {
+      // DO GENERATE NORMAL TEXT RESPONSE
+    }
 
     return yield* Effect.succeed({
       id: crypto.randomUUID(),
       object: "response" as const,
-      created_at: now,
-      completed_at: now,
+      created_at: created_at,
+      completed_at: Date.now(),
       status: "completed",
       incomplete_details: null,
       model: req.model,
