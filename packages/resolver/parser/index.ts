@@ -1,20 +1,9 @@
 import { Effect } from "effect";
 import { isIntent, parseIntentImpl } from "./parse_intent";
 import { parseProviderModelImpl } from "./parse_provider_model";
-import type {
-  IntentPair,
-  IntentParseError,
-  ProviderModelPair,
-  ProviderModelParseError,
-} from "../types";
 import { ParseError } from "../types";
 
-export const parseImpl = (
-  model: string,
-): Effect.Effect<
-  IntentPair | ProviderModelPair,
-  ParseError | IntentParseError | ProviderModelParseError
-> =>
+export const parseImpl = (model: string) =>
   Effect.gen(function* () {
     const firstSlashIndex = model.indexOf("/");
     if (firstSlashIndex === -1) {
