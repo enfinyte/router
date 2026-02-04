@@ -6,7 +6,7 @@ const DEFAULT_TOP_P = 1.0;
 const DEFAULT_PRESENCE_PENALTY = 0.0;
 const DEFAULT_FREQUENCY_PENALTY = 0.0;
 const DEFAULT_TOP_LOGPROBS = 0;
-const DEFAULT_TRUNCATION = "disabled" as const;
+const DEFAULT_TRUNCATION = "auto" as const;
 const DEFAULT_PARALLEL_TOOL_CALLS = false;
 const DEFAULT_STORE = true;
 const DEFAULT_BACKGROUND = false;
@@ -33,7 +33,7 @@ const resolveToolChoice = (
 
 const resolveTools = (tools: CreateResponseBody["tools"]): ResponseResource["tools"] =>
   tools?.map((t) => ({
-    type: "FunctionTool" as const,
+    type: "function" as const,
     name: t.name,
     description: t.description ?? null,
     parameters: t.parameters ?? null,
@@ -64,14 +64,14 @@ export const makeRequest = (req: CreateResponseBody) =>
       instructions: req.instructions ?? null,
       output: [
         {
-          type: "Message" as const,
           id: crypto.randomUUID(),
-          status: "completed" as const,
-          role: "assistant" as const,
+          type: "message",
+          role: "assistant",
+          status: "completed",
           content: [
             {
-              type: "OutputTextContent" as const,
-              text: "Hello There!!",
+              type: "output_text",
+              text: "ahoy there mate",
               annotations: [],
               logprobs: [],
             },
