@@ -7,6 +7,9 @@
     "gen:responses-types": "bunx openapi-typescript https://www.openresponses.org/openapi/openapi.json -o ./src/services/responses/model.d.ts"
   },
   "dependencies": {
+    "@ai-sdk/amazon-bedrock": "^4.0.48",
+    "@ai-sdk/openai": "^3.0.25",
+    "ai": "^6.0.69",
     "common": "workspace:*",
     "kysely": "^0.28.11",
     "pg": "^8.18.0"
