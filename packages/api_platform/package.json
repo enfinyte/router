@@ -9,8 +9,10 @@
   "dependencies": {
     "@ai-sdk/amazon-bedrock": "^4.0.48",
     "@ai-sdk/openai": "^3.0.25",
+    "@tokenizer/http": "^0.9.2",
     "ai": "^6.0.69",
     "common": "workspace:*",
+    "file-type": "^21.3.0",
     "kysely": "^0.28.11",
     "pg": "^8.18.0"
   },
