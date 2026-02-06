@@ -1,4 +1,4 @@
-import { Effect, Data } from "effect";
+import { Effect, Data, Either } from "effect";
 import type { CreateResponseBody, ResponseResource } from "../responses/schema";
 import {
   resolveReasoning,
@@ -23,8 +23,10 @@ import {
 } from "./consts";
 import * as pmrService from "../pmr";
 import { buildLanguageModelFromResolvedModelAndProvider } from "./buildLanguageModelFromResolvedModelAndProvider";
-import { generateText } from "ai";
-import { convertCreateResponseBodyInputFieldToCallSettingsMessages } from "./createResponseBodyToAISDKGenerateTextCallSettingsAdapters";
+import { APICallError, generateText, type GenerateTextResult, type ToolSet } from "ai";
+import { convertCreateResponseBodyInputFieldToCallSettingsMessages } from "./responseFieldsToAISDKGenerateTextCallSettingsAdapters";
+import { convertAPICallErrorToResponseResource } from "./convertAPICallErrorToResponseResource";
+import { convertAISdkGenerateTextResultToResponseResource } from "./convertAISdkGenerateTextResultToResponseResource";
 
 export class AIServiceError extends Data.TaggedError("AIServiceError")<{
   cause?: unknown;
@@ -33,7 +35,7 @@ export class AIServiceError extends Data.TaggedError("AIServiceError")<{
 
 export const execute = (createResponseBody: CreateResponseBody) =>
   Effect.gen(function* () {
-    const created_at = Date.now();
+    const createdAt = Date.now();
 
     const requestedModel = createResponseBody.model;
     if (!requestedModel)
@@ -54,34 +56,61 @@ export const execute = (createResponseBody: CreateResponseBody) =>
       yield* convertCreateResponseBodyInputFieldToCallSettingsMessages(createResponseBody);
 
     // NOTE: parallel_tool_calls, max_tool_calls, prompt_cache_key, truncation, top_logProbs
-    const generateTextResult = yield* Effect.tryPromise({
-      try(abortSignal) {
-        return generateText({
-          model: languageModel,
-          messages,
-          abortSignal,
-          ...(createResponseBody.max_output_tokens
-            ? { maxOutputTokens: createResponseBody.max_output_tokens }
-            : {}),
-          ...(createResponseBody.top_p ? { topP: createResponseBody.top_p } : {}),
-          ...(createResponseBody.temperature
-            ? { temperature: createResponseBody.temperature }
-            : {}),
-          ...(createResponseBody.presence_penalty
-            ? { presencePenalty: createResponseBody.presence_penalty }
-            : {}),
-          ...(createResponseBody.frequency_penalty
-            ? { frequencyPenalty: createResponseBody.frequency_penalty }
-            : {}),
-        });
-      },
-      catch(error) {},
+    const result = yield* Effect.either(
+      Effect.tryPromise({
+        try(abortSignal) {
+          return generateText({
+            model: languageModel,
+            messages,
+            abortSignal,
+            ...(createResponseBody.max_output_tokens
+              ? { maxOutputTokens: createResponseBody.max_output_tokens }
+              : {}),
+            ...(createResponseBody.top_p ? { topP: createResponseBody.top_p } : {}),
+            ...(createResponseBody.temperature
+              ? { temperature: createResponseBody.temperature }
+              : {}),
+            ...(createResponseBody.presence_penalty
+              ? { presencePenalty: createResponseBody.presence_penalty }
+              : {}),
+            ...(createResponseBody.frequency_penalty
+              ? { frequencyPenalty: createResponseBody.frequency_penalty }
+              : {}),
+          });
+        },
+        catch(error) {
+          if (error instanceof APICallError) return error;
+          return new AIServiceError({ cause: error, message: "Error while calling generateText" });
+        },
+      }),
+    );
+
+    if (Either.isLeft(result)) {
+      const errorValue = result.left;
+
+      if (errorValue instanceof AIServiceError) return yield* Effect.fail(errorValue);
+
+      return yield* convertAPICallErrorToResponseResource({
+        result: errorValue,
+        createResponseBody,
+        createdAt,
+        resolvedModelAndProvider,
+      });
+    }
+
+    const generateTextResult = result.right;
+
+    return convertAISdkGenerateTextResultToResponseResource({
+      result: generateTextResult,
+      createResponseBody,
+      createdAt,
+      resolvedModelAndProvider,
     });
 
     return yield* Effect.succeed({
       id: crypto.randomUUID(),
       object: "response" as const,
-      created_at: created_at,
+      created_at: createdAt,
       completed_at: Date.now(),
       status: "completed",
       incomplete_details: null,
