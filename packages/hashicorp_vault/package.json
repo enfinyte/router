@@ -1,0 +1,15 @@
+{
+  "name": "hashicorp_vault",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "common": "workspace:*",
+    "node-vault": "^0.10.9"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
