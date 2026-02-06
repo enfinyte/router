@@ -45,13 +45,16 @@ export const convertCreateResponseBodyInputFieldToCallSettingsMessages = (
 
     const inputItemsAsModelMessage = yield* Effect.all(input.map(convertInputItemToModelMessage));
 
-    return yield* Effect.succeed([
-      ...instructionsAsSystemMessage,
-      ...inputItemsAsModelMessage.flat(),
-    ]);
+    return yield* Effect.succeed(
+      [...instructionsAsSystemMessage, ...inputItemsAsModelMessage.flat()].filter(
+        isNotNullable,
+      ) satisfies ModelMessage[] as ModelMessage[],
+    );
   });
 
-const convertInputItemToModelMessage = (createResponseBodyInputItem: CreateResponseBodyInputItem) =>
+const convertInputItemToModelMessage = (
+  createResponseBodyInputItem: CreateResponseBodyInputItem,
+): Effect.Effect<ModelMessage[], AIServiceError, never> =>
   Effect.gen(function* () {
     switch (createResponseBodyInputItem.type) {
       case "message": {
@@ -233,6 +236,15 @@ const convertInputItemToModelMessage = (createResponseBodyInputItem: CreateRespo
       }
 
       case "function_call": {
+        const parsedArguments = yield* Effect.try({
+          try: () => JSON.parse(createResponseBodyInputItem.arguments),
+          catch: (error) =>
+            new AIServiceError({
+              message: `Failed to parse function_call arguments: ${error}`,
+              cause: error,
+            }),
+        });
+
         return [
           {
             role: "assistant",
@@ -241,7 +253,7 @@ const convertInputItemToModelMessage = (createResponseBodyInputItem: CreateRespo
                 type: "tool-call",
                 toolCallId: createResponseBodyInputItem.call_id,
                 toolName: createResponseBodyInputItem.name,
-                input: JSON.parse(createResponseBodyInputItem.arguments),
+                input: parsedArguments,
                 providerExecuted: createResponseBodyInputItem.status === "completed",
               },
             ],
@@ -262,44 +274,78 @@ const convertInputItemToModelMessage = (createResponseBodyInputItem: CreateRespo
               {
                 type: "tool-result",
                 toolCallId: createResponseBodyInputItem.call_id,
-                toolName: "<<<NO_TOOL_NAME>>>",
-                output: (() => {
-                  const output = createResponseBodyInputItem.output;
-                  if (typeof output === "string") {
-                    return {
-                      type: "text",
-                      value: createResponseBodyInputItem.output,
-                    };
-                  }
-                  return output.map((outputItem) => {
-                    switch (outputItem.type) {
-                      case "input_text":
-                        return {
-                          type: "text",
-                          value: outputItem.text,
-                        };
-                      case "input_image": {
-                        if (!outputItem.image_url) return;
-                        return {
-                          type: "file-url",
-                          url: outputItem.image_url,
-                        };
-                      }
-                      case "input_file": {
-                        if (outputItem.file_data) {
-                          return {
-                            type: "file-data",
-                            file,
-                          };
-                        }
-                      }
+                toolName: crypto.randomUUID(),
+                output: yield* (() =>
+                  Effect.gen(function* () {
+                    const output = createResponseBodyInputItem.output;
+
+                    if (typeof output === "string") {
+                      return {
+                        type: "text",
+                        value: output,
+                      } satisfies ToolResultPart["output"];
                     }
-                  });
-                })() satisfies ToolResultPart["output"],
+
+                    return {
+                      type: "content",
+                      value: (yield* Effect.all(
+                        output.map((outputItem) =>
+                          Effect.gen(function* () {
+                            switch (outputItem.type) {
+                              case "input_text":
+                                return {
+                                  type: "text" as const,
+                                  text: outputItem.text,
+                                };
+                              case "input_image": {
+                                if (!outputItem.image_url) return;
+                                return {
+                                  type: "image-url" as const,
+                                  url: outputItem.image_url,
+                                };
+                              }
+                              case "input_file": {
+                                if (outputItem.file_data)
+                                  return {
+                                    type: "file-data" as const,
+                                    data: outputItem.file_data,
+                                    mediaType: yield* detectMimeTypeFromBase64EncodedString(
+                                      outputItem.file_data,
+                                    ),
+                                    filename: outputItem.filename ?? crypto.randomUUID(),
+                                  };
+                                else if (outputItem.file_url)
+                                  return {
+                                    type: "file-url" as const,
+                                    url: outputItem.file_url,
+                                  };
+                                else {
+                                  return;
+                                }
+                              }
+                              case "input_video": {
+                                return {
+                                  type: "file-url" as const,
+                                  url: outputItem.video_url,
+                                };
+                              }
+                            }
+                          }),
+                        ),
+                      )).filter(isNotNullable),
+                    } satisfies ToolResultPart["output"];
+                  }))(),
               },
             ],
           },
         ] satisfies ModelMessage[];
+      }
+      default: {
+        return yield* Effect.fail(
+          new AIServiceError({
+            message: `Unsupported input item type: ${(createResponseBodyInputItem as { type: string }).type}`,
+          }),
+        );
       }
     }
   });
