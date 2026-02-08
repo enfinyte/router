@@ -4,6 +4,7 @@ import { AIServiceError } from ".";
 import * as CredentialsService from "../credentials";
 import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
 import { createOpenAI } from "@ai-sdk/openai";
+import type { ResolvedModelAndProvider } from "../pmr";
 
 const buildInvalidProviderModelError = (provider?: string) =>
   Effect.fail(
@@ -14,10 +15,10 @@ const buildInvalidProviderModelError = (provider?: string) =>
   );
 
 export const buildLanguageModelFromResolvedModelAndProvider = (
-  providerModel: `${string}:${string}`,
+  providerModel: ResolvedModelAndProvider,
 ) =>
   Effect.gen(function* () {
-    const [provider, ...modelParts] = providerModel.split(":");
+    const [provider, ...modelParts] = providerModel.split("/");
 
     if (!provider || !modelParts.length) return yield* buildInvalidProviderModelError(provider);
 
