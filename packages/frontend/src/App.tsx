@@ -5,7 +5,7 @@ import { AuthPage } from './AuthPage';
 import { Dashboard } from './Dashboard';
 
 export const authClient = createAuthClient({
-  baseURL: "http://localhost:8000"
+  baseURL: "http://localhost:8000",
 });
 
 const App: Component = () => {

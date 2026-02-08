@@ -5,13 +5,14 @@ import type { IntentPair, ProviderModelPair, ResponseCreateParams } from "../typ
 import { resolveProviderModelPair } from "./resolve_provider_model";
 import { resolveIntentPair } from "./resolve_intent";
 
-const resolve = Match.type<IntentPair | ProviderModelPair>().pipe(
-  Match.tag("IntentPair", resolveIntentPair),
-  Match.tag("ProviderModelPair", resolveProviderModelPair),
-  Match.exhaustive,
-);
+const resolve = (userProviders: string[]) =>
+  Match.type<IntentPair | ProviderModelPair>().pipe(
+    Match.tag("IntentPair", (pair) => resolveIntentPair(pair, userProviders)),
+    Match.tag("ProviderModelPair", resolveProviderModelPair),
+    Match.exhaustive,
+  );
 
-export const resolveImpl = (options: ResponseCreateParams) =>
+export const resolveImpl = (options: ResponseCreateParams, userProviders: string[]) =>
   Effect.gen(function* () {
     if (typeof options.model !== "string") {
       return yield* Effect.fail(
@@ -23,6 +24,6 @@ export const resolveImpl = (options: ResponseCreateParams) =>
     }
 
     const parsed = yield* parseImpl(options.model);
-    const resolved = yield* resolve(parsed);
+    const resolved = yield* resolve(userProviders)(parsed);
     return resolved;
   });

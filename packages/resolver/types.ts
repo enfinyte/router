@@ -104,3 +104,8 @@ export class APICallError extends Data.TaggedError("IntentError")<{
   readonly reason: "CallFailed";
   readonly message: string;
 }> {}
+
+export class NoProviderAvailableError extends Data.TaggedError("NoProviderAvailableError")<{
+  readonly reason: "NoProviderConfigured";
+  readonly message: string;
+}> {}
