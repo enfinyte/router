@@ -162,6 +162,7 @@ const ItemParamSchema = Schema.Union(
   FunctionCallItemParamSchema,
   FunctionCallOutputItemParamSchema,
 );
+export type CreateResponseBodyInputItem = Schema.Schema.Type<typeof ItemParamSchema>;
 
 const EmptyModelParamSchema = Schema.Record({ key: Schema.String, value: Schema.Unknown });
 
