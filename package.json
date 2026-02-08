@@ -6,6 +6,7 @@
   "type": "module",
   "module": "index.ts",
   "dependencies": {
+    "@effect/platform": "^0.94.3",
     "@effect/platform-bun": "^0.87.1",
     "effect": "^3.19.15"
   },
