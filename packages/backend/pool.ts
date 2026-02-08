@@ -1,18 +1,21 @@
+import { Context, Effect, Layer } from "effect";
 import { Pool } from "pg";
 
-class DatabasePool {
-  private static instance: Pool;
+import { appConfig } from "./config";
 
-  private constructor() {}
+export class DatabasePool extends Context.Tag("DatabasePool")<DatabasePool, Pool>() {}
 
-  public static getInstance(): Pool {
-    if (!DatabasePool.instance) {
-      DatabasePool.instance = new Pool({
-        connectionString: process.env.POSTGRES_CONNECTION_STRING as string,
-      });
-    }
-    return DatabasePool.instance;
-  }
-}
+export const DatabasePoolLive = Layer.effect(
+  DatabasePool,
+  Effect.gen(function* () {
+    const { postgresConnectionString } = yield* appConfig;
+    const pool = new Pool({ connectionString: postgresConnectionString });
 
-export const pool = DatabasePool.getInstance();
+    // Graceful shutdown -- close connections when the process exits
+    // process.on("SIGTERM", () => pool.end());
+    // process.on("SIGINT", () => pool.end());
+
+    yield* Effect.log("Database pool created");
+    return pool;
+  }),
+);

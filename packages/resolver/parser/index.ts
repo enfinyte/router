@@ -1,22 +1,20 @@
 import { Effect } from "effect";
 import { isIntent, parseIntentImpl } from "./parse_intent";
 import { parseProviderModelImpl } from "./parse_provider_model";
-import { ParseError } from "../types";
+import { ProviderModelParseError } from "../types";
 
 export const parseImpl = (model: string) =>
   Effect.gen(function* () {
     const firstSlashIndex = model.indexOf("/");
     if (firstSlashIndex === -1) {
-      return yield* Effect.fail(
-        new ParseError({
-          reason: "BadFormatting",
-          message: `Expected format "{}/{}", got: "${model}"`,
-        }),
-      );
+      return yield* new ProviderModelParseError({
+        reason: "BadFormatting",
+        message: `Expected format "{}/{}", got: "${model}"`,
+      });
     }
-    const intent = model.substring(0, firstSlashIndex);
+    const prefix = model.substring(0, firstSlashIndex);
 
-    if (isIntent(intent)) {
+    if (isIntent(prefix)) {
       return yield* parseIntentImpl(model);
     }
     return yield* parseProviderModelImpl(model);

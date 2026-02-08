@@ -23,14 +23,8 @@ class ApiKeyVerificationError extends Data.TaggedError("ApiKeyVerificationError"
 
 interface VerifyResponse {
   valid: boolean;
-  key?: {
-    id: string;
-    name: string;
-    enabled: boolean;
-    userId: string;
-  } | null;
+  userId: string;
   providers?: string[];
-  error?: string;
 }
 
 const verifyApiKey = (backendUrl: string, apiKey: string) =>
@@ -72,10 +66,10 @@ export const withAuthorizationValidation = () =>
         Effect.catchTag("ApiKeyVerificationError", () => Effect.fail(new Unauthorized())),
       );
 
-      if (!verifyResult.valid || !verifyResult.key?.userId)
+      if (!verifyResult.valid || !verifyResult.userId)
         return yield* Effect.fail(new Unauthorized());
 
-      const userId = verifyResult.key.userId;
+      const userId = verifyResult.userId;
       const userProviders = verifyResult.providers ?? [];
 
       return yield* Effect.provide(

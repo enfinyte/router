@@ -94,7 +94,7 @@ export const responsesRouter = HttpRouter.empty.pipe(
     "/",
     Effect.gen(function* () {
       const createResponseBody = yield* HttpServerRequest.schemaBodyJson(CreateResponseBodySchema);
-      const _ = yield* validateCreateResponseBody(createResponseBody);
+      yield* validateCreateResponseBody(createResponseBody);
       const { userId, userProviders } = yield* RequestContext;
       const responsesObject = yield* ResponsesService.create(
         createResponseBody,

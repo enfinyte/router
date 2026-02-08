@@ -1,154 +1,122 @@
-import { addSecret, getSecret, deleteSecret, VaultService, VaultServiceLive } from "vault";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { Hono } from "hono";
-import { auth } from "./auth";
-import { pool } from "./pool";
+import type { Context as HonoContext } from "hono";
+import { addSecret, getSecret, deleteSecret } from "vault";
 
-const secretRoute = new Hono<{
-  Variables: {
-    user: typeof auth.$Infer.Session.user | null;
-    session: typeof auth.$Infer.Session.session | null;
-  };
-}>().basePath("/secret");
+import { DatabasePool } from "./pool";
+import {
+  DatabaseQueryError,
+  ProviderNotConfiguredError,
+  RequestValidationError,
+  UnauthorizedError,
+} from "./errors";
+import { CreateSecretBodySchema, ToggleEnabledBodySchema } from "./schemas";
+import { AppLive } from "./layers";
 
-function runVault<A, E>(effect: Effect.Effect<A, E, VaultService>): Promise<A> {
-  return Effect.runPromise(Effect.provide(effect, VaultServiceLive));
-}
+const getAuthenticatedUser = (c: HonoContext) => {
+  const user = c.get("user") as
+    | { id: string; name: string; email: string; image: string | null }
+    | null
+    | undefined;
+  if (!user) {
+    return Effect.fail(new UnauthorizedError({ message: "Unauthorized" }));
+  }
+  return Effect.succeed(user);
+};
 
-secretRoute.get("/", async (c) => {
-  const user = c.get("user");
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
-
-  try {
-    const result = await pool.query<{
-      providers: string[] | null;
-      disabledProviders: string[] | null;
-    }>(`SELECT "providers", "disabledProviders" FROM "secrets" WHERE "userId" = $1`, [user.id]);
-
-    const providers = result.rows[0]?.providers ?? [];
-    const disabledProviders = result.rows[0]?.disabledProviders ?? [];
-
-    const providerFields: Record<string, { fields: string[]; enabled: boolean }> = {};
-
-    await Promise.all(
-      providers.map(async (provider) => {
-        try {
-          const keys = await runVault(getSecret(user.id, provider));
-          providerFields[provider] = {
-            fields: Object.keys(keys).filter(
-              (k) => typeof keys[k] === "string" && keys[k].length > 0,
-            ),
-            enabled: !disabledProviders.includes(provider),
-          };
-        } catch {
-          providerFields[provider] = {
-            fields: [],
-            enabled: !disabledProviders.includes(provider),
-          };
-        }
+const parseJsonBody = (c: HonoContext) =>
+  Effect.tryPromise({
+    try: () => c.req.json() as Promise<unknown>,
+    catch: (error) =>
+      new RequestValidationError({
+        cause: error,
+        message: "Invalid JSON body",
       }),
-    );
+  });
 
-    return c.json({ providers: providerFields });
-  } catch (err) {
-    console.error("GET /v1/secret/ error:", err);
-    return c.json({ error: "Failed to fetch secrets" }, 500);
-  }
-});
+const queryUserSecrets = (pool: InstanceType<typeof import("pg").Pool>, userId: string) =>
+  Effect.tryPromise({
+    try: () =>
+      pool.query<{
+        providers: string[] | null;
+        disabledProviders: string[] | null;
+      }>(`SELECT "providers", "disabledProviders" FROM "secrets" WHERE "userId" = $1`, [userId]),
+    catch: (error) =>
+      new DatabaseQueryError({
+        cause: error,
+        message: "Failed to query secrets",
+      }),
+  });
 
-secretRoute.post("/", async (c) => {
-  const user = c.get("user");
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+const queryUserProviderList = (pool: InstanceType<typeof import("pg").Pool>, userId: string) =>
+  Effect.tryPromise({
+    try: () =>
+      pool.query<{ providers: string[] | null }>(
+        `SELECT "providers" FROM "secrets" WHERE "userId" = $1`,
+        [userId],
+      ),
+    catch: (error) =>
+      new DatabaseQueryError({
+        cause: error,
+        message: "Failed to query providers",
+      }),
+  });
 
-  const body = await c.req.json<{
-    provider: string;
-    keys: Record<string, string>;
-  }>();
+const upsertProvider = (
+  pool: InstanceType<typeof import("pg").Pool>,
+  userId: string,
+  provider: string,
+) =>
+  Effect.tryPromise({
+    try: () =>
+      pool.query(
+        `INSERT INTO "secrets" ("userId", "providers", "updatedAt")
+         VALUES ($1, ARRAY[$2]::text[], CURRENT_TIMESTAMP)
+         ON CONFLICT ("userId")
+         DO UPDATE SET
+           "providers" = CASE
+             WHEN $2 = ANY("secrets"."providers") THEN "secrets"."providers"
+             ELSE array_append("secrets"."providers", $2)
+           END,
+           "updatedAt" = CURRENT_TIMESTAMP`,
+        [userId, provider],
+      ),
+    catch: (error) =>
+      new DatabaseQueryError({
+        cause: error,
+        message: "Failed to upsert provider",
+      }),
+  });
 
-  if (!body.provider || !body.keys || typeof body.keys !== "object") {
-    return c.json({ error: "Invalid body: requires { provider, keys }" }, 400);
-  }
-
-  const incomingKeys: Record<string, string> = {};
-  for (const [k, v] of Object.entries(body.keys)) {
-    if (typeof v === "string" && v.trim().length > 0) {
-      incomingKeys[k] = v;
-    }
-  }
-
-  if (Object.keys(incomingKeys).length === 0) {
-    return c.json({ error: "No non-empty keys provided" }, 400);
-  }
-
-  try {
-    let existing: Record<string, string> = {};
-    try {
-      existing = await runVault(getSecret(user.id, body.provider));
-    } catch {}
-
-    const merged = { ...existing, ...incomingKeys };
-
-    await runVault(addSecret(body.provider, user.id, merged));
-
-    await pool.query(
-      `INSERT INTO "secrets" ("userId", "providers", "updatedAt")
-       VALUES ($1, ARRAY[$2]::text[], CURRENT_TIMESTAMP)
-       ON CONFLICT ("userId")
-       DO UPDATE SET
-         "providers" = CASE
-           WHEN $2 = ANY("secrets"."providers") THEN "secrets"."providers"
-           ELSE array_append("secrets"."providers", $2)
-         END,
-         "updatedAt" = CURRENT_TIMESTAMP`,
-      [user.id, body.provider],
-    );
-
-    return c.json({ success: true });
-  } catch (err) {
-    console.error("POST /v1/secret/ error:", err);
-    return c.json({ error: "Failed to save secret" }, 500);
-  }
-});
-
-secretRoute.patch("/:provider", async (c) => {
-  const user = c.get("user");
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
-
-  const provider = c.req.param("provider");
-  if (!provider) {
-    return c.json({ error: "Missing provider parameter" }, 400);
-  }
-
-  try {
-    const body = await c.req.json<{ enabled?: boolean }>();
-
-    if (typeof body.enabled !== "boolean") {
-      return c.json({ error: "Invalid body: requires { enabled: boolean }" }, 400);
-    }
-
-    // Check if provider exists for this user
-    const result = await pool.query<{ providers: string[] | null }>(
-      `SELECT "providers" FROM "secrets" WHERE "userId" = $1`,
-      [user.id],
-    );
-
-    const providers = result.rows[0]?.providers ?? [];
-    if (!providers.includes(provider)) {
-      return c.json({ error: "Provider not configured" }, 404);
-    }
-
-    if (body.enabled) {
-      // Remove from disabled list
-      await pool.query(
+const enableProvider = (
+  pool: InstanceType<typeof import("pg").Pool>,
+  userId: string,
+  provider: string,
+) =>
+  Effect.tryPromise({
+    try: () =>
+      pool.query(
         `UPDATE "secrets"
          SET "disabledProviders" = array_remove("disabledProviders", $2),
              "updatedAt" = CURRENT_TIMESTAMP
          WHERE "userId" = $1`,
-        [user.id, provider],
-      );
-    } else {
-      // Add to disabled list
-      await pool.query(
+        [userId, provider],
+      ),
+    catch: (error) =>
+      new DatabaseQueryError({
+        cause: error,
+        message: "Failed to enable provider",
+      }),
+  });
+
+const disableProvider = (
+  pool: InstanceType<typeof import("pg").Pool>,
+  userId: string,
+  provider: string,
+) =>
+  Effect.tryPromise({
+    try: () =>
+      pool.query(
         `UPDATE "secrets"
          SET "disabledProviders" = CASE
            WHEN $2 = ANY("disabledProviders") THEN "disabledProviders"
@@ -156,42 +124,239 @@ secretRoute.patch("/:provider", async (c) => {
          END,
          "updatedAt" = CURRENT_TIMESTAMP
          WHERE "userId" = $1`,
-        [user.id, provider],
-      );
+        [userId, provider],
+      ),
+    catch: (error) =>
+      new DatabaseQueryError({
+        cause: error,
+        message: "Failed to disable provider",
+      }),
+  });
+
+const removeProvider = (
+  pool: InstanceType<typeof import("pg").Pool>,
+  userId: string,
+  provider: string,
+) =>
+  Effect.tryPromise({
+    try: () =>
+      pool.query(
+        `UPDATE "secrets"
+         SET "providers" = array_remove("providers", $2),
+             "updatedAt" = CURRENT_TIMESTAMP
+         WHERE "userId" = $1`,
+        [userId, provider],
+      ),
+    catch: (error) =>
+      new DatabaseQueryError({
+        cause: error,
+        message: "Failed to remove provider",
+      }),
+  });
+
+const secretRoute = new Hono().basePath("/secret");
+
+secretRoute.get("/", (c) =>
+  Effect.gen(function* () {
+    const user = yield* getAuthenticatedUser(c);
+    const pool = yield* DatabasePool;
+
+    const result = yield* queryUserSecrets(pool, user.id);
+    const providers = result.rows[0]?.providers ?? [];
+    const disabledProviders = result.rows[0]?.disabledProviders ?? [];
+
+    const providerEntries = yield* Effect.forEach(
+      providers,
+      (provider: string) =>
+        getSecret(user.id, provider).pipe(
+          Effect.map(
+            (keys) =>
+              [
+                provider,
+                {
+                  fields: Object.keys(keys).filter(
+                    (k) => typeof keys[k] === "string" && keys[k].length > 0,
+                  ),
+                  enabled: !disabledProviders.includes(provider),
+                },
+              ] as const,
+          ),
+          Effect.catchTag("VaultReadError", () =>
+            Effect.succeed([
+              provider,
+              {
+                fields: [] as string[],
+                enabled: !disabledProviders.includes(provider),
+              },
+            ] as const),
+          ),
+          Effect.catchTag("VaultPathError", () =>
+            Effect.succeed([
+              provider,
+              {
+                fields: [] as string[],
+                enabled: !disabledProviders.includes(provider),
+              },
+            ] as const),
+          ),
+        ),
+      { concurrency: "unbounded" },
+    );
+
+    const providerFields = Object.fromEntries(providerEntries);
+    return c.json({ providers: providerFields });
+  }).pipe(
+    Effect.catchTags({
+      UnauthorizedError: (err) => Effect.succeed(c.json({ error: err.message }, 401)),
+      DatabaseQueryError: (err) =>
+        Effect.logError("GET /v1/secret failed", { cause: err.cause }).pipe(
+          Effect.as(c.json({ error: "Failed to fetch secrets" }, 500)),
+        ),
+    }),
+    Effect.provide(AppLive),
+    Effect.runPromise,
+  ),
+);
+
+// ---------------------------------------------------------------------------
+// POST /v1/secret - Add/update secrets for a provider
+// ---------------------------------------------------------------------------
+secretRoute.post("/", (c) =>
+  Effect.gen(function* () {
+    const user = yield* getAuthenticatedUser(c);
+    const pool = yield* DatabasePool;
+    const raw = yield* parseJsonBody(c);
+
+    const body = yield* Schema.decodeUnknown(CreateSecretBodySchema)(raw).pipe(
+      Effect.mapError(
+        (error) =>
+          new RequestValidationError({
+            cause: error,
+            message: "Invalid body: requires { provider, keys }",
+          }),
+      ),
+    );
+
+    // Fetch existing secrets, defaulting to empty if not found
+    const existing = yield* getSecret(user.id, body.provider).pipe(
+      Effect.catchTag("VaultReadError", () => Effect.succeed({} as Record<string, string>)),
+      Effect.catchTag("VaultPathError", () => Effect.succeed({} as Record<string, string>)),
+    );
+
+    const merged = { ...existing, ...body.keys };
+
+    yield* addSecret(user.id, body.provider, merged);
+    yield* upsertProvider(pool, user.id, body.provider);
+
+    return c.json({ success: true });
+  }).pipe(
+    Effect.catchTags({
+      UnauthorizedError: (err) => Effect.succeed(c.json({ error: err.message }, 401)),
+      RequestValidationError: (err) => Effect.succeed(c.json({ error: err.message }, 400)),
+      DatabaseQueryError: (err) =>
+        Effect.logError("POST /v1/secret failed (database)", { cause: err.cause }).pipe(
+          Effect.as(c.json({ error: "Failed to save secret" }, 500)),
+        ),
+      VaultWriteError: (err) =>
+        Effect.logError("POST /v1/secret failed (vault)", { cause: err.cause }).pipe(
+          Effect.as(c.json({ error: "Failed to save secret" }, 500)),
+        ),
+      VaultPathError: (err) => Effect.succeed(c.json({ error: err.message }, 400)),
+    }),
+    Effect.provide(AppLive),
+    Effect.runPromise,
+  ),
+);
+
+// ---------------------------------------------------------------------------
+// PATCH /v1/secret/:provider - Enable or disable a provider
+// ---------------------------------------------------------------------------
+secretRoute.patch("/:provider", (c) =>
+  Effect.gen(function* () {
+    const user = yield* getAuthenticatedUser(c);
+    const pool = yield* DatabasePool;
+
+    const provider = c.req.param("provider");
+    if (!provider) {
+      return yield* new RequestValidationError({
+        message: "Missing provider parameter",
+      });
+    }
+
+    const raw = yield* parseJsonBody(c);
+    const body = yield* Schema.decodeUnknown(ToggleEnabledBodySchema)(raw).pipe(
+      Effect.mapError(
+        (error) =>
+          new RequestValidationError({
+            cause: error,
+            message: "Invalid body: requires { enabled: boolean }",
+          }),
+      ),
+    );
+
+    // Check if provider exists for this user
+    const result = yield* queryUserProviderList(pool, user.id);
+    const providers = result.rows[0]?.providers ?? [];
+    if (!providers.includes(provider)) {
+      return yield* new ProviderNotConfiguredError({ provider });
+    }
+
+    if (body.enabled) {
+      yield* enableProvider(pool, user.id, provider);
+    } else {
+      yield* disableProvider(pool, user.id, provider);
     }
 
     return c.json({ success: true, enabled: body.enabled });
-  } catch (err) {
-    console.error("PATCH /v1/secret/:provider error:", err);
-    return c.json({ error: "Failed to update provider" }, 500);
-  }
-});
+  }).pipe(
+    Effect.catchTags({
+      UnauthorizedError: (err) => Effect.succeed(c.json({ error: err.message }, 401)),
+      RequestValidationError: (err) => Effect.succeed(c.json({ error: err.message }, 400)),
+      ProviderNotConfiguredError: (err) =>
+        Effect.succeed(c.json({ error: `Provider '${err.provider}' not configured` }, 404)),
+      DatabaseQueryError: (err) =>
+        Effect.logError("PATCH /v1/secret/:provider failed", { cause: err.cause }).pipe(
+          Effect.as(c.json({ error: "Failed to update provider" }, 500)),
+        ),
+    }),
+    Effect.provide(AppLive),
+    Effect.runPromise,
+  ),
+);
 
-secretRoute.delete("/:provider", async (c) => {
-  const user = c.get("user");
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
+secretRoute.delete("/:provider", (c) =>
+  Effect.gen(function* () {
+    const user = yield* getAuthenticatedUser(c);
+    const pool = yield* DatabasePool;
 
-  const provider = c.req.param("provider");
-  if (!provider) {
-    return c.json({ error: "Missing provider parameter" }, 400);
-  }
+    const provider = c.req.param("provider");
+    if (!provider) {
+      return yield* new RequestValidationError({
+        message: "Missing provider parameter",
+      });
+    }
 
-  try {
-    await runVault(deleteSecret(user.id, provider));
-
-    await pool.query(
-      `UPDATE "secrets"
-       SET "providers" = array_remove("providers", $2),
-           "updatedAt" = CURRENT_TIMESTAMP
-       WHERE "userId" = $1`,
-      [user.id, provider],
-    );
+    yield* deleteSecret(user.id, provider);
+    yield* removeProvider(pool, user.id, provider);
 
     return c.json({ success: true });
-  } catch (err) {
-    console.error("DELETE /v1/secret/:provider error:", err);
-    return c.json({ error: "Failed to delete secret" }, 500);
-  }
-});
+  }).pipe(
+    Effect.catchTags({
+      UnauthorizedError: (err) => Effect.succeed(c.json({ error: err.message }, 401)),
+      RequestValidationError: (err) => Effect.succeed(c.json({ error: err.message }, 400)),
+      VaultDeleteError: (err) =>
+        Effect.logError("DELETE /v1/secret/:provider failed (vault)", { cause: err.cause }).pipe(
+          Effect.as(c.json({ error: "Failed to delete secret" }, 500)),
+        ),
+      VaultPathError: (err) => Effect.succeed(c.json({ error: err.message }, 400)),
+      DatabaseQueryError: (err) =>
+        Effect.logError("DELETE /v1/secret/:provider failed (database)", { cause: err.cause }).pipe(
+          Effect.as(c.json({ error: "Failed to delete secret" }, 500)),
+        ),
+    }),
+    Effect.provide(AppLive),
+    Effect.runPromise,
+  ),
+);
 
 export { secretRoute };

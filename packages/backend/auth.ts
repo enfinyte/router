@@ -1,27 +1,59 @@
-import { pool } from "./pool";
+import { Context, Effect, Layer } from "effect";
 import { betterAuth } from "better-auth";
 import { apiKey } from "better-auth/plugins";
 
-export const auth = betterAuth({
-  baseURL: "http://localhost:8000",
-  database: pool,
-  emailAndPassword: {
-    enabled: true,
+import { appConfig } from "./config";
+import { DatabasePool } from "./pool";
+
+const createAuth = (
+  pool: InstanceType<typeof import("pg").Pool>,
+  config: {
+    baseUrl: string;
+    corsOrigin: string;
+    githubClientId: string;
+    githubClientSecret: string;
   },
-  // TODO: remember to change these later
-  trustedOrigins: ["http://localhost:3000", "http://localhost:8000"],
-  socialProviders: {
-    github: {
-      clientId: process.env.GITHUB_CLIENT_ID as string,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
+) =>
+  betterAuth({
+    baseURL: config.baseUrl,
+    database: pool,
+    emailAndPassword: {
+      enabled: true,
     },
-  },
-  plugins: [
-    apiKey({
-      defaultPrefix: "ef_",
-      keyExpiration: {
-        defaultExpiresIn: null, // Keys don't expire unless explicitly set
+    trustedOrigins: [config.corsOrigin, config.baseUrl],
+    socialProviders: {
+      github: {
+        clientId: config.githubClientId,
+        clientSecret: config.githubClientSecret,
       },
-    }),
-  ],
-});
+    },
+    plugins: [
+      apiKey({
+        defaultPrefix: "ef_",
+        rateLimit: {
+          enabled: false,
+        },
+        keyExpiration: {
+          defaultExpiresIn: null,
+        },
+      }),
+    ],
+  });
+
+export type AuthInstance = ReturnType<typeof createAuth>;
+
+export class AuthService extends Context.Tag("AuthService")<AuthService, AuthInstance>() {}
+
+export const AuthServiceLive = Layer.effect(
+  AuthService,
+  Effect.gen(function* () {
+    const pool = yield* DatabasePool;
+    const config = yield* appConfig;
+    return createAuth(pool, {
+      baseUrl: config.baseUrl,
+      corsOrigin: config.corsOrigin,
+      githubClientId: config.githubClientId,
+      githubClientSecret: config.githubClientSecret,
+    });
+  }),
+);

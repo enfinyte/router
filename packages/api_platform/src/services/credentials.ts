@@ -13,13 +13,12 @@ export const getCredentials = <T extends Providers>(
 ): Effect.Effect<ProviderCredentials<T>, CredentialsError, VaultService> =>
   Effect.gen(function* () {
     const secrets = yield* getSecret(userId, provider).pipe(
-      Effect.catchAll((error) =>
-        Effect.fail(
+      Effect.mapError(
+        (error) =>
           new CredentialsError({
             cause: error,
             message: `Failed to retrieve credentials for provider "${provider}"`,
           }),
-        ),
       ),
     );
 
