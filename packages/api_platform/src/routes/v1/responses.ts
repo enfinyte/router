@@ -82,6 +82,9 @@ const validateCreateResponseBody = (
   if (!body.model)
     return Effect.fail(new RequestValidationError({ message: "`model` must not be empty" }));
 
+  if (!body.input)
+    return Effect.fail(new RequestValidationError({ message: "`input` field is required" }));
+
   return Effect.void;
 };
 
