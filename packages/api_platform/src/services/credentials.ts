@@ -14,6 +14,8 @@ export function getCredentials(provider: Providers): ProviderCredentials<Provide
       } satisfies ProviderCredentials<Providers.AmazonBedrock>;
     case Providers.OpenAI:
       return { apiKey: "" } satisfies ProviderCredentials<Providers.OpenAI>;
+    case Providers.Anthropic:
+      return { apiKey: "" } satisfies ProviderCredentials<Providers.Anthropic>;
     default: {
       const _exhaustiveCheck: never = provider satisfies never;
       throw new Error(`Unsupported provider: ${provider}`);

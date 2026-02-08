@@ -199,7 +199,7 @@ export const convertAISdkGenerateTextMessagesToResponseResourceOutput = (
               return [
                 {
                   type: "message",
-                  id: `message-${indx}`,
+                  id: getItemIdFromProviderOptions(contentItem.providerOptions, `message-${indx}`),
                   status: "completed",
                   role: "assistant",
                   content: [
@@ -217,7 +217,7 @@ export const convertAISdkGenerateTextMessagesToResponseResourceOutput = (
               return [
                 {
                   type: "message",
-                  id: `message-${indx}`,
+                  id: getItemIdFromProviderOptions(contentItem.providerOptions, `message-${indx}`),
                   status: "completed",
                   role: "assistant",
                   content: [
@@ -234,7 +234,10 @@ export const convertAISdkGenerateTextMessagesToResponseResourceOutput = (
                 return [
                   {
                     type: "message",
-                    id: `message-${indx}`,
+                    id: getItemIdFromProviderOptions(
+                      contentItem.providerOptions,
+                      `message-${indx}`,
+                    ),
                     status: "completed",
                     role: "assistant",
                     content: [
@@ -255,7 +258,10 @@ export const convertAISdkGenerateTextMessagesToResponseResourceOutput = (
                 return [
                   {
                     type: "message",
-                    id: `message-${indx}`,
+                    id: getItemIdFromProviderOptions(
+                      contentItem.providerOptions,
+                      `message-${indx}`,
+                    ),
                     status: "completed",
                     role: "assistant",
                     content: [
@@ -293,7 +299,10 @@ export const convertAISdkGenerateTextMessagesToResponseResourceOutput = (
               return [
                 {
                   type: "function_call",
-                  id: contentItem.toolCallId,
+                  id: getItemIdFromProviderOptions(
+                    contentItem.providerOptions,
+                    contentItem.toolCallId,
+                  ),
                   status: "completed",
                   call_id: contentItem.toolCallId,
                   name: contentItem.toolName,
