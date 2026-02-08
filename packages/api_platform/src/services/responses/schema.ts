@@ -162,6 +162,7 @@ const ItemParamSchema = Schema.Union(
   FunctionCallItemParamSchema,
   FunctionCallOutputItemParamSchema,
 );
+export type CreateResponseBodyInputItem = Schema.Schema.Type<typeof ItemParamSchema>;
 
 const EmptyModelParamSchema = Schema.Record({ key: Schema.String, value: Schema.Unknown });
 
@@ -358,6 +359,8 @@ const MessageSchema = Schema.Struct({
   content: Schema.Array(MessageContentPartSchema),
 });
 
+export type Message = Schema.Schema.Type<typeof MessageSchema>;
+
 const FunctionCallSchema = Schema.Struct({
   type: Schema.Literal("function_call"),
   id: Schema.String,
@@ -366,6 +369,8 @@ const FunctionCallSchema = Schema.Struct({
   arguments: Schema.String,
   status: FunctionCallStatusSchema,
 });
+
+export type FunctionCall = Schema.Schema.Type<typeof FunctionCallSchema>;
 
 const FunctionCallOutputSchema = Schema.Struct({
   type: Schema.Literal("function_call_output"),
@@ -379,6 +384,8 @@ const FunctionCallOutputSchema = Schema.Struct({
   ),
   status: FunctionCallStatusSchema,
 });
+
+export type FunctionCallOutput = Schema.Schema.Type<typeof FunctionCallOutputSchema>;
 
 const ReasoningBodySchema = Schema.Struct({
   type: Schema.Literal("reasoning"),
@@ -394,6 +401,8 @@ const ItemFieldSchema = Schema.Union(
   FunctionCallOutputSchema,
   ReasoningBodySchema,
 );
+
+export type ItemField = Schema.Schema.Type<typeof ItemFieldSchema>;
 
 const ItemFieldWithoutTypeSchema = Schema.Struct({ id: Schema.String });
 

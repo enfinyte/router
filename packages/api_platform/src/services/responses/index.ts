@@ -10,7 +10,7 @@ export class ResponseServiceError extends Data.TaggedError("ResponseServiceError
 
 export const create = (req: CreateResponseBody) =>
   Effect.gen(function* () {
-    const responseResource = yield* AIService.makeRequest(req);
+    const responseResource = yield* AIService.execute(req);
     yield* persistResponseResourceInDatabase(responseResource);
     return responseResource;
   }).pipe(

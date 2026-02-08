@@ -1,109 +1,107 @@
-import { Effect, Data } from "effect";
+import { Effect, Data, Either } from "effect";
 import type { CreateResponseBody, ResponseResource } from "../responses/schema";
-
-const DEFAULT_TEMPERATURE = 1.0;
-const DEFAULT_TOP_P = 1.0;
-const DEFAULT_PRESENCE_PENALTY = 0.0;
-const DEFAULT_FREQUENCY_PENALTY = 0.0;
-const DEFAULT_TOP_LOGPROBS = 0;
-const DEFAULT_TRUNCATION = "auto" as const;
-const DEFAULT_PARALLEL_TOOL_CALLS = false;
-const DEFAULT_STORE = true;
-const DEFAULT_BACKGROUND = false;
-const DEFAULT_SERVICE_TIER = "default";
-
-const MOCK_INPUT_TOKENS = 1000;
-const MOCK_OUTPUT_TOKENS = 100;
-const MOCK_REASONING_TOKENS = 0;
-const MOCK_CACHED_TOKENS = 0;
+import {
+  resolveReasoning,
+  resolveTools,
+  resolveToolChoice,
+} from "./createResponseBodyFieldsToResponseResourceFieldsResolvers";
+import {
+  DEFAULT_BACKGROUND,
+  DEFAULT_FREQUENCY_PENALTY,
+  DEFAULT_PARALLEL_TOOL_CALLS,
+  DEFAULT_PRESENCE_PENALTY,
+  DEFAULT_SERVICE_TIER,
+  DEFAULT_STORE,
+  DEFAULT_TEMPERATURE,
+  DEFAULT_TOP_LOGPROBS,
+  DEFAULT_TOP_P,
+  DEFAULT_TRUNCATION,
+  MOCK_CACHED_TOKENS,
+  MOCK_INPUT_TOKENS,
+  MOCK_OUTPUT_TOKENS,
+  MOCK_REASONING_TOKENS,
+} from "./consts";
+import * as pmrService from "../pmr";
+import { buildLanguageModelFromResolvedModelAndProvider } from "./buildLanguageModelFromResolvedModelAndProvider";
+import { APICallError, generateText, type GenerateTextResult, type ToolSet } from "ai";
+import { convertCreateResponseBodyInputFieldToCallSettingsMessages } from "./responseFieldsToAISDKGenerateTextCallSettingsAdapters";
+import { convertAPICallErrorToResponseResource } from "./convertAPICallErrorToResponseResource";
+import { convertAISdkGenerateTextResultToResponseResource } from "./convertAISdkGenerateTextResultToResponseResource";
 
 export class AIServiceError extends Data.TaggedError("AIServiceError")<{
   cause?: unknown;
   message?: string;
 }> {}
 
-const resolveToolChoice = (
-  tc: CreateResponseBody["tool_choice"],
-): ResponseResource["tool_choice"] => {
-  if (!tc) return "none";
-  if (typeof tc === "string") return tc;
-  if (tc.type === "function") return tc;
-  return { ...tc, mode: tc.mode ?? "auto" };
-};
-
-const resolveTools = (tools: CreateResponseBody["tools"]): ResponseResource["tools"] =>
-  tools?.map((t) => ({
-    type: "function" as const,
-    name: t.name,
-    description: t.description ?? null,
-    parameters: t.parameters ?? null,
-    strict: t.strict ?? null,
-  })) ?? [];
-
-const resolveReasoning = (
-  reasoning: CreateResponseBody["reasoning"],
-): ResponseResource["reasoning"] =>
-  reasoning ? { effort: reasoning.effort ?? null, summary: reasoning.summary ?? null } : null;
-
-export const makeRequest = (req: CreateResponseBody) =>
+export const execute = (createResponseBody: CreateResponseBody) =>
   Effect.gen(function* () {
-    if (!req.model)
-      return yield* Effect.fail(new AIServiceError({ message: "`model` field is required" }));
+    const createdAt = Date.now();
 
-    const now = Date.now();
+    const requestedModel = createResponseBody.model;
+    if (!requestedModel)
+      // XXX: THIS SHOULD BE HANDLED BY ROUTE VALIDATION, BUT JUST IN CASE TO SATISFY TYPESCRIPT
+      return yield* Effect.fail(
+        new AIServiceError({ message: "`model` field is required or should not be empty" }),
+      );
 
-    return yield* Effect.succeed({
-      id: crypto.randomUUID(),
-      object: "response" as const,
-      created_at: now,
-      completed_at: now,
-      status: "completed",
-      incomplete_details: null,
-      model: req.model,
-      previous_response_id: req.previous_response_id ?? null,
-      instructions: req.instructions ?? null,
-      output: [
-        {
-          id: crypto.randomUUID(),
-          type: "message",
-          role: "assistant",
-          status: "completed",
-          content: [
-            {
-              type: "output_text",
-              text: "ahoy there mate",
-              annotations: [],
-              logprobs: [],
-            },
-          ],
+    const resolvedModelAndProvider = yield* pmrService.resolve({
+      ...createResponseBody,
+      model: requestedModel,
+    });
+
+    const languageModel =
+      yield* buildLanguageModelFromResolvedModelAndProvider(resolvedModelAndProvider);
+
+    const messages =
+      yield* convertCreateResponseBodyInputFieldToCallSettingsMessages(createResponseBody);
+
+    // NOTE: parallel_tool_calls, max_tool_calls, prompt_cache_key, truncation, top_logProbs
+    const result = yield* Effect.either(
+      Effect.tryPromise({
+        try(abortSignal) {
+          return generateText({
+            model: languageModel,
+            messages,
+            abortSignal,
+            ...(createResponseBody.max_output_tokens
+              ? { maxOutputTokens: createResponseBody.max_output_tokens }
+              : {}),
+            ...(createResponseBody.top_p ? { topP: createResponseBody.top_p } : {}),
+            ...(createResponseBody.temperature
+              ? { temperature: createResponseBody.temperature }
+              : {}),
+            ...(createResponseBody.presence_penalty
+              ? { presencePenalty: createResponseBody.presence_penalty }
+              : {}),
+            ...(createResponseBody.frequency_penalty
+              ? { frequencyPenalty: createResponseBody.frequency_penalty }
+              : {}),
+          });
         },
-      ],
-      error: null,
-      tools: resolveTools(req.tools),
-      tool_choice: resolveToolChoice(req.tool_choice),
-      truncation: req.truncation ?? DEFAULT_TRUNCATION,
-      parallel_tool_calls: req.parallel_tool_calls ?? DEFAULT_PARALLEL_TOOL_CALLS,
-      text: { format: { type: "text" as const } },
-      top_p: req.top_p ?? DEFAULT_TOP_P,
-      presence_penalty: req.presence_penalty ?? DEFAULT_PRESENCE_PENALTY,
-      frequency_penalty: req.frequency_penalty ?? DEFAULT_FREQUENCY_PENALTY,
-      top_logprobs: req.top_logprobs ?? DEFAULT_TOP_LOGPROBS,
-      temperature: req.temperature ?? DEFAULT_TEMPERATURE,
-      reasoning: resolveReasoning(req.reasoning),
-      usage: {
-        input_tokens: MOCK_INPUT_TOKENS,
-        output_tokens: MOCK_OUTPUT_TOKENS,
-        input_tokens_details: { cached_tokens: MOCK_CACHED_TOKENS },
-        output_tokens_details: { reasoning_tokens: MOCK_REASONING_TOKENS },
-        total_tokens: MOCK_INPUT_TOKENS + MOCK_OUTPUT_TOKENS,
-      },
-      max_output_tokens: req.max_output_tokens ?? null,
-      max_tool_calls: req.max_tool_calls ?? null,
-      store: req.store ?? DEFAULT_STORE,
-      background: req.background ?? DEFAULT_BACKGROUND,
-      service_tier: req.service_tier ?? DEFAULT_SERVICE_TIER,
-      metadata: req.metadata ?? null,
-      safety_identifier: req.safety_identifier ?? null,
-      prompt_cache_key: req.prompt_cache_key ?? null,
-    } satisfies ResponseResource);
+        catch(error) {
+          if (error instanceof APICallError) return error;
+          return new AIServiceError({ cause: error, message: "Error while calling generateText" });
+        },
+      }),
+    );
+
+    if (Either.isLeft(result)) {
+      const errorValue = result.left;
+
+      if (errorValue instanceof AIServiceError) return yield* Effect.fail(errorValue);
+
+      return yield* convertAPICallErrorToResponseResource({
+        result: errorValue,
+        createResponseBody,
+        createdAt,
+        resolvedModelAndProvider,
+      });
+    }
+
+    return yield* convertAISdkGenerateTextResultToResponseResource({
+      result: result.right,
+      createResponseBody,
+      createdAt,
+      resolvedModelAndProvider,
+    });
   });

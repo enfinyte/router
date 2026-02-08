@@ -79,6 +79,12 @@ const validateCreateResponseBody = (
       new RequestValidationError({ message: "`max_output_tokens` must be a positive number" }),
     );
 
+  if (!body.model)
+    return Effect.fail(new RequestValidationError({ message: "`model` must not be empty" }));
+
+  if (!body.input)
+    return Effect.fail(new RequestValidationError({ message: "`input` field is required" }));
+
   return Effect.void;
 };
 
@@ -87,13 +93,19 @@ export const responsesRouter = HttpRouter.empty.pipe(
     "/",
     Effect.gen(function* () {
       const createResponseBody = yield* HttpServerRequest.schemaBodyJson(CreateResponseBodySchema);
-      yield* validateCreateResponseBody(createResponseBody);
+      const _ = yield* validateCreateResponseBody(createResponseBody);
       const responsesObject = yield* ResponsesService.create(createResponseBody);
       return yield* HttpServerResponse.json(responsesObject);
     }).pipe(
-      Effect.catchTag("RequestValidationError", (err) =>
-        HttpServerResponse.json({ error: { message: err.message } }, { status: 400 }),
-      ),
+      Effect.catchTags({
+        RequestValidationError: (err) =>
+          HttpServerResponse.json({ error: { message: err.message } }, { status: 400 }),
+        ResponseServiceError: (err) =>
+          HttpServerResponse.json(
+            { error: { message: err.message ?? "Internal Server Error" } },
+            { status: 500, headers: { "x-enfinyte-error": `${err.name}: ${err}` } },
+          ),
+      }),
     ),
   ),
   HttpRouter.use(withProperContentTypeValidation()),
