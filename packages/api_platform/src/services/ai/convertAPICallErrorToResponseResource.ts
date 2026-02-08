@@ -17,6 +17,7 @@ import {
   resolveTools,
   resolveToolChoice,
 } from "./createResponseBodyFieldsToResponseResourceFieldsResolvers";
+import type { ResolvedModelAndProvider } from "../pmr";
 
 export const convertAPICallErrorToResponseResource = ({
   result,
@@ -27,7 +28,7 @@ export const convertAPICallErrorToResponseResource = ({
   result: APICallError;
   createResponseBody: CreateResponseBody;
   createdAt: number;
-  resolvedModelAndProvider: `${string}:${string}`;
+  resolvedModelAndProvider: ResolvedModelAndProvider;
 }): Effect.Effect<ResponseResource, never, never> =>
   Effect.succeed({
     id: crypto.randomUUID(),
