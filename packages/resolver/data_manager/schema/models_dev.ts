@@ -17,20 +17,20 @@ export const LimitSchema = Schema.Struct({
 
 export const ModelSchema = Schema.Struct({
   id: Schema.String,
-  name: Schema.String,
-  family: Schema.String,
-  attachment: Schema.Boolean,
-  reasoning: Schema.Boolean,
-  tool_call: Schema.Boolean,
-  structured_output: Schema.Boolean,
-  temperature: Schema.Boolean,
-  knowledge: Schema.String,
-  release_date: Schema.String,
-  last_updated: Schema.String,
-  modalities: ModalitiesSchema,
-  open_weights: Schema.Boolean,
-  cost: CostSchema,
-  limit: LimitSchema,
+  // name: Schema.String,
+  // family: Schema.optional(Schema.String),
+  // attachment: Schema.Boolean,
+  // reasoning: Schema.Boolean,
+  // tool_call: Schema.Boolean,
+  // structured_output: Schema.optional(Schema.Boolean),
+  // temperature: Schema.optional(Schema.Boolean),
+  // knowledge: Schema.optional(Schema.String),
+  // release_date: Schema.String,
+  // last_updated: Schema.String,
+  // modalities: ModalitiesSchema,
+  // open_weights: Schema.Boolean,
+  // cost: Schema.optional(CostSchema),
+  // limit: LimitSchema,
 });
 
 export const ModelMapSchema = Schema.Record({
@@ -40,12 +40,12 @@ export const ModelMapSchema = Schema.Record({
 
 export const ProvdierSchema = Schema.Struct({
   id: Schema.String,
-  env: Schema.Array(Schema.String),
-  npm: Schema.String,
-  api: Schema.optional(Schema.String),
-  name: Schema.String,
-  doc: Schema.String,
-  models: Schema.Array(ModelMapSchema),
+  // env: Schema.Array(Schema.String),
+  // npm: Schema.String,
+  // api: Schema.optional(Schema.String),
+  // name: Schema.String,
+  // doc: Schema.String,
+  models: ModelMapSchema,
 });
 
 export const RootSchema = Schema.Record({

@@ -1,33 +1,17 @@
 import { Effect, Schema } from "effect";
-import { getModelsDevData, getOpenRouterData } from "../data_manager";
-import type { UnknownException } from "effect/Cause";
-import type { ParseError } from "effect/ParseResult";
-import type { PlatformError } from "@effect/platform/Error";
-import { RootSchema as OpenRouterRootSchema } from "../data_manager/schema/openrouter";
-import { RootSchema as ModelsDevRootSchema } from "../data_manager/schema/models_dev";
-import type { IntentPair, ResolvedResponse } from "../types";
-import type { FileSystem } from "@effect/platform/FileSystem";
+import { getOpenRouterDataByPair } from "../data_manager";
+import { RootSchema } from "../data_manager/schema/openrouter";
+import type { IntentPair } from "../types";
+import { OpenRouterProviderModelMap } from "../data_manager";
 
-export const resolveIntentPair = (
-  pair: IntentPair,
-): Effect.Effect<
-  ResolvedResponse,
-  UnknownException | Error | ParseError | PlatformError,
-  FileSystem
-> =>
+export const resolveIntentPair = (pair: IntentPair) =>
   Effect.gen(function* () {
-    const openRouterRawData = yield* getOpenRouterData(pair);
+    const openRouterRawData = yield* getOpenRouterDataByPair(pair);
     const openRouterData = yield* Effect.try(() => JSON.parse(openRouterRawData));
-    const openRouterRoot = yield* Schema.decode(OpenRouterRootSchema)(openRouterData);
-    const openRouterModels = openRouterRoot.data.models;
-
-    const modelsDevRawData = yield* getModelsDevData;
-    const modelsDevData = yield* Effect.try(() => JSON.parse(modelsDevRawData));
-    const modelsDevRoot = yield* Schema.decode(ModelsDevRootSchema)(modelsDevData);
-    console.log(modelsDevRoot);
-
-    return {
-      model: "",
-      provider: "",
-    };
+    const openRouterRoot = yield* Schema.decode(RootSchema)(openRouterData);
+    // TODO: change this later to do checks
+    // check : if the user has the required providers setup
+    // fail: if the providers aren't setup, may be throw an error
+    const top1 = openRouterRoot.data.models.map((key) => key.slug)[0]!;
+    return OpenRouterProviderModelMap[top1]![0]!;
   });
