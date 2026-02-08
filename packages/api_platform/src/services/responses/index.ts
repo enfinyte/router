@@ -1,7 +1,7 @@
 import { Effect, Data } from "effect";
 import type { CreateResponseBody, ResponseResource } from "./schema";
 import * as AIService from "../ai";
-import { DatabaseService } from "../database";
+import * as DatabaseService from "../database";
 
 export class ResponseServiceError extends Data.TaggedError("ResponseServiceError")<{
   cause?: unknown;
@@ -24,14 +24,10 @@ export const create = (req: CreateResponseBody) =>
 
 const persistResponseResourceInDatabase = (resource: ResponseResource) =>
   Effect.gen(function* () {
-    const db = yield* DatabaseService;
-    yield* db.query("INSERT INTO responses VALUES (...)");
-    return resource;
+    return yield* DatabaseService.createResponsesResource(resource);
   });
 
-const getResponseResourceByIdFromDatabase = (id: string) =>
+const getResponseResourceByIdFromDatabase = (responseId: string) =>
   Effect.gen(function* () {
-    const db = yield* DatabaseService;
-    const result = yield* db.query(`SELECT * FROM responses WHERE id = '${id}'`);
-    return result as ResponseResource;
+    return yield* DatabaseService.getResponsesResourceById(responseId);
   });
