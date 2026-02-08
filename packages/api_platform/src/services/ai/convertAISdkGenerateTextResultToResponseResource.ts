@@ -18,6 +18,7 @@ import {
   resolveToolChoice,
 } from "./createResponseBodyFieldsToResponseResourceFieldsResolvers";
 import { convertAISdkGenerateTextMessagesToResponseResourceOutput } from "./convertAISdkGenerateTextMessagesToResponseResourceOutput";
+import type { ResolvedModel } from "../pmr";
 
 export const convertAISdkGenerateTextResultToResponseResource = ({
   result,
@@ -27,7 +28,7 @@ export const convertAISdkGenerateTextResultToResponseResource = ({
 }: {
   result: Awaited<ReturnType<typeof generateText>>;
   createdAt: number;
-  resolvedModelAndProvider: `${string}:${string}`;
+  resolvedModelAndProvider: ResolvedModel;
   createResponseBody: CreateResponseBody;
 }) =>
   Effect.gen(function* () {
@@ -38,7 +39,7 @@ export const convertAISdkGenerateTextResultToResponseResource = ({
       completed_at: Date.now(),
       status: "completed",
       incomplete_details: null,
-      model: resolvedModelAndProvider,
+      model: `${resolvedModelAndProvider.provider}:${resolvedModelAndProvider.model}`,
       previous_response_id: createResponseBody.previous_response_id ?? null,
       instructions: createResponseBody.instructions ?? null,
       output: yield* convertAISdkGenerateTextMessagesToResponseResourceOutput(result),

@@ -3,6 +3,7 @@ import { betterAuth } from "better-auth";
 import { apiKey } from "better-auth/plugins";
 
 export const auth = betterAuth({
+  baseURL: "http://localhost:8000",
   database: pool,
   emailAndPassword: {
     enabled: true,

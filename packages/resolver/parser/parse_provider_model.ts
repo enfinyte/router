@@ -36,27 +36,27 @@ export const parseProviderModelImpl = (input: string) =>
       );
     }
 
-    const providerRegex = /^[a-zA-Z0-9_.-]+$/;
+    // const providerRegex = /^[a-zA-Z0-9_.:-\\]+$/;
 
-    const modelRegex = /^[a-zA-Z0-9_.-]+$/;
+    // const modelRegex = /^[a-zA-Z0-9_.:-\\]+$/;
 
-    if (!providerRegex.test(provider)) {
-      return yield* Effect.fail(
-        new ProviderModelParseError({
-          reason: "InvalidCharacters",
-          message: `Provider contains invalid characters (only alphanumeric, underscore, dot, and hyphen allowed), got: "${provider}"`,
-        }),
-      );
-    }
+    // if (!providerRegex.test(provider)) {
+    //   return yield* Effect.fail(
+    //     new ProviderModelParseError({
+    //       reason: "InvalidCharacters",
+    //       message: `Provider contains invalid characters (only alphanumeric, underscore, dot, and hyphen allowed), got: "${provider}"`,
+    //     }),
+    //   );
+    // }
 
-    if (!modelRegex.test(model)) {
-      return yield* Effect.fail(
-        new ProviderModelParseError({
-          reason: "InvalidCharacters",
-          message: `Model contains invalid characters (only alphanumeric, underscore, dot, and hyphen allowed), got: "${model}"`,
-        }),
-      );
-    }
+    // if (!modelRegex.test(model)) {
+    //   return yield* Effect.fail(
+    //     new ProviderModelParseError({
+    //       reason: "InvalidCharacters",
+    //       message: `Model contains invalid characters (only alphanumeric, underscore, dot, and hyphen allowed), got: "${model}"`,
+    //     }),
+    //   );
+    // }
 
     return new ProviderModelPair({ provider, model });
   });
