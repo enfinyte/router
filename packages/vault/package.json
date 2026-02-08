@@ -3,7 +3,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "common": "workspace:*",
     "node-vault": "^0.10.9"
   },
   "devDependencies": {
