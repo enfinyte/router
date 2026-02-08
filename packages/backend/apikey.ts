@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { auth } from "./auth";
+import { pool } from "./pool";
 
 const apikeyRoute = new Hono<{
   Variables: {
@@ -239,6 +240,25 @@ apikeyRoute.post("/verify", async (c) => {
     });
 
     if (result.valid) {
+      // Fetch the user's configured providers from the secrets table
+      let providers: string[] = [];
+      if (result.key?.userId) {
+        try {
+          const secretsResult = await pool.query<{
+            providers: string[] | null;
+            disabledProviders: string[] | null;
+          }>(`SELECT "providers", "disabledProviders" FROM "secrets" WHERE "userId" = $1`, [
+            result.key.userId,
+          ]);
+
+          const allProviders = secretsResult.rows[0]?.providers ?? [];
+          const disabledProviders = secretsResult.rows[0]?.disabledProviders ?? [];
+          providers = allProviders.filter((p) => !disabledProviders.includes(p));
+        } catch (err) {
+          console.error("Failed to fetch user providers during verify:", err);
+        }
+      }
+
       return c.json({
         valid: true,
         key: result.key
@@ -249,6 +269,7 @@ apikeyRoute.post("/verify", async (c) => {
               userId: result.key.userId,
             }
           : null,
+        providers,
       });
     } else {
       return c.json({

@@ -22,6 +22,8 @@ import {
   MOCK_REASONING_TOKENS,
 } from "./consts";
 import * as pmrService from "../pmr";
+import * as CredentialsService from "../credentials";
+import { Providers } from "../types";
 import { buildLanguageModelFromResolvedModelAndProvider } from "./buildLanguageModelFromResolvedModelAndProvider";
 import { APICallError, generateText, type GenerateTextResult, type ToolSet } from "ai";
 import { convertCreateResponseBodyInputFieldToCallSettingsMessages } from "./responseFieldsToAISDKGenerateTextCallSettingsAdapters";
@@ -33,24 +35,42 @@ export class AIServiceError extends Data.TaggedError("AIServiceError")<{
   message?: string;
 }> {}
 
-export const execute = (createResponseBody: CreateResponseBody) =>
+export const execute = (
+  createResponseBody: CreateResponseBody,
+  userId: string,
+  userProviders: readonly string[],
+) =>
   Effect.gen(function* () {
     const createdAt = Date.now();
 
     const requestedModel = createResponseBody.model;
     if (!requestedModel)
       // XXX: THIS SHOULD BE HANDLED BY ROUTE VALIDATION, BUT JUST IN CASE TO SATISFY TYPESCRIPT
-      return yield* Effect.fail(
-        new AIServiceError({ message: "`model` field is required or should not be empty" }),
+      return yield* new AIServiceError({
+        message: "`model` field is required or should not be empty",
+      });
+
+    const resolvedModelAndProvider = yield* pmrService
+      .resolve(requestedModel, [...userProviders])
+      .pipe(
+        Effect.catchTag("PMRError", (err) =>
+          Effect.fail(new AIServiceError({ cause: err, message: err.message })),
+        ),
       );
 
-    const resolvedModelAndProvider = yield* pmrService.resolve({
-      ...createResponseBody,
-      model: requestedModel,
-    });
+    const credentials = yield* CredentialsService.getCredentials(
+      userId,
+      resolvedModelAndProvider.provider as Providers,
+    ).pipe(
+      Effect.catchTag("CredentialsError", (err) =>
+        Effect.fail(new AIServiceError({ cause: err, message: err.message })),
+      ),
+    );
 
-    const languageModel =
-      yield* buildLanguageModelFromResolvedModelAndProvider(resolvedModelAndProvider);
+    const languageModel = yield* buildLanguageModelFromResolvedModelAndProvider(
+      resolvedModelAndProvider,
+      credentials,
+    );
 
     const messages =
       yield* convertCreateResponseBodyInputFieldToCallSettingsMessages(createResponseBody);

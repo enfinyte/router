@@ -23,10 +23,7 @@ secretRoute.get("/", async (c) => {
     const result = await pool.query<{
       providers: string[] | null;
       disabledProviders: string[] | null;
-    }>(
-      `SELECT "providers", "disabledProviders" FROM "secrets" WHERE "userId" = $1`,
-      [user.id],
-    );
+    }>(`SELECT "providers", "disabledProviders" FROM "secrets" WHERE "userId" = $1`, [user.id]);
 
     const providers = result.rows[0]?.providers ?? [];
     const disabledProviders = result.rows[0]?.disabledProviders ?? [];
