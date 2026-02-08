@@ -18,7 +18,7 @@ const toIntentPolicy = (model: string) => {
   return intentPolicyMap[model.toLowerCase()]!;
 };
 
-export const parseIntentImpl = (input: string): Effect.Effect<IntentPair, IntentParseError> =>
+export const parseIntentImpl = (input: string) =>
   Effect.gen(function* () {
     const firstSlashIndex = input.indexOf("/");
 

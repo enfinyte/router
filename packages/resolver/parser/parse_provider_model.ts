@@ -2,9 +2,7 @@ import { Effect } from "effect";
 import { ProviderModelParseError } from "../types";
 import { ProviderModelPair } from "../types";
 
-export const parseProviderModelImpl = (
-  input: string,
-): Effect.Effect<ProviderModelPair, ProviderModelParseError> =>
+export const parseProviderModelImpl = (input: string) =>
   Effect.gen(function* () {
     const firstSlashIndex = input.indexOf("/");
 
