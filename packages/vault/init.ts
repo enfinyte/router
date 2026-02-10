@@ -22,6 +22,7 @@ const program = Effect.gen(function* () {
     });
 
     yield* Effect.log("Vault initialized successfully");
+    yield* Effect.log(initResult);
 
     vault.token = initResult.root_token;
     const key: string | undefined = initResult.keys[0];
@@ -35,6 +36,8 @@ const program = Effect.gen(function* () {
       catch: (error) => new VaultInitError({ cause: error, message: "Failed to unseal Vault" }),
     });
     yield* Effect.log("Vault unsealed");
+
+    yield* Effect.sleep("2 seconds");
 
     yield* Effect.tryPromise({
       try: () => vault.mount({ mount_point: "secret", type: "kv", options: { version: "2" } }),
@@ -76,7 +79,9 @@ const program = Effect.gen(function* () {
 });
 
 program.pipe(
-  Effect.catchTag("VaultInitError", (err) => Effect.logError(`Vault init failed: ${err.message}`)),
+  Effect.catchTag("VaultInitError", (err) =>
+    Effect.logError(`Vault init failed: ${err.message}`, err),
+  ),
   Logger.withMinimumLogLevel(LogLevel.All),
   Effect.runPromise,
 );
