@@ -1,28 +1,25 @@
-import { Effect, Match } from "effect";
+import { Effect, Match, pipe } from "effect";
 import { parseImpl } from "../parser";
 import { ResolveError } from "../types";
 import type { IntentPair, ProviderModelPair, ResponseCreateParams } from "../types";
 import { resolveProviderModelPair } from "./resolve_provider_model";
 import { resolveIntentPair } from "./resolve_intent";
 
-const resolve = Match.type<IntentPair | ProviderModelPair>().pipe(
-  Match.tag("IntentPair", resolveIntentPair),
-  Match.tag("ProviderModelPair", resolveProviderModelPair),
-  Match.exhaustive,
-);
+const resolve = (userProviders: string[]) =>
+  Match.type<IntentPair | ProviderModelPair>().pipe(
+    Match.tag("IntentPair", (pair) => resolveIntentPair(pair, userProviders)),
+    Match.tag("ProviderModelPair", resolveProviderModelPair),
+    Match.exhaustive,
+  );
 
-export const resolveImpl = (options: ResponseCreateParams) =>
+export const resolveImpl = (options: ResponseCreateParams, userProviders: string[]) =>
   Effect.gen(function* () {
     if (typeof options.model !== "string") {
-      return yield* Effect.fail(
-        new ResolveError({
-          reason: "InvalidModelType",
-          message: `Expected model to be a string, got ${typeof options.model}`,
-        }),
-      );
+      return yield* new ResolveError({
+        reason: "InvalidModelType",
+        message: `Expected model to be a string, got ${typeof options.model}`,
+      });
     }
 
-    const parsed = yield* parseImpl(options.model);
-    const resolved = yield* resolve(parsed);
-    return resolved;
+    return yield* pipe(options.model, parseImpl, Effect.flatMap(resolve(userProviders)));
   });

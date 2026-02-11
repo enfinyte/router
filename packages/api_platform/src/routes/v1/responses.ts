@@ -3,6 +3,7 @@ import { Data, Effect, Schema } from "effect";
 import * as ResponsesService from "../../services/responses";
 import { withProperContentTypeValidation } from "../../middlewares";
 import { CreateResponseBodySchema, type CreateResponseBody } from "../../services/responses/schema";
+import { RequestContext } from "../../services/request-context";
 
 const MIN_TEMPERATURE = 0;
 const MAX_TEMPERATURE = 2;
@@ -93,8 +94,13 @@ export const responsesRouter = HttpRouter.empty.pipe(
     "/",
     Effect.gen(function* () {
       const createResponseBody = yield* HttpServerRequest.schemaBodyJson(CreateResponseBodySchema);
-      const _ = yield* validateCreateResponseBody(createResponseBody);
-      const responsesObject = yield* ResponsesService.create(createResponseBody);
+      yield* validateCreateResponseBody(createResponseBody);
+      const { userId, userProviders } = yield* RequestContext;
+      const responsesObject = yield* ResponsesService.create(
+        createResponseBody,
+        userId,
+        userProviders,
+      );
       return yield* HttpServerResponse.json(responsesObject);
     }).pipe(
       Effect.catchTags({
