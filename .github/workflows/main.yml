@@ -17,7 +17,7 @@ on:
 jobs:
   lint:
     name: Lint (Oxlint)
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
       - uses: oxc-project/oxlint-action@v2.0.1
@@ -30,7 +30,7 @@ jobs:
             perf
   test:
     name: Bun Test
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
