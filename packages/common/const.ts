@@ -1,9 +1,8 @@
 export const SUPPORTED_PROVIDERS = [
-  "google-vertex-anthropic",
+  "amazon-bedrock",
+  "anthropic",
   "azure",
+  "google-vertex-anthropic",
   "google-vertex",
   "openai",
-  "anthropic",
-  "azure-cognitive-services",
-  "amazon-bedrock",
 ] as const;
