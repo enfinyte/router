@@ -5,8 +5,9 @@
     "target": "ESNext",
     "module": "Preserve",
     "moduleDetection": "force",
-    "jsx": "react-jsx",
     "allowJs": true,
+
+    "jsx": "react-jsx",
 
     // Bundler mode
     "moduleResolution": "bundler",
@@ -32,5 +33,6 @@
         "name": "@effect/language-service"
       }
     ]
-  }
+  },
+  "exclude": ["packages/frontend"]
 }
