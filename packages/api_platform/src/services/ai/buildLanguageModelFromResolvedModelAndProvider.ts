@@ -1,10 +1,10 @@
 import { Effect } from "effect";
-import { Providers, SUPPORTED_PROVIDERS } from "../types";
+import { Providers, SUPPORTED_PROVIDERS, type ProviderCredentials } from "../types";
 import { AIServiceError } from ".";
-import * as CredentialsService from "../credentials";
 import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
 import { createOpenAI } from "@ai-sdk/openai";
-import type { ResolvedModelAndProvider } from "../pmr";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import type { ResolvedModel } from "../pmr";
 
 const buildInvalidProviderModelError = (provider?: string) =>
   Effect.fail(
@@ -15,27 +15,30 @@ const buildInvalidProviderModelError = (provider?: string) =>
   );
 
 export const buildLanguageModelFromResolvedModelAndProvider = (
-  providerModel: ResolvedModelAndProvider,
+  resolved: ResolvedModel,
+  credentials: ProviderCredentials<Providers>,
 ) =>
   Effect.gen(function* () {
-    const [provider, ...modelParts] = providerModel.split("/");
+    const { provider, model } = resolved;
 
-    if (!provider || !modelParts.length) return yield* buildInvalidProviderModelError(provider);
+    if (!provider) return yield* buildInvalidProviderModelError(provider);
+    if (!model) return yield* buildInvalidProviderModelError(provider);
 
-    const model = modelParts.join(":");
-
-    if (!provider || !SUPPORTED_PROVIDERS.includes(provider as Providers))
+    if (!SUPPORTED_PROVIDERS.includes(provider as Providers))
       return yield* buildInvalidProviderModelError(provider);
 
     const languageModelProvider = yield* Effect.gen(function* () {
       switch (provider as Providers) {
         case Providers.AmazonBedrock: {
-          const credentials = CredentialsService.getCredentials(Providers.AmazonBedrock);
-          return createAmazonBedrock(credentials);
+          return createAmazonBedrock(
+            credentials as ProviderCredentials<Providers.AmazonBedrock>,
+          );
         }
         case Providers.OpenAI: {
-          const credentials = CredentialsService.getCredentials(Providers.OpenAI);
-          return createOpenAI(credentials);
+          return createOpenAI(credentials as ProviderCredentials<Providers.OpenAI>);
+        }
+        case Providers.Anthropic: {
+          return createAnthropic(credentials as ProviderCredentials<Providers.Anthropic>);
         }
         default:
           return yield* buildInvalidProviderModelError(provider);

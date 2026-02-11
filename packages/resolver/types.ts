@@ -1,87 +1,61 @@
-import { Data } from "effect";
+import { Data, Schema } from "effect";
 
 export type { ResponseCreateParams } from "openai/resources/responses/responses";
 
-export enum Intent {
-  Auto,
-  Academia,
-  Finance,
-  Health,
-  Legal,
-  Marketing,
-  Programming,
-  Roleplay,
-  Science,
-  Seo,
-  Technology,
-  Translation,
-  Trivia,
-}
+export const Intent = Schema.Literal(
+  "auto",
+  "academia",
+  "finance",
+  "health",
+  "legal",
+  "marketing",
+  "programming",
+  "roleplay",
+  "science",
+  "seo",
+  "technology",
+  "translation",
+  "trivia",
+);
+export type Intent = Schema.Schema.Type<typeof Intent>;
 
-export const intentMap: Record<string, Intent> = {
-  auto: Intent.Auto,
-  academia: Intent.Academia,
-  finance: Intent.Finance,
-  health: Intent.Health,
-  legal: Intent.Legal,
-  marketing: Intent.Marketing,
-  programming: Intent.Programming,
-  roleplay: Intent.Roleplay,
-  science: Intent.Science,
-  seo: Intent.Seo,
-  technology: Intent.Technology,
-  translation: Intent.Translation,
-  trivia: Intent.Trivia,
-};
+export const INTENTS: ReadonlyArray<Intent> = Intent.literals;
 
-export const intentReverseMap: Record<Intent, string> = Object.fromEntries(
-  Object.entries(intentMap).map(([k, v]) => [v, k]),
-) as Record<Intent, string>;
+/** All intents except "auto", used for data fetching categories. */
+export const CATEGORIES: ReadonlyArray<Intent> = INTENTS.filter(
+  (i): i is Exclude<Intent, "auto"> => i !== "auto",
+);
 
-export enum IntentPolicy {
-  MostPopular,
-  PricingLowToHigh,
-  PricingHighToLow,
-  ContextHightToLow,
-  LatencyLowToHigh,
-  ThroughputHighToLow,
-}
+export const IntentPolicy = Schema.Literal(
+  "most-popular",
+  "pricing-low-to-high",
+  "pricing-high-to-low",
+  "context-high-to-low",
+  "latency-low-to-high",
+  "throughput-high-to-low",
+);
+export type IntentPolicy = Schema.Schema.Type<typeof IntentPolicy>;
+
+export const INTENT_POLICIES: ReadonlyArray<IntentPolicy> = IntentPolicy.literals;
 
 export class IntentPair extends Data.TaggedClass("IntentPair")<{
   readonly intent: Intent;
   readonly intentPolicy: IntentPolicy;
 }> {}
 
-export const intentPolicyMap: Record<string, IntentPolicy> = {
-  "most-popular": IntentPolicy.MostPopular,
-  "pricing-low-to-high": IntentPolicy.PricingLowToHigh,
-  "pricing-high-to-low": IntentPolicy.PricingHighToLow,
-  "context-high-to-low": IntentPolicy.ContextHightToLow,
-  "latency-low-to-high": IntentPolicy.LatencyLowToHigh,
-  "throughput-high-to-low": IntentPolicy.ThroughputHighToLow,
-};
-
-export const intentPolicyReverseMap: Record<IntentPolicy, string> = Object.fromEntries(
-  Object.entries(intentPolicyMap).map(([k, v]) => [v, k]),
-) as Record<IntentPolicy, string>;
-
 export class ProviderModelPair extends Data.TaggedClass("ProviderModelPair")<{
   readonly model: string;
   readonly provider: string;
 }> {}
 
-export type ResolvedResponse = {
-  model: string;
-  provider: string;
-};
+export const ResolvedResponseSchema = Schema.Struct({
+  model: Schema.String,
+  provider: Schema.String,
+});
+export type ResolvedResponse = Schema.Schema.Type<typeof ResolvedResponseSchema>;
 
 export class ResolveError extends Data.TaggedError("ResolveError")<{
   readonly reason: "InvalidModelType";
-  readonly message: string;
-}> {}
-
-export class ParseError extends Data.TaggedError("ParseError")<{
-  readonly reason: "BadFormatting" | "InvalidCharacters" | "EmptyProvider" | "EmptyModel";
   readonly message: string;
 }> {}
 
@@ -95,12 +69,13 @@ export class IntentParseError extends Data.TaggedError("IntentParseError")<{
   readonly message: string;
 }> {}
 
-export class IntentError extends Data.TaggedError("IntentError")<{
-  readonly reason: "InvalidIntent";
+export class DataFetchError extends Data.TaggedError("DataFetchError")<{
+  readonly reason: "APICallFailed" | "JSONParseFailed" | "DataParseFailed";
   readonly message: string;
+  readonly cause?: unknown;
 }> {}
 
-export class APICallError extends Data.TaggedError("IntentError")<{
-  readonly reason: "CallFailed";
+export class NoProviderAvailableError extends Data.TaggedError("NoProviderAvailableError")<{
+  readonly reason: "NoProviderConfigured";
   readonly message: string;
 }> {}

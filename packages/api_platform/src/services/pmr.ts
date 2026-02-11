@@ -1,12 +1,27 @@
-import { Effect } from "effect";
-import type { CreateResponseBody } from "./responses/schema";
+import { Effect, Data } from "effect";
+import { resolve as resolverResolve } from "resolver";
+import type { FileSystem } from "@effect/platform/FileSystem";
 
-export type ResolvedModelAndProvider = `${string}/${string}`;
+export class PMRError extends Data.TaggedError("PMRError")<{
+  cause?: unknown;
+  message?: string;
+}> {}
+
+export interface ResolvedModel {
+  readonly provider: string;
+  readonly model: string;
+}
 
 export const resolve = (
-  createResponseBody: Omit<CreateResponseBody, "model"> &
-    Required<Pick<CreateResponseBody, "model">>,
-) =>
-  Effect.succeed(
-    "amazon-bedrock/global.anthropic.claude-haiku-4-5-20251001-v1:0" satisfies ResolvedModelAndProvider as ResolvedModelAndProvider,
+  model: string,
+  userProviders: string[],
+): Effect.Effect<ResolvedModel, PMRError, FileSystem> =>
+  resolverResolve({ model }, userProviders).pipe(
+    Effect.mapError(
+      (error) =>
+        new PMRError({
+          cause: error,
+          message: "message" in error ? error.message : `Model resolution failed`,
+        }),
+    ),
   );

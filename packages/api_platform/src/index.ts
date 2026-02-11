@@ -1,9 +1,10 @@
 import { HttpMiddleware, HttpServer } from "@effect/platform";
-import { BunHttpServer, BunRuntime } from "@effect/platform-bun";
+import { BunContext, BunHttpServer, BunRuntime } from "@effect/platform-bun";
 import { Effect, flow, Layer } from "effect";
 import { router } from "./routes/index";
 import { AppConfig, AppConfigLive } from "./services/config";
 import { DatabaseServiceLive } from "./services/database/";
+import { VaultServiceLive } from "vault";
 
 export const app = router.pipe(
   HttpServer.serve(
@@ -21,7 +22,12 @@ const HttpServerLayer = Layer.unwrapEffect(
   }),
 ).pipe(Layer.provide(AppConfigLive));
 
-const AllServices = Layer.mergeAll(DatabaseLayer, AppConfigLive);
+const AllServices = Layer.mergeAll(
+  DatabaseLayer,
+  AppConfigLive,
+  VaultServiceLive,
+  BunContext.layer,
+);
 const AllServicesAndHttpServer = Layer.mergeAll(AllServices, HttpServerLayer);
 
 BunRuntime.runMain(Layer.launch(Layer.provide(app, AllServicesAndHttpServer)));
