@@ -55,7 +55,7 @@ export const ResolvedResponseSchema = Schema.Struct({
 export type ResolvedResponse = Schema.Schema.Type<typeof ResolvedResponseSchema>;
 
 export class ResolveError extends Data.TaggedError("ResolveError")<{
-  readonly reason: "InvalidModelType";
+  readonly reason: "InvalidModelType" | "UnsupportedInputType";
   readonly message: string;
 }> {}
 
