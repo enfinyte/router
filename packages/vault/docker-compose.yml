@@ -8,9 +8,9 @@ services:
       - "8200:8200"
       - "8201:8201"
     volumes:
-      - ./vault/config/vault.hcl:/vault/config/vault.hcl:ro
-      - ./vault/data:/vault/data
-    command: vault server -config=/vault/config/vault.hcl
+      - ./docker_vault.hcl:/vault/vault.hcl:ro
+    command: vault server -config=/vault/vault.hcl
     # restart: unless-stopped
     environment:
       VAULT_ADDR: http://127.0.0.1:8200
+      VAULT_PG_CONNECTION_URL: ${VAULT_PG_CONNECTION_URL}
