@@ -42,9 +42,7 @@ Instructions:
 4. Respond ONLY with valid JSON:
 {
   "category": "<one_of_the_above>",
-}
-"""
-`;
+}`;
 
 const getCategory = (prompt: string) =>
   Effect.tryPromise({
