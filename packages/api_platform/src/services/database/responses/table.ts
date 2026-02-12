@@ -1,10 +1,6 @@
-import type { Kysely } from "kysely";
+import type { TableDefinition } from "../tables";
 
 export const RESPONSES_TABLE = "responses_table";
-
-export interface TableDefinition {
-  create: (db: Kysely<Record<string, unknown>>) => Promise<void>;
-}
 
 export type ResponsesTable = {
   id: string;

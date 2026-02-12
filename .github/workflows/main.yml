@@ -1,0 +1,41 @@
+name: lint-and-tests
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize]
+    paths-ignore:
+      - "*.md"
+      - "*.json"
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "*.md"
+      - "*.json"
+
+jobs:
+  lint:
+    name: Lint (Oxlint)
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oxc-project/oxlint-action@v2.0.1
+        with:
+          deny: |
+            correctness
+            no-eval
+          warn: |
+            suspicious
+            perf
+  test:
+    name: Bun Test
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-install: true
+      - run: bun install
+      - run: bunx tsc --build --noEmit
+      

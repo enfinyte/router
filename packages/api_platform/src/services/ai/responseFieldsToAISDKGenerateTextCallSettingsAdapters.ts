@@ -10,7 +10,7 @@ import type {
 } from "ai";
 import { AIServiceError } from ".";
 import { isNotNullable } from "effect/Predicate";
-import { detectMimeTypeFromBase64EncodedString, detectMimeTypeFromURL } from "@/src/utils";
+import { detectMimeTypeFromBase64EncodedString, detectMimeTypeFromURL } from "../../utils";
 
 export const convertCreateResponseBodyInputFieldToCallSettingsMessages = (
   createResponseBody: CreateResponseBody,
