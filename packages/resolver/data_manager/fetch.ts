@@ -77,7 +77,7 @@ const populate = (path: string) =>
     const modelsDevAction = (path: string) => (json: any) =>
       Effect.gen(function* () {
         const parsed = yield* Schema.decodeUnknown(ProviderModelMapSchema)(json);
-        const supported = SUPPORTED_PROVIDERS.reduce((acc: Object, provider: string) => {
+        const supported = SUPPORTED_PROVIDERS.reduce((acc: object, provider: string) => {
           return Object.assign(acc, { [provider]: parsed[provider] });
         }, {});
         const fs = yield* FileSystem;
