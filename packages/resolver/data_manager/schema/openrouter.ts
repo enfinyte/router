@@ -11,3 +11,11 @@ export const Models = Schema.Struct({
 export const RootSchema = Schema.Struct({
   data: Models,
 });
+
+export const OpenRouterMapSchema = Schema.transform(RootSchema, Schema.Array(Schema.String), {
+  strict: false,
+  decode: (root) => {
+    return root.data.models.map((model) => model.slug);
+  },
+  encode: (a) => a,
+});
