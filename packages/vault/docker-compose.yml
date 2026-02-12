@@ -8,7 +8,7 @@ services:
       - "8200:8200"
       - "8201:8201"
     volumes:
-      - ./docker_vault.hcl:/vault/vault.hcl:ro
+      - ./docker_vault_config.hcl:/vault/vault.hcl:ro
     command: vault server -config=/vault/vault.hcl
     # restart: unless-stopped
     environment:
