@@ -8,7 +8,6 @@ import {
   ensureTablesExist,
   replaceDatabaseInConnectionString,
 } from "./utils";
-
 export * from "./responses";
 
 export const DATABASE_NAME = "api_platform_db";
@@ -54,7 +53,6 @@ export const DatabaseServiceLive = Layer.scoped(
     );
 
     yield* Effect.log("Database connection pool initialized");
-
     yield* ensureTablesExist(dbConn).pipe(Effect.orDie);
 
     return DatabaseService.of({
