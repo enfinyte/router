@@ -4,6 +4,7 @@ import { ResolveError } from "../types";
 import type { IntentPair, ProviderModelPair, ResponseCreateParams } from "../types";
 import { resolveProviderModelPair } from "./resolve_provider_model";
 import { resolveIntentPair } from "./resolve_intent";
+import { resolveAuto } from "./resolve_auto";
 
 const resolve = (userProviders: string[]) =>
   Match.type<IntentPair | ProviderModelPair>().pipe(
@@ -21,5 +22,8 @@ export const resolveImpl = (options: ResponseCreateParams, userProviders: string
       });
     }
 
+    if (options.model === "auto") {
+      return yield* resolveAuto(options, userProviders);
+    }
     return yield* pipe(options.model, parseImpl, Effect.flatMap(resolve(userProviders)));
   });

@@ -1,9 +1,13 @@
-import { Effect, Clock, Duration } from "effect";
+import { Effect, Clock, Duration, Schema } from "effect";
 import { FileSystem } from "@effect/platform/FileSystem";
 import { DataFetchError } from "../types";
 import { CATEGORIES, ORDERS } from "./const";
+import { SUPPORTED_PROVIDERS } from "common";
+import { ProviderModelMapSchema } from "./schema/modelsdev";
+import { OpenRouterMapSchema } from "./schema/openrouter";
 
 const OPENROUTER_BASE = "https://openrouter.ai/api/frontend/models";
+const MODELS_DEV_BASE = "https://models.dev/api.json";
 
 const DATA_TTL = Duration.hours(12);
 
@@ -35,11 +39,10 @@ const fetchJson = (url: string) =>
     });
   });
 
-const fetchAndWrite = (url: string, filePath: string) =>
+const fetchAndAction = (url: string, action: (json: any) => Effect.Effect<void, any, any>) =>
   Effect.gen(function* () {
     const json = yield* fetchJson(url);
-    const fs = yield* FileSystem;
-    yield* fs.writeFileString(filePath, JSON.stringify(json));
+    yield* action(json);
   });
 
 const makePaths = (path: string) =>
@@ -55,15 +58,40 @@ const makePaths = (path: string) =>
 
 const populate = (path: string) =>
   Effect.gen(function* () {
+    const openRouterAction = (path: string) => (json: any) =>
+      Effect.gen(function* () {
+        const parsed = yield* Schema.decodeUnknown(OpenRouterMapSchema)(json);
+        const fs = yield* FileSystem;
+        yield* fs.writeFileString(path, JSON.stringify(parsed, null, 2));
+      });
+
     const categoryFetches = CATEGORIES.flatMap((category) =>
       ORDERS.map((order) =>
-        fetchAndWrite(openrouterCategoryUrl(category, order), `${path}/${category}/${order}.json`),
+        fetchAndAction(
+          openrouterCategoryUrl(category, order),
+          openRouterAction(`${path}/${category}/${order}.json`),
+        ),
       ),
     );
 
+    const modelsDevAction = (path: string) => (json: any) =>
+      Effect.gen(function* () {
+        const parsed = yield* Schema.decodeUnknown(ProviderModelMapSchema)(json);
+        const supported = SUPPORTED_PROVIDERS.reduce((acc: object, provider: string) => {
+          return Object.assign(acc, { [provider]: parsed[provider] });
+        }, {});
+        const fs = yield* FileSystem;
+        yield* fs.writeFileString(path, JSON.stringify(supported, null, 2));
+      });
+
     yield* Effect.all(
-      [...categoryFetches, fetchAndWrite(OPENROUTER_BASE, `${path}/openrouter.json`)],
-      { concurrency: "unbounded" },
+      [
+        ...categoryFetches,
+        fetchAndAction(MODELS_DEV_BASE, modelsDevAction(`${path}/modelsdev.json`)),
+      ],
+      {
+        concurrency: "unbounded",
+      },
     );
   });
 
