@@ -27,3 +27,16 @@ export function useGetAllSecrets() {
       }>(),
   });
 }
+
+export function useToggleProvider() {
+  return useMutation({
+    mutationKey: ["toggle-provider"],
+    mutationFn: (payload: { provider: string; enabled: boolean }) =>
+      ky
+        .patch(`${BASE_URL}/v1/secret/${payload.provider}`, {
+          json: { enabled: payload.enabled },
+          credentials: "include",
+        })
+        .json<{ success: boolean; enabled: boolean }>(),
+  });
+}
