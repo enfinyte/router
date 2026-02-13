@@ -1,5 +1,5 @@
 import { Effect, Data } from "effect";
-import { getSecret, type VaultService } from "vault";
+import { VaultService } from "vault";
 import { type ProviderCredentials, Providers } from "./types";
 
 export class CredentialsError extends Data.TaggedError("CredentialsError")<{
@@ -12,7 +12,8 @@ export const getCredentials = <T extends Providers>(
   provider: T,
 ): Effect.Effect<ProviderCredentials<T>, CredentialsError, VaultService> =>
   Effect.gen(function* () {
-    const secrets = yield* getSecret(userId, provider).pipe(
+    const vault = yield* VaultService;
+    const secrets = yield* vault.getSecret(userId, provider).pipe(
       Effect.mapError(
         (error) =>
           new CredentialsError({
