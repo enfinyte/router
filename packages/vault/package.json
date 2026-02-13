@@ -2,6 +2,7 @@
   "name": "vault",
   "private": true,
   "type": "module",
+  "main": "src/index.ts",
   "dependencies": {
     "node-vault": "^0.10.9"
   },
