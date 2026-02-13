@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export interface ProviderConfig {
   id: string;
@@ -29,6 +30,28 @@ interface ProviderCardProps {
   onChange: (providerId: string, fieldKey: string, value: string) => void;
   status: "idle" | "validating" | "connected" | "error";
   onValidate: (providerId: string) => void;
+}
+
+export function ProviderCardSkeleton() {
+  return (
+    <div className="rounded-lg border border-border bg-card">
+      <div className="flex w-full items-center gap-4 px-5 py-4">
+        <Skeleton className="h-10 w-10 shrink-0 rounded-lg" />
+        <div className="flex-1 min-w-0">
+          <Skeleton className="h-4 w-28 mb-1.5" />
+          <Skeleton className="h-3 w-48" />
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-1">
+            <Skeleton className="h-5 w-14 rounded" />
+            <Skeleton className="h-5 w-12 rounded" />
+            <Skeleton className="h-5 w-10 rounded" />
+          </div>
+          <Skeleton className="h-4 w-4" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function ProviderCard({

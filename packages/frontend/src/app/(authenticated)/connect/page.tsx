@@ -1,106 +1,80 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
-import { OnboardingFooter, OnboardingHeader } from "@/components/Onboarding";
-import { ProviderCard } from "@/components/ProviderCard";
-import { toast } from "sonner";
-import { PROVIDERS } from "@/lib/providers";
+import { useCallback, useEffect, useMemo } from "react";
+import { useQueryState, parseAsInteger } from "nuqs";
+import { OnboardingStepper } from "@/components/Onboarding";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ConnectProvidersStep } from "./_steps/connect-providers";
+import { CreateApiKeyStep } from "./_steps/create-api-key";
+import { useGetAllSecrets } from "@/lib/api/secrets";
 
-type ProviderStatus = "idle" | "validating" | "connected" | "error";
+const STEP_LABELS = ["Connect Providers", "Create API Key"];
 
 export default function OnboardingPage() {
-  const [credentials, setCredentials] = useState<Record<string, Record<string, string>>>({});
-  const [statuses, setStatuses] = useState<Record<string, ProviderStatus>>({});
-
-  const handleChange = useCallback((providerId: string, fieldKey: string, value: string) => {
-    setCredentials((prev) => ({
-      ...prev,
-      [providerId]: {
-        ...prev[providerId],
-        [fieldKey]: value,
-      },
-    }));
-    setStatuses((prev) => {
-      if (prev[providerId] && prev[providerId] !== "idle") {
-        return { ...prev, [providerId]: "idle" };
-      }
-      return prev;
-    });
-  }, []);
-
-  const handleValidate = useCallback(
-    async (providerId: string) => {
-      setStatuses((prev) => ({ ...prev, [providerId]: "validating" }));
-
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      const providerCreds = credentials[providerId];
-      const provider = PROVIDERS.find((p) => p.id === providerId);
-
-      if (!provider || !providerCreds) {
-        setStatuses((prev) => ({ ...prev, [providerId]: "error" }));
-        toast.error("Validation failed", {
-          description: "Please check your credentials and try again.",
-        });
-        return;
-      }
-
-      const primaryField = provider.fields[0];
-      if (providerCreds[primaryField.key]?.trim().length > 3) {
-        setStatuses((prev) => ({ ...prev, [providerId]: "connected" }));
-        toast.success(`${provider.name} connected`, {
-          description: "Your API key has been saved successfully.",
-        });
-      } else {
-        setStatuses((prev) => ({ ...prev, [providerId]: "error" }));
-        toast.error("Invalid API key", {
-          description: "The key provided does not appear to be valid.",
-        });
-      }
-    },
-    [credentials],
+  const [step, setStep] = useQueryState(
+    "step",
+    parseAsInteger.withDefault(0).withOptions({ history: "push" }),
   );
+  const { data, isLoading } = useGetAllSecrets();
 
-  const handleContinue = useCallback(() => {
-    const connected = Object.values(statuses).filter((s) => s === "connected").length;
-    toast.success("Setup complete!", {
-      description: `${connected} provider${connected > 1 ? "s" : ""} configured. Redirecting to dashboard...`,
-    });
-  }, [statuses]);
+  const hasConnectedProvider = useMemo(() => {
+    if (!data?.providers) return false;
+    return Object.values(data.providers).some((p) => p.enabled);
+  }, [data]);
 
-  const connectedCount = useMemo(
-    () => Object.values(statuses).filter((s) => s === "connected").length,
-    [statuses],
-  );
+  useEffect(() => {
+    if (!isLoading && step > 0 && !hasConnectedProvider) {
+      setStep(0);
+    }
+  }, [step, isLoading, hasConnectedProvider, setStep]);
+
+  const goToNext = useCallback(() => {
+    setStep((s) => Math.min(STEP_LABELS.length - 1, s + 1));
+  }, [setStep]);
+
+  const goToPrev = useCallback(() => {
+    setStep((s) => Math.max(0, s - 1));
+  }, [setStep]);
+
+  const safeStep = !isLoading && step > 0 && !hasConnectedProvider ? 0 : step;
 
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-2xl px-4 py-12 sm:py-20">
         <div className="flex flex-col gap-10">
-          <OnboardingHeader />
+          <OnboardingStepper
+            currentStep={safeStep}
+            totalSteps={STEP_LABELS.length}
+            labels={STEP_LABELS}
+          />
 
-          <div className="flex flex-col gap-3">
-            {PROVIDERS.map((provider) => (
-              <ProviderCard
-                key={provider.id}
-                provider={provider}
-                values={credentials[provider.id] || {}}
-                onChange={handleChange}
-                status={statuses[provider.id] || "idle"}
-                onValidate={handleValidate}
-              />
-            ))}
-          </div>
-
-          <div className="rounded-lg border border-border bg-card px-5 py-4">
-            <OnboardingFooter
-              connectedCount={connectedCount}
-              totalCount={PROVIDERS.length}
-              onContinue={handleContinue}
-            />
-          </div>
+          {isLoading ? (
+            <OnboardingLoadingSkeleton />
+          ) : (
+            <>
+              {safeStep === 0 && <ConnectProvidersStep onContinue={goToNext} />}
+              {safeStep === 1 && <CreateApiKeyStep onBack={goToPrev} />}
+            </>
+          )}
         </div>
       </div>
     </main>
+  );
+}
+
+function OnboardingLoadingSkeleton() {
+  return (
+    <>
+      <div className="flex flex-col items-center gap-3">
+        <Skeleton className="h-12 w-12 rounded-xl" />
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-80" />
+      </div>
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-[72px] w-full rounded-lg" />
+        <Skeleton className="h-[72px] w-full rounded-lg" />
+      </div>
+      <Skeleton className="h-14 w-full rounded-lg" />
+    </>
   );
 }
