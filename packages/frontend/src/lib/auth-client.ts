@@ -1,4 +1,5 @@
 import { createAuthClient } from "better-auth/react";
+import { apiKeyClient } from "better-auth/client/plugins";
 
 if (!process.env.NEXT_PUBLIC_BETTERAUTH_BASE_URL)
   throw new Error(
@@ -7,4 +8,5 @@ if (!process.env.NEXT_PUBLIC_BETTERAUTH_BASE_URL)
 
 export const authClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_BETTERAUTH_BASE_URL,
+  plugins: [apiKeyClient()],
 });
