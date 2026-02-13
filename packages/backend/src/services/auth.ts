@@ -1,12 +1,12 @@
 import { Context, Effect, Layer } from "effect";
 import { betterAuth } from "better-auth";
 import { apiKey } from "better-auth/plugins";
+import pg from "pg";
 
-import { appConfig } from "./config";
-import { DatabasePool } from "./pool";
+import { AppConfig, AppConfigLive } from "../config";
 
 const createAuth = (
-  pool: InstanceType<typeof import("pg").Pool>,
+  pool: pg.Pool,
   config: {
     baseUrl: string;
     corsOrigin: string;
@@ -47,8 +47,10 @@ export class AuthService extends Context.Tag("AuthService")<AuthService, AuthIns
 export const AuthServiceLive = Layer.effect(
   AuthService,
   Effect.gen(function* () {
-    const pool = yield* DatabasePool;
-    const config = yield* appConfig;
+    const config = yield* AppConfig;
+
+    const pool = new pg.Pool({ connectionString: config.postgresConnectionString });
+
     return createAuth(pool, {
       baseUrl: config.baseUrl,
       corsOrigin: config.corsOrigin,
@@ -56,4 +58,4 @@ export const AuthServiceLive = Layer.effect(
       githubClientSecret: config.githubClientSecret,
     });
   }),
-);
+).pipe(Layer.provide(AppConfigLive));
