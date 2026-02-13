@@ -23,11 +23,7 @@ export const create = (req: CreateResponseBody, userId: string, userProviders: r
   );
 
 const persistResponseResourceInDatabase = (resource: ResponseResource) =>
-  Effect.gen(function* () {
-    return yield* DatabaseService.createResponsesResource(resource);
-  });
+  DatabaseService.createResponsesResource(resource);
 
-const getResponseResourceByIdFromDatabase = (responseId: string) =>
-  Effect.gen(function* () {
-    return yield* DatabaseService.getResponsesResourceById(responseId);
-  });
+export const getResponseResourceByIdFromDatabase = (responseId: string) =>
+  DatabaseService.getResponsesResourceById(responseId);
