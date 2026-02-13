@@ -9,11 +9,6 @@ export class AuthApiError extends Data.TaggedError("AuthApiError")<{
   message?: string;
 }> {}
 
-export class DatabaseQueryError extends Data.TaggedError("DatabaseQueryError")<{
-  cause?: unknown;
-  message?: string;
-}> {}
-
 export class RequestValidationError extends Data.TaggedError("RequestValidationError")<{
   cause?: unknown;
   message?: string;
