@@ -30,11 +30,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useGetUser, useLogoutUser } from "@/lib/api/user";
 import { useCallback } from "react";
 import { useTheme } from "next-themes";
-import { redirect } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 export function NavUser() {
   const { isMobile } = useSidebar();
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const { data: user, isLoading } = useGetUser();
   const { mutateAsync: logoutUser, isPending } = useLogoutUser();
@@ -114,7 +115,7 @@ export function NavUser() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push("/account")}>
                 <IconUserCircle />
                 Account
               </DropdownMenuItem>
