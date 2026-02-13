@@ -1,6 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { GITHUB_URL } from "@/lib/consts";
+import { IconBook2 } from "@tabler/icons-react";
+import Link from "next/link";
 
 export function SiteHeader({ title }: { title?: string }) {
   return (
@@ -11,14 +14,15 @@ export function SiteHeader({ title }: { title?: string }) {
         <h1 className="text-base font-medium">{title}</h1>
         <div className="ml-auto flex items-center gap-2">
           <Button variant="ghost" asChild size="sm" className="hidden sm:flex">
-            <a
-              href="https://github.com/shadcn-ui/ui/tree/main/apps/v4/app/(examples)/dashboard"
+            <Link
+              href={GITHUB_URL}
               rel="noopener noreferrer"
               target="_blank"
               className="dark:text-foreground"
             >
-              GitHub
-            </a>
+              <IconBook2 />
+              Documentation
+            </Link>
           </Button>
         </div>
       </div>

@@ -1,10 +1,12 @@
 "use client";
 
 import {
-  IconCreditCard,
+  IconCheck,
+  IconDeviceDesktop,
   IconDotsVertical,
   IconLogout,
-  IconNotification,
+  IconMoon,
+  IconSun,
   IconUserCircle,
 } from "@tabler/icons-react";
 
@@ -27,11 +29,13 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetUser, useLogoutUser } from "@/lib/api/user";
 import { useCallback } from "react";
+import { useTheme } from "next-themes";
 import { redirect } from "next/navigation";
 import { toast } from "sonner";
 
 export function NavUser() {
   const { isMobile } = useSidebar();
+  const { theme, setTheme } = useTheme();
   const { data: user, isLoading } = useGetUser();
   const { mutateAsync: logoutUser, isPending } = useLogoutUser();
 
@@ -114,13 +118,23 @@ export function NavUser() {
                 <IconUserCircle />
                 Account
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <IconCreditCard />
-                Billing
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={() => setTheme("light")}>
+                <IconSun />
+                Light
+                {theme === "light" && <IconCheck className="ml-auto size-4" />}
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <IconNotification />
-                Notifications
+              <DropdownMenuItem onClick={() => setTheme("dark")}>
+                <IconMoon />
+                Dark
+                {theme === "dark" && <IconCheck className="ml-auto size-4" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("system")}>
+                <IconDeviceDesktop />
+                System
+                {theme === "system" && <IconCheck className="ml-auto size-4" />}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

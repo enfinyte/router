@@ -29,12 +29,8 @@ export function CreateApiKeyStep({ onBack }: CreateApiKeyStepProps) {
 
     try {
       const result = await createKey({ name: keyName.trim() });
-      if (result.error || !result.data)
-        toast.error("Failed to create API key", {
-          description: result.error.message || "Something went wrong. Please try again.",
-        });
 
-      setGeneratedKey(result.data!.key);
+      setGeneratedKey(result.key);
 
       toast.success("API key created", {
         description: "Make sure to copy it now — you won't be able to see it again.",
