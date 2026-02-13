@@ -1,36 +1,47 @@
-## Usage
+# OpenNext Starter
 
-Those templates dependencies are maintained via [pnpm](https://pnpm.io) via `pnpm up -Lri`.
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-This is the reason you see a `pnpm-lock.yaml`. That being said, any package manager will work. This file can be safely be removed once you clone a template.
+## Getting Started
+
+Read the documentation at https://opennext.js.org/cloudflare.
+
+## Develop
+
+Run the Next.js development server:
 
 ```bash
-$ npm install # or pnpm install or yarn install
+npm run dev
+# or similar package manager command
 ```
 
-### Learn more on the [Solid Website](https://solidjs.com) and come chat with us on our [Discord](https://discord.com/invite/solidjs)
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Available Scripts
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-In the project directory, you can run:
+## Preview
 
-### `npm run dev` or `npm start`
+Preview the application locally on the Cloudflare runtime:
 
-Runs the app in the development mode.<br>
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+```bash
+npm run preview
+# or similar package manager command
+```
 
-The page will reload if you make edits.<br>
+## Deploy
 
-### `npm run build`
+Deploy the application to Cloudflare:
 
-Builds the app for production to the `dist` folder.<br>
-It correctly bundles Solid in production mode and optimizes the build for the best performance.
+```bash
+npm run deploy
+# or similar package manager command
+```
 
-The build is minified and the filenames include the hashes.<br>
-Your app is ready to be deployed!
+## Learn More
 
-## Deployment
+To learn more about Next.js, take a look at the following resources:
 
-You can deploy the `dist` folder to any static host provider (netlify, surge, now, etc.)
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-## This project was created with the [Solid CLI](https://github.com/solidjs-community/solid-cli)
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
