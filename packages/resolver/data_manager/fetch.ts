@@ -1,10 +1,17 @@
 import { Effect, Clock, Duration, Schema } from "effect";
 import { FileSystem } from "@effect/platform/FileSystem";
 import { DataFetchError } from "../types";
-import { CATEGORIES, ORDERS } from "./const";
+import {
+  CATEGORIES,
+  LAST_FETCH_PATH,
+  MODELS_DEV_DATA_PATH,
+  MODELS_MAP_DATA_PATH,
+  ORDERS,
+} from "./const";
 import { SUPPORTED_PROVIDERS } from "common";
 import { ProviderModelMapSchema } from "./schema/modelsdev";
 import { OpenRouterMapSchema } from "./schema/openrouter";
+import { buildCombinedModelMap } from "./model_map";
 
 const OPENROUTER_BASE = "https://openrouter.ai/api/frontend/models";
 const MODELS_DEV_BASE = "https://models.dev/api.json";
@@ -39,10 +46,10 @@ const fetchJson = (url: string) =>
     });
   });
 
-const fetchAndAction = (url: string, action: (json: any) => Effect.Effect<void, any, any>) =>
+const fetchAndAction = (url: string, action: (json: any) => Effect.Effect<unknown, any, any>) =>
   Effect.gen(function* () {
     const json = yield* fetchJson(url);
-    yield* action(json);
+    return yield* action(json);
   });
 
 const makePaths = (path: string) =>
@@ -52,7 +59,6 @@ const makePaths = (path: string) =>
     if (exists) return;
 
     yield* fs.makeDirectory(path);
-    yield* fs.writeFileString(`${path}/.last-fetch`, "");
     yield* Effect.forEach(CATEGORIES, (category) => fs.makeDirectory(`${path}/${category}`));
   });
 
@@ -63,6 +69,7 @@ const populate = (path: string) =>
         const parsed = yield* Schema.decodeUnknown(OpenRouterMapSchema)(json);
         const fs = yield* FileSystem;
         yield* fs.writeFileString(path, JSON.stringify(parsed, null, 2));
+        return parsed;
       });
 
     const categoryFetches = CATEGORIES.flatMap((category) =>
@@ -82,17 +89,23 @@ const populate = (path: string) =>
         }, {});
         const fs = yield* FileSystem;
         yield* fs.writeFileString(path, JSON.stringify(supported, null, 2));
+        return supported;
       });
 
-    yield* Effect.all(
-      [
-        ...categoryFetches,
-        fetchAndAction(MODELS_DEV_BASE, modelsDevAction(`${path}/modelsdev.json`)),
-      ],
+    const [modelsDev, ...openRouter] = yield* Effect.all(
+      [fetchAndAction(MODELS_DEV_BASE, modelsDevAction(MODELS_DEV_DATA_PATH)), ...categoryFetches],
       {
         concurrency: "unbounded",
       },
     );
+
+    const modelMap = yield* buildCombinedModelMap(
+      openRouter.flat() as string[],
+      modelsDev as Readonly<Record<string, string[]>>,
+    );
+
+    const fs = yield* FileSystem;
+    yield* fs.writeFileString(MODELS_MAP_DATA_PATH, JSON.stringify(modelMap, null, 2));
   });
 
 export const runDataFetch = (dataPath: string) =>
@@ -102,12 +115,17 @@ export const runDataFetch = (dataPath: string) =>
 
     const ttlMillis = Duration.toMillis(DATA_TTL);
     const now = yield* Clock.currentTimeMillis;
-    const lastFetchPath = `${dataPath}/.last-fetch`;
-    const lastFetch = yield* fs.readFile(lastFetchPath).pipe(Effect.map((lf) => Number(lf)));
 
-    const isStale = now - lastFetch >= ttlMillis;
-    if (isStale) {
-      yield* populate(dataPath);
-      yield* fs.writeFileString(lastFetchPath, String(now));
+    const lastFetchExists = yield* fs.exists(LAST_FETCH_PATH);
+
+    if (lastFetchExists) {
+      const lastFetch = yield* fs.readFile(LAST_FETCH_PATH).pipe(Effect.map((lf) => Number(lf)));
+      const isStale = now - lastFetch >= ttlMillis;
+      if (!isStale) {
+        return;
+      }
     }
+
+    yield* populate(dataPath);
+    yield* fs.writeFileString(LAST_FETCH_PATH, String(now));
   });
