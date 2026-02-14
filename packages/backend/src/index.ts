@@ -5,18 +5,20 @@ import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
 import { trimTrailingSlash } from "hono/trailing-slash";
 
-import { AuthService } from "./auth";
-import { appConfig } from "./config";
-import { AppLive } from "./layers";
-import { apikeyRoute } from "./apikey";
-import { secretRoute } from "./secret";
-// import { rateLimiter } from "./rate-limit";
+import { AppConfig } from "./config";
+import { AuthService } from "./services/auth";
+import { createAuthMiddleware } from "./middleware/auth";
+import { apikeyRoute } from "./routes/apikey";
+import { secretRoute } from "./routes/secret";
+import { appRuntime } from "./runtime";
 
-const { auth, config } = await Effect.gen(function* () {
-  const authInstance = yield* AuthService;
-  const cfg = yield* appConfig;
-  return { auth: authInstance, config: cfg };
-}).pipe(Effect.provide(AppLive), Effect.runPromise);
+const { auth, config } = await appRuntime.runPromise(
+  Effect.gen(function* () {
+    const authInstance = yield* AuthService;
+    const cfg = yield* AppConfig;
+    return { auth: authInstance, config: cfg };
+  }),
+);
 
 const app = new Hono<{
   Variables: {
@@ -24,7 +26,6 @@ const app = new Hono<{
     session: Record<string, unknown> | null;
   };
 }>();
-
 app.use(trimTrailingSlash());
 app.use(logger());
 app.use(secureHeaders());
@@ -40,7 +41,6 @@ app.use(
     credentials: true,
   }),
 );
-
 app.use(
   "/v1/apikey/verify",
   cors({
@@ -50,7 +50,6 @@ app.use(
     maxAge: 600,
   }),
 );
-
 app.use(
   "/v1/*",
   cors({
@@ -62,23 +61,7 @@ app.use(
     credentials: true,
   }),
 );
-
-app.use("v1/*", async (c, next) => {
-  // The verify endpoint is public (authenticated via API key in body)
-  if (c.req.path === "/v1/apikey/verify") {
-    return next();
-  }
-
-  const session = await auth.api.getSession({
-    headers: c.req.raw.headers,
-  });
-  if (!session) {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
-  c.set("user", session.user);
-  c.set("session", session.session);
-  await next();
-});
+app.use("/v1/*", createAuthMiddleware(auth));
 
 app.on(["POST", "GET"], "/api/auth/*", (c) => {
   return auth.handler(c.req.raw);
