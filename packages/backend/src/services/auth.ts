@@ -21,6 +21,15 @@ const createAuth = (
       enabled: true,
     },
     trustedOrigins: [config.corsOrigin, config.baseUrl],
+    user: {
+      additionalFields: {
+        hasCompletedOnboarding: {
+          type: "boolean",
+          input: true,
+          defaultValue: false,
+        },
+      },
+    },
     socialProviders: {
       github: {
         clientId: config.githubClientId,

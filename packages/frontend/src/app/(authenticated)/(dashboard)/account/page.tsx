@@ -76,6 +76,11 @@ export default function AccountPage() {
     return accounts.map((a) => a.providerId);
   }, [accounts]);
 
+  const hasCredentialAccount = useMemo(
+    () => linkedProviders.includes("credential"),
+    [linkedProviders],
+  );
+
   const isPasswordFormValid = useMemo(
     () => !!(currentPassword && newPassword && confirmPassword),
     [currentPassword, newPassword, confirmPassword],
@@ -188,15 +193,6 @@ export default function AccountPage() {
     <>
       <div className="flex flex-1 flex-col">
         <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6 w-full max-w-3xl mx-auto">
-          <div className="space-y-1 pb-2">
-            <h1 className="text-2xl font-semibold tracking-tight">Account Settings</h1>
-            <p className="text-sm text-muted-foreground">
-              Manage your profile, security, and account preferences.
-            </p>
-          </div>
-
-          <Separator />
-
           <div className="space-y-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -325,13 +321,14 @@ export default function AccountPage() {
                 <h2 className="text-lg font-semibold tracking-tight">Security</h2>
               </div>
               <p className="text-sm text-muted-foreground">
-                Manage your password and active sessions.
+                {hasCredentialAccount ? "Manage your password and active sessions." : "Manage your active sessions."}
               </p>
             </div>
 
             <div className="rounded-lg border border-border bg-card p-6 space-y-8">
               <div className="space-y-4">
                 <h3 className="text-base font-medium">Change Password</h3>
+                {hasCredentialAccount ? (
                 <div className="grid gap-4 max-w-md">
                   <div className="space-y-2">
                     <Label
@@ -399,6 +396,11 @@ export default function AccountPage() {
                     Update Password
                   </Button>
                 </div>
+                ) : (
+                <p className="text-sm text-muted-foreground">
+                  Password management is not available for social login accounts. Your account is secured through your linked provider.
+                </p>
+                )}
               </div>
 
               <Separator />
