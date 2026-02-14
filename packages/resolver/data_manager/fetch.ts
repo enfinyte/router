@@ -99,7 +99,7 @@ const populate = (path: string) =>
       },
     );
 
-    const modelMap = yield* buildCombinedModelMap(
+    const modelMap = buildCombinedModelMap(
       openRouter.flat() as string[],
       modelsDev as Readonly<Record<string, string[]>>,
     );
