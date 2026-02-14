@@ -62,6 +62,7 @@ export default function AuthPage() {
         email,
         password,
         name,
+        hasCompletedOnboarding: false,
       },
       {
         onRequest: () => {
