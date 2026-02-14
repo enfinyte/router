@@ -34,6 +34,8 @@ const createAuth = (
           enabled: false,
         },
         keyExpiration: {
+          maxExpiresIn: 60,
+          minExpiresIn: 1,
           defaultExpiresIn: null,
         },
       }),
