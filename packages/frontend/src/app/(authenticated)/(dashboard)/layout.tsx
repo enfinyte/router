@@ -1,4 +1,7 @@
-import { Metadata } from "next";
+import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
@@ -12,6 +15,16 @@ export default async function DashboardLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await authClient.getSession({
+    fetchOptions: {
+      headers: await headers(),
+    },
+  });
+
+  if (session.data && !session.data.user.hasCompletedOnboarding) {
+    redirect("/connect");
+  }
+
   return (
     <>
       <SidebarProvider

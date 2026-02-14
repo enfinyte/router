@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Eye, EyeOff, Loader2, Power, PowerOff } from "lucide-react";
 import { PROVIDERS } from "@/lib/providers";
 import { useGetAllSecrets, useAddSecret, useToggleProvider } from "@/lib/api/secrets";
-import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -115,7 +114,6 @@ export default function ConnectionsPage() {
 
   return (
     <>
-      <SiteHeader title="Connections" />
       <div className="flex flex-1 flex-col">
         <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
           <div className="space-y-1">
