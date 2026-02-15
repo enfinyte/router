@@ -2,7 +2,7 @@
   "name": "ledger",
   "private": true,
   "type": "module",
-  "module": "src/index.ts",
+  "main": "src/index.ts",
   "scripts": {
     "db:up": "bun run db:setup && dbmate up",
     "db:down": "dbmate down",

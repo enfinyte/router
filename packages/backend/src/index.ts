@@ -8,6 +8,7 @@ import { trimTrailingSlash } from "hono/trailing-slash";
 import { AppConfig } from "./config";
 import { AuthService } from "./services/auth";
 import { createAuthMiddleware } from "./middleware/auth";
+import { analyticsRoute } from "./routes/analytics";
 import { apikeyRoute } from "./routes/apikey";
 import { secretRoute } from "./routes/secret";
 import { appRuntime } from "./runtime";
@@ -69,6 +70,7 @@ app.on(["POST", "GET"], "/api/auth/*", (c) => {
 
 app.route("v1", secretRoute);
 app.route("v1", apikeyRoute);
+app.route("v1", analyticsRoute);
 
 export default {
   port: config.port,

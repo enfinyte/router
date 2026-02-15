@@ -20,6 +20,7 @@ SELECT
     avg(total_latency_ms)                                      AS avg_latency,
     percentile_agg(total_latency_ms)                           AS latency_pct,
     avg(ttft_ms)                                               AS avg_ttft,
+    avg(resolution_latency_ms)                                 AS avg_resolution_latency,
     sum(input_tokens)                                          AS total_input_tokens,
     sum(reasoning_tokens)                                      AS total_reasoning_tokens,
     sum(output_tokens)                                         AS total_output_tokens,

@@ -70,11 +70,12 @@ export const VaultKVLive = Layer.effect(
     const tryVault = <A>(f: () => Promise<A>, message: string) =>
       Effect.tryPromise({
         try: f,
-        catch: (cause) =>
-          new VaultError({
+        catch: (cause) => {
+          return new VaultError({
             cause,
             message,
-          }),
+          });
+        },
       });
 
     return VaultKV.of({

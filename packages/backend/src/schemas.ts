@@ -23,6 +23,8 @@ export const CreateSecretBodySchema = Schema.Struct({
   }),
 );
 
+export const IntervalSchema = Schema.Literal("15M", "1H", "1D", "7D");
+
 export type ToggleEnabledBody = Schema.Schema.Type<typeof ToggleEnabledBodySchema>;
 export type VerifyApiKeyBody = Schema.Schema.Type<typeof VerifyApiKeyBodySchema>;
 export type CreateSecretBody = Schema.Schema.Type<typeof CreateSecretBodySchema>;
