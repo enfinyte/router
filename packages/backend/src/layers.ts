@@ -1,4 +1,5 @@
 import { Layer } from "effect";
+import { fromEnv as LedgerServiceLive } from "ledger";
 import { AppConfig, AppConfigLive } from "./config";
 import { DatabasePoolLive } from "./database/pool";
 import { DatabaseServiceLive } from "./database/client";
@@ -9,7 +10,12 @@ import { SecretServiceLive } from "./services/secret";
 
 const AppConfigExposed = Layer.effect(AppConfig, AppConfig).pipe(Layer.provide(AppConfigLive));
 
-export const AppLive = Layer.mergeAll(ApiKeyServiceLive, SecretServiceLive, AuthServiceLive).pipe(
+export const AppLive = Layer.mergeAll(
+  ApiKeyServiceLive,
+  SecretServiceLive,
+  AuthServiceLive,
+  LedgerServiceLive,
+).pipe(
   Layer.provideMerge(AppConfigExposed),
   Layer.provide(SecretRepositoryLive),
   Layer.provide(DatabaseServiceLive),

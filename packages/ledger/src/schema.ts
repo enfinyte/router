@@ -10,6 +10,13 @@ export const INTERVAL_SQL: Record<LedgerInterval, string> = {
   "7D": "7 days",
 };
 
+export const BUCKET_SQL: Record<LedgerInterval, string> = {
+  "15M": "1 minute",
+  "1H": "1 minute",
+  "1D": "1 hour",
+  "7D": "1 hour",
+};
+
 export interface Transaction {
   timestamp: Date;
   request_id: string | null;
@@ -31,15 +38,43 @@ export interface Transaction {
   user_id: string | null;
 }
 
+export interface DashboardOverview {
+  total_requests: number;
+  avg_latency_ms: number;
+  p50_latency_ms: number;
+  p95_latency_ms: number;
+  p99_latency_ms: number;
+  avg_resolution_latency_ms: number;
+  total_cost_usd: number;
+  error_rate: number;
+  total_errors: number;
+  total_rate_limits: number;
+}
+
+export interface TimeSeriesBucket {
+  bucket: Date;
+  request_count: number;
+  avg_latency_ms: number;
+  avg_resolution_latency_ms: number;
+  total_cost_usd: number;
+  error_count: number;
+  rate_limit_count: number;
+}
+
 export interface ProviderModelLatency {
   provider: string;
   model: string;
   avg_latency_ms: number;
+  p50_latency_ms: number;
+  p95_latency_ms: number;
+  p99_latency_ms: number;
   avg_ttft_ms: number;
+  avg_resolution_latency_ms: number;
   request_count: number;
 }
 
 export interface ModelCost {
+  provider: string;
   model: string;
   total_cost_usd: number;
   total_input_tokens: number;
@@ -52,5 +87,6 @@ export interface ErrorRateMetric {
   model: string;
   request_count: number;
   error_count: number;
+  rate_limit_count: number;
   error_rate: number;
 }

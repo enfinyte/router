@@ -41,11 +41,11 @@ secretRoute.post("/", (c) =>
         UnauthorizedError: (err) => Effect.succeed(c.json({ error: err.message }, 401)),
         RequestValidationError: (err) => Effect.succeed(c.json({ error: err.message }, 400)),
         DatabaseServiceError: (err) =>
-          Effect.logError("POST /v1/secret failed (database)", { cause: err.cause }).pipe(
+          Effect.logError("POST /v1/secret failed (database)", err).pipe(
             Effect.as(c.json({ error: "Failed to save secret" }, 500)),
           ),
         VaultError: (err) =>
-          Effect.logError("POST /v1/secret failed (vault)", { cause: err.cause }).pipe(
+          Effect.logError("POST /v1/secret failed (vault)", err).pipe(
             Effect.as(c.json({ error: "Failed to save secret" }, 500)),
           ),
         VaultPathError: (err) => Effect.succeed(c.json({ error: err.message }, 400)),
