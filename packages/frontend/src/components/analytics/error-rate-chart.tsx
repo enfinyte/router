@@ -1,21 +1,8 @@
 "use client";
 
-import * as React from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { useAnalyticsErrors, type AnalyticsInterval } from "@/lib/api/analytics";
-
-function truncateLabel(provider: string, model: string): string {
-  const short = `${provider} / ${model}`;
-  if (short.length <= 22) return short;
-  return model.length > 22 ? `${model.slice(0, 19)}...` : model;
-}
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   type ChartConfig,
   ChartContainer,
@@ -24,6 +11,13 @@ import {
 } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsInitialMount } from "@/hooks/use-initial-mount";
+import { useMemo } from "react";
+
+function truncateLabel(provider: string, model: string): string {
+  const short = `${provider} / ${model}`;
+  if (short.length <= 22) return short;
+  return model.length > 22 ? `${model.slice(0, 19)}...` : model;
+}
 
 interface ErrorRateChartProps {
   interval: AnalyticsInterval;
@@ -40,6 +34,16 @@ export function ErrorRateChart({ interval }: ErrorRateChartProps) {
   const { data, isLoading, isError } = useAnalyticsErrors(interval);
   const animate = useIsInitialMount();
 
+  const chartData = useMemo(() => {
+    if (!data?.errors) return [];
+
+    return data.errors.map((item) => ({
+      ...item,
+      combinedName: truncateLabel(item.provider, item.model),
+      errorRatePercentage: item.error_rate * 100,
+    }));
+  }, [data]);
+
   if (isLoading) {
     return (
       <Card className="col-span-1">
@@ -53,8 +57,6 @@ export function ErrorRateChart({ interval }: ErrorRateChartProps) {
       </Card>
     );
   }
-
-
 
   if (isError) {
     return (
@@ -82,12 +84,6 @@ export function ErrorRateChart({ interval }: ErrorRateChartProps) {
       </Card>
     );
   }
-
-  const chartData = data.errors.map((item) => ({
-    ...item,
-    combinedName: truncateLabel(item.provider, item.model),
-    errorRatePercentage: item.error_rate * 100,
-  }));
 
   return (
     <Card className="col-span-1">
@@ -132,19 +128,15 @@ export function ErrorRateChart({ interval }: ErrorRateChartProps) {
                   indicator="line"
                   labelKey="combinedName"
                   className="w-[200px]"
-                  formatter={(value, name, item) => (
+                  formatter={(value, _name, item) => (
                     <>
                       <div className="flex w-full items-center justify-between gap-2">
                         <span className="text-muted-foreground">Error Rate</span>
-                        <span className="font-mono font-medium">
-                          {Number(value).toFixed(2)}%
-                        </span>
+                        <span className="font-mono font-medium">{Number(value).toFixed(2)}%</span>
                       </div>
                       <div className="flex w-full items-center justify-between gap-2">
                         <span className="text-muted-foreground">Errors</span>
-                        <span className="font-mono font-medium">
-                          {item.payload.error_count}
-                        </span>
+                        <span className="font-mono font-medium">{item.payload.error_count}</span>
                       </div>
                       <div className="flex w-full items-center justify-between gap-2">
                         <span className="text-muted-foreground">Rate Limits</span>
@@ -154,9 +146,7 @@ export function ErrorRateChart({ interval }: ErrorRateChartProps) {
                       </div>
                       <div className="flex w-full items-center justify-between gap-2">
                         <span className="text-muted-foreground">Total Requests</span>
-                        <span className="font-mono font-medium">
-                          {item.payload.request_count}
-                        </span>
+                        <span className="font-mono font-medium">{item.payload.request_count}</span>
                       </div>
                     </>
                   )}
@@ -174,6 +164,7 @@ export function ErrorRateChart({ interval }: ErrorRateChartProps) {
           </BarChart>
         </ChartContainer>
       </CardContent>
-      </Card>
-    );
-  }
+    </Card>
+  );
+}
+

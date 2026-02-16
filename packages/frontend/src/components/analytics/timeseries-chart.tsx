@@ -1,34 +1,43 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
-import { type AnalyticsInterval, useAnalyticsTimeSeries } from "@/lib/api/analytics"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import * as React from "react";
+import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
+import { type AnalyticsInterval, useAnalyticsTimeSeries } from "@/lib/api/analytics";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
-} from "@/components/ui/chart"
-import { Skeleton } from "@/components/ui/skeleton"
-import { useIsInitialMount } from "@/hooks/use-initial-mount"
+} from "@/components/ui/chart";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useIsInitialMount } from "@/hooks/use-initial-mount";
 
 const chartConfig = {
   requestCount: {
     label: "Requests",
     color: "var(--primary)",
   },
-} satisfies ChartConfig
+} satisfies ChartConfig;
 
 export function TimeSeriesChart({ interval }: { interval: AnalyticsInterval }) {
-  const { data, isLoading, isError } = useAnalyticsTimeSeries(interval)
-  const animate = useIsInitialMount()
+  const { data, isLoading, isError } = useAnalyticsTimeSeries(interval);
+  const animate = useIsInitialMount();
+
+  const formattedRange = React.useMemo(() => {
+    if (!data?.timeseries || data.timeseries.length === 0) return "";
+
+    const startDate = new Date(data.timeseries[0]?.bucket || "");
+    const endDate = new Date(data.timeseries[data.timeseries.length - 1]?.bucket || "");
+
+    return `${startDate.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    })} - ${endDate.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    })}`;
+  }, [data]);
 
   if (isLoading) {
     return (
@@ -41,7 +50,7 @@ export function TimeSeriesChart({ interval }: { interval: AnalyticsInterval }) {
           <Skeleton className="aspect-auto h-[250px] w-full" />
         </CardContent>
       </Card>
-    )
+    );
   }
 
   if (isError) {
@@ -49,9 +58,7 @@ export function TimeSeriesChart({ interval }: { interval: AnalyticsInterval }) {
       <Card className="h-full border-destructive/50">
         <CardHeader>
           <CardTitle>Request Volume</CardTitle>
-          <CardDescription>
-            Error loading data
-          </CardDescription>
+          <CardDescription>Error loading data</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex h-[250px] items-center justify-center text-muted-foreground">
@@ -59,7 +66,7 @@ export function TimeSeriesChart({ interval }: { interval: AnalyticsInterval }) {
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   if (!data?.timeseries || data.timeseries.length === 0) {
@@ -67,9 +74,7 @@ export function TimeSeriesChart({ interval }: { interval: AnalyticsInterval }) {
       <Card className="h-full">
         <CardHeader>
           <CardTitle>Request Volume</CardTitle>
-          <CardDescription>
-            No data available
-          </CardDescription>
+          <CardDescription>No data available</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex h-[250px] items-center justify-center text-muted-foreground">
@@ -77,27 +82,14 @@ export function TimeSeriesChart({ interval }: { interval: AnalyticsInterval }) {
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
-
-  const startDate = new Date(data.timeseries[0]?.bucket || "")
-  const endDate = new Date(data.timeseries[data.timeseries.length - 1]?.bucket || "")
-  
-  const formattedRange = `${startDate.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  })} - ${endDate.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  })}`
 
   return (
     <Card className="h-full">
       <CardHeader>
         <CardTitle>Request Volume</CardTitle>
-        <CardDescription>
-          Requests over time ({formattedRange})
-        </CardDescription>
+        <CardDescription>Requests over time ({formattedRange})</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
@@ -117,13 +109,13 @@ export function TimeSeriesChart({ interval }: { interval: AnalyticsInterval }) {
               tickMargin={8}
               minTickGap={32}
               tickFormatter={(value) => {
-                const date = new Date(value)
+                const date = new Date(value);
                 return date.toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
                   hour: "numeric",
                   minute: interval === "15M" || interval === "1H" ? "numeric" : undefined,
-                })
+                });
               }}
             />
             <ChartTooltip
@@ -137,23 +129,15 @@ export function TimeSeriesChart({ interval }: { interval: AnalyticsInterval }) {
                       day: "numeric",
                       hour: "numeric",
                       minute: "numeric",
-                    })
+                    });
                   }}
                 />
               }
             />
             <defs>
               <linearGradient id="fillRequestCount" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor="var(--color-requestCount)"
-                  stopOpacity={0.8}
-                />
-                <stop
-                  offset="95%"
-                  stopColor="var(--color-requestCount)"
-                  stopOpacity={0.1}
-                />
+                <stop offset="5%" stopColor="var(--color-requestCount)" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="var(--color-requestCount)" stopOpacity={0.1} />
               </linearGradient>
             </defs>
             <Area
@@ -169,5 +153,5 @@ export function TimeSeriesChart({ interval }: { interval: AnalyticsInterval }) {
         </ChartContainer>
       </CardContent>
     </Card>
-  )
+  );
 }
