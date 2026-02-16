@@ -11,6 +11,7 @@
     "effect": "^3.19.15",
     "hono": "^4.11.7",
     "kysely": "^0.28.11",
+    "ledger": "workspace:*",
     "pg": "^8.18.0",
     "vault": "workspace:*"
   },

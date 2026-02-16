@@ -29,15 +29,15 @@ export const getCredentials = <T extends Providers>(
           accessKeyId: secrets["accessKeyId"] ?? "",
           secretAccessKey: secrets["secretAccessKey"] ?? "",
           region: secrets["region"] ?? "",
-        } as ProviderCredentials<T>;
+        } satisfies ProviderCredentials<Providers.AmazonBedrock> as ProviderCredentials<T>;
       case Providers.OpenAI:
         return {
           apiKey: secrets["apiKey"] ?? "",
-        } as ProviderCredentials<T>;
+        } satisfies ProviderCredentials<Providers.OpenAI> as ProviderCredentials<T>;
       case Providers.Anthropic:
         return {
           apiKey: secrets["apiKey"] ?? "",
-        } as ProviderCredentials<T>;
+        } satisfies ProviderCredentials<Providers.Anthropic> as ProviderCredentials<T>;
       default: {
         const _exhaustiveCheck: never = provider satisfies never;
         return yield* Effect.fail(
