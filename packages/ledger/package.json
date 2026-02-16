@@ -4,7 +4,7 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "db:up": "bun run db:setup && dbmate up",
+    "db:up": "dbmate up",
     "db:down": "dbmate down",
     "db:status": "dbmate status",
     "db:create": "dbmate create"
