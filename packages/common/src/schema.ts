@@ -1,55 +1,55 @@
 import { Schema } from "effect";
 
-const IncludeEnumSchema = Schema.Literal(
+export const IncludeEnumSchema = Schema.Literal(
   "reasoning.encrypted_content",
   "message.output_text.logprobs",
 );
 
-const ImageDetailSchema = Schema.Literal("low", "high", "auto");
+export const ImageDetailSchema = Schema.Literal("low", "high", "auto");
 
-const FunctionCallStatusSchema = Schema.Literal("in_progress", "completed", "incomplete");
+export const FunctionCallStatusSchema = Schema.Literal("in_progress", "completed", "incomplete");
 
-const ToolChoiceValueEnumSchema = Schema.Literal("none", "auto", "required");
+export const ToolChoiceValueEnumSchema = Schema.Literal("none", "auto", "required");
 
-const VerbosityEnumSchema = Schema.Literal("low", "medium", "high");
+export const VerbosityEnumSchema = Schema.Literal("low", "medium", "high");
 
-const ReasoningEffortEnumSchema = Schema.Literal("none", "low", "medium", "high", "xhigh");
+export const ReasoningEffortEnumSchema = Schema.Literal("none", "low", "medium", "high", "xhigh");
 
-const ReasoningSummaryEnumSchema = Schema.Literal("concise", "detailed", "auto");
+export const ReasoningSummaryEnumSchema = Schema.Literal("concise", "detailed", "auto");
 
-const TruncationEnumSchema = Schema.Literal("auto", "disabled");
+export const TruncationEnumSchema = Schema.Literal("auto", "disabled");
 
-const ServiceTierEnumSchema = Schema.Literal("auto", "default", "flex", "priority");
+export const ServiceTierEnumSchema = Schema.Literal("auto", "default", "flex", "priority");
 
-const ReasoningSummaryContentParamSchema = Schema.Struct({
+export const ReasoningSummaryContentParamSchema = Schema.Struct({
   type: Schema.Literal("summary_text"),
   text: Schema.String,
 });
 
-const InputTextContentParamSchema = Schema.Struct({
+export const InputTextContentParamSchema = Schema.Struct({
   type: Schema.Literal("input_text"),
   text: Schema.String,
 });
 
-const InputImageContentParamAutoParamSchema = Schema.Struct({
+export const InputImageContentParamAutoParamSchema = Schema.Struct({
   type: Schema.Literal("input_image"),
   image_url: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
   detail: Schema.optionalWith(Schema.NullOr(ImageDetailSchema), { exact: true }),
 });
 
-const InputFileContentParamSchema = Schema.Struct({
+export const InputFileContentParamSchema = Schema.Struct({
   type: Schema.Literal("input_file"),
   filename: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
   file_data: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
   file_url: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
 });
 
-const InputVideoContentSchema = Schema.Struct({
+export const InputVideoContentSchema = Schema.Struct({
   type: Schema.Literal("input_video"),
   video_url: Schema.String,
 });
 
-const UrlCitationParamSchema = Schema.Struct({
+export const UrlCitationParamSchema = Schema.Struct({
   type: Schema.Literal("url_citation"),
   start_index: Schema.Number,
   end_index: Schema.Number,
@@ -57,23 +57,23 @@ const UrlCitationParamSchema = Schema.Struct({
   title: Schema.String,
 });
 
-const OutputTextContentParamSchema = Schema.Struct({
+export const OutputTextContentParamSchema = Schema.Struct({
   type: Schema.Literal("output_text"),
   text: Schema.String,
   annotations: Schema.optionalWith(Schema.Array(UrlCitationParamSchema), { exact: true }),
 });
 
-const RefusalContentParamSchema = Schema.Struct({
+export const RefusalContentParamSchema = Schema.Struct({
   type: Schema.Literal("refusal"),
   refusal: Schema.String,
 });
 
-const ItemReferenceParamSchema = Schema.Struct({
+export const ItemReferenceParamSchema = Schema.Struct({
   type: Schema.Literal("item_reference"),
   id: Schema.String,
 });
 
-const ReasoningItemParamSchema = Schema.Struct({
+export const ReasoningItemParamSchema = Schema.Struct({
   id: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
   type: Schema.Literal("reasoning"),
   summary: Schema.Array(ReasoningSummaryContentParamSchema),
@@ -81,7 +81,7 @@ const ReasoningItemParamSchema = Schema.Struct({
   encrypted_content: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
 });
 
-const UserMessageItemParamSchema = Schema.Struct({
+export const UserMessageItemParamSchema = Schema.Struct({
   id: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
   type: Schema.Literal("message"),
   role: Schema.Literal("user"),
@@ -98,7 +98,7 @@ const UserMessageItemParamSchema = Schema.Struct({
   status: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
 });
 
-const SystemMessageItemParamSchema = Schema.Struct({
+export const SystemMessageItemParamSchema = Schema.Struct({
   id: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
   type: Schema.Literal("message"),
   role: Schema.Literal("system"),
@@ -106,7 +106,7 @@ const SystemMessageItemParamSchema = Schema.Struct({
   status: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
 });
 
-const DeveloperMessageItemParamSchema = Schema.Struct({
+export const DeveloperMessageItemParamSchema = Schema.Struct({
   id: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
   type: Schema.Literal("message"),
   role: Schema.Literal("developer"),
@@ -114,7 +114,7 @@ const DeveloperMessageItemParamSchema = Schema.Struct({
   status: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
 });
 
-const AssistantMessageItemParamSchema = Schema.Struct({
+export const AssistantMessageItemParamSchema = Schema.Struct({
   id: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
   type: Schema.Literal("message"),
   role: Schema.Literal("assistant"),
@@ -125,7 +125,7 @@ const AssistantMessageItemParamSchema = Schema.Struct({
   status: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
 });
 
-const FunctionCallItemParamSchema = Schema.Struct({
+export const FunctionCallItemParamSchema = Schema.Struct({
   id: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
   call_id: Schema.String,
   type: Schema.Literal("function_call"),
@@ -134,7 +134,7 @@ const FunctionCallItemParamSchema = Schema.Struct({
   status: Schema.optionalWith(Schema.NullOr(FunctionCallStatusSchema), { exact: true }),
 });
 
-const FunctionCallOutputItemParamSchema = Schema.Struct({
+export const FunctionCallOutputItemParamSchema = Schema.Struct({
   id: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
   call_id: Schema.String,
   type: Schema.Literal("function_call_output"),
@@ -152,7 +152,7 @@ const FunctionCallOutputItemParamSchema = Schema.Struct({
   status: Schema.optionalWith(Schema.NullOr(FunctionCallStatusSchema), { exact: true }),
 });
 
-const ItemParamSchema = Schema.Union(
+export const ItemParamSchema = Schema.Union(
   ItemReferenceParamSchema,
   ReasoningItemParamSchema,
   UserMessageItemParamSchema,
@@ -164,9 +164,9 @@ const ItemParamSchema = Schema.Union(
 );
 export type CreateResponseBodyInputItem = Schema.Schema.Type<typeof ItemParamSchema>;
 
-const EmptyModelParamSchema = Schema.Record({ key: Schema.String, value: Schema.Unknown });
+export const EmptyModelParamSchema = Schema.Record({ key: Schema.String, value: Schema.Unknown });
 
-const FunctionToolParamSchema = Schema.Struct({
+export const FunctionToolParamSchema = Schema.Struct({
   name: Schema.String,
   description: Schema.optionalWith(Schema.NullOr(Schema.String), { exact: true }),
   parameters: Schema.optionalWith(Schema.NullOr(EmptyModelParamSchema), { exact: true }),
@@ -174,30 +174,30 @@ const FunctionToolParamSchema = Schema.Struct({
   type: Schema.Literal("function"),
 });
 
-const SpecificFunctionParamSchema = Schema.Struct({
+export const SpecificFunctionParamSchema = Schema.Struct({
   type: Schema.Literal("function"),
   name: Schema.String,
 });
 
-const AllowedToolsParamSchema = Schema.Struct({
+export const AllowedToolsParamSchema = Schema.Struct({
   type: Schema.Literal("allowed_tools"),
   tools: Schema.Array(SpecificFunctionParamSchema),
   mode: Schema.optionalWith(ToolChoiceValueEnumSchema, { exact: true }),
 });
 
-const ToolChoiceParamSchema = Schema.Union(
+export const ToolChoiceParamSchema = Schema.Union(
   SpecificFunctionParamSchema,
   ToolChoiceValueEnumSchema,
   AllowedToolsParamSchema,
 );
 
-const MetadataParamSchema = Schema.Record({ key: Schema.String, value: Schema.String });
+export const MetadataParamSchema = Schema.Record({ key: Schema.String, value: Schema.String });
 
-const TextResponseFormatSchema = Schema.Struct({
+export const TextResponseFormatSchema = Schema.Struct({
   type: Schema.Literal("text"),
 });
 
-const JsonSchemaResponseFormatParamSchema = Schema.Struct({
+export const JsonSchemaResponseFormatParamSchema = Schema.Struct({
   type: Schema.optionalWith(Schema.Literal("json_schema"), { exact: true }),
   description: Schema.optionalWith(Schema.String, { exact: true }),
   name: Schema.optionalWith(Schema.String, { exact: true }),
@@ -207,21 +207,21 @@ const JsonSchemaResponseFormatParamSchema = Schema.Struct({
   strict: Schema.optionalWith(Schema.NullOr(Schema.Boolean), { exact: true }),
 });
 
-const TextFormatParamSchema = Schema.Union(
+export const TextFormatParamSchema = Schema.Union(
   TextResponseFormatSchema,
   JsonSchemaResponseFormatParamSchema,
 );
 
-const TextParamSchema = Schema.Struct({
+export const TextParamSchema = Schema.Struct({
   format: Schema.optionalWith(Schema.NullOr(TextFormatParamSchema), { exact: true }),
   verbosity: Schema.optionalWith(VerbosityEnumSchema, { exact: true }),
 });
 
-const StreamOptionsParamSchema = Schema.Struct({
+export const StreamOptionsParamSchema = Schema.Struct({
   include_obfuscation: Schema.optionalWith(Schema.Boolean, { exact: true }),
 });
 
-const ReasoningParamSchema = Schema.Struct({
+export const ReasoningParamSchema = Schema.Struct({
   effort: Schema.optionalWith(Schema.NullOr(ReasoningEffortEnumSchema), { exact: true }),
   summary: Schema.optionalWith(Schema.NullOr(ReasoningSummaryEnumSchema), { exact: true }),
 });
@@ -260,15 +260,15 @@ export const CreateResponseBodySchema = Schema.Struct({
   top_logprobs: Schema.optionalWith(Schema.NullOr(Schema.Number), { exact: true }),
 });
 
-const MessageStatusSchema = Schema.Literal("in_progress", "completed", "incomplete");
-const MessageRoleSchema = Schema.Literal("user", "assistant", "system", "developer");
+export const MessageStatusSchema = Schema.Literal("in_progress", "completed", "incomplete");
+export const MessageRoleSchema = Schema.Literal("user", "assistant", "system", "developer");
 
-const InputTextContentSchema = Schema.Struct({
+export const InputTextContentSchema = Schema.Struct({
   type: Schema.Literal("input_text"),
   text: Schema.String,
 });
 
-const UrlCitationBodySchema = Schema.Struct({
+export const UrlCitationBodySchema = Schema.Struct({
   type: Schema.Literal("url_citation"),
   url: Schema.String,
   start_index: Schema.Number,
@@ -276,59 +276,59 @@ const UrlCitationBodySchema = Schema.Struct({
   title: Schema.String,
 });
 
-const TopLogProbSchema = Schema.Struct({
+export const TopLogProbSchema = Schema.Struct({
   token: Schema.String,
   logprob: Schema.Number,
   bytes: Schema.Array(Schema.Number),
 });
 
-const LogProbSchema = Schema.Struct({
+export const LogProbSchema = Schema.Struct({
   token: Schema.String,
   logprob: Schema.Number,
   bytes: Schema.Array(Schema.Number),
   top_logprobs: Schema.Array(TopLogProbSchema),
 });
 
-const OutputTextContentSchema = Schema.Struct({
+export const OutputTextContentSchema = Schema.Struct({
   type: Schema.Literal("output_text"),
   text: Schema.String,
   annotations: Schema.Array(UrlCitationBodySchema),
   logprobs: Schema.Array(LogProbSchema),
 });
 
-const TextContentSchema = Schema.Struct({
+export const TextContentSchema = Schema.Struct({
   type: Schema.Literal("text_content"),
   text: Schema.String,
 });
 
-const SummaryTextContentSchema = Schema.Struct({
+export const SummaryTextContentSchema = Schema.Struct({
   type: Schema.Literal("summary_text"),
   text: Schema.String,
 });
 
-const ReasoningTextContentSchema = Schema.Struct({
+export const ReasoningTextContentSchema = Schema.Struct({
   type: Schema.Literal("reasoning"),
   text: Schema.String,
 });
 
-const RefusalContentSchema = Schema.Struct({
+export const RefusalContentSchema = Schema.Struct({
   type: Schema.Literal("refusal"),
   refusal: Schema.String,
 });
 
-const InputImageContentSchema = Schema.Struct({
+export const InputImageContentSchema = Schema.Struct({
   type: Schema.Literal("input_image"),
   image_url: Schema.NullOr(Schema.String),
   detail: ImageDetailSchema,
 });
 
-const InputFileContentSchema = Schema.Struct({
+export const InputFileContentSchema = Schema.Struct({
   type: Schema.Literal("input_file"),
   filename: Schema.optionalWith(Schema.String, { exact: true }),
   file_url: Schema.optionalWith(Schema.String, { exact: true }),
 });
 
-const ResponseContentPartSchema = Schema.Union(
+export const ResponseContentPartSchema = Schema.Union(
   InputTextContentSchema,
   OutputTextContentSchema,
   TextContentSchema,
@@ -339,7 +339,7 @@ const ResponseContentPartSchema = Schema.Union(
   InputFileContentSchema,
 );
 
-const MessageContentPartSchema = Schema.Union(
+export const MessageContentPartSchema = Schema.Union(
   InputTextContentSchema,
   OutputTextContentSchema,
   TextContentSchema,
@@ -351,7 +351,7 @@ const MessageContentPartSchema = Schema.Union(
   InputVideoContentSchema,
 );
 
-const MessageSchema = Schema.Struct({
+export const MessageSchema = Schema.Struct({
   type: Schema.Literal("message"),
   id: Schema.String,
   status: MessageStatusSchema,
@@ -361,7 +361,7 @@ const MessageSchema = Schema.Struct({
 
 export type Message = Schema.Schema.Type<typeof MessageSchema>;
 
-const FunctionCallSchema = Schema.Struct({
+export const FunctionCallSchema = Schema.Struct({
   type: Schema.Literal("function_call"),
   id: Schema.String,
   call_id: Schema.String,
@@ -372,7 +372,7 @@ const FunctionCallSchema = Schema.Struct({
 
 export type FunctionCall = Schema.Schema.Type<typeof FunctionCallSchema>;
 
-const FunctionCallOutputSchema = Schema.Struct({
+export const FunctionCallOutputSchema = Schema.Struct({
   type: Schema.Literal("function_call_output"),
   id: Schema.String,
   call_id: Schema.String,
@@ -387,7 +387,7 @@ const FunctionCallOutputSchema = Schema.Struct({
 
 export type FunctionCallOutput = Schema.Schema.Type<typeof FunctionCallOutputSchema>;
 
-const ReasoningBodySchema = Schema.Struct({
+export const ReasoningBodySchema = Schema.Struct({
   type: Schema.Literal("reasoning"),
   id: Schema.String,
   content: Schema.optionalWith(Schema.Array(ResponseContentPartSchema), { exact: true }),
@@ -395,7 +395,7 @@ const ReasoningBodySchema = Schema.Struct({
   encrypted_content: Schema.optionalWith(Schema.String, { exact: true }),
 });
 
-const ItemFieldSchema = Schema.Union(
+export const ItemFieldSchema = Schema.Union(
   MessageSchema,
   FunctionCallSchema,
   FunctionCallOutputSchema,
@@ -404,23 +404,23 @@ const ItemFieldSchema = Schema.Union(
 
 export type ItemField = Schema.Schema.Type<typeof ItemFieldSchema>;
 
-const ItemFieldWithoutTypeSchema = Schema.Struct({ id: Schema.String });
+export const ItemFieldWithoutTypeSchema = Schema.Struct({ id: Schema.String });
 
-const AnnotationWithoutTypeSchema = Schema.Struct({
+export const AnnotationWithoutTypeSchema = Schema.Struct({
   url: Schema.String,
   start_index: Schema.Number,
   end_index: Schema.Number,
   title: Schema.String,
 });
 
-const IncompleteDetailsSchema = Schema.Struct({ reason: Schema.String });
+export const IncompleteDetailsSchema = Schema.Struct({ reason: Schema.String });
 
-const ResponseErrorSchema = Schema.Struct({
+export const ResponseErrorSchema = Schema.Struct({
   code: Schema.String,
   message: Schema.String,
 });
 
-const FunctionToolSchema = Schema.Struct({
+export const FunctionToolSchema = Schema.Struct({
   type: Schema.Literal("function"),
   name: Schema.String,
   description: Schema.NullOr(Schema.String),
@@ -428,28 +428,28 @@ const FunctionToolSchema = Schema.Struct({
   strict: Schema.NullOr(Schema.Boolean),
 });
 
-const FunctionToolChoiceSchema = Schema.Struct({
+export const FunctionToolChoiceSchema = Schema.Struct({
   type: Schema.Literal("function"),
   name: Schema.optionalWith(Schema.String, { exact: true }),
 });
 
-const AllowedToolChoiceSchema = Schema.Struct({
+export const AllowedToolChoiceSchema = Schema.Struct({
   type: Schema.Literal("allowed_tools"),
   tools: Schema.Array(FunctionToolChoiceSchema),
   mode: ToolChoiceValueEnumSchema,
 });
 
-const ResponseToolChoiceSchema = Schema.Union(
+export const ResponseToolChoiceSchema = Schema.Union(
   FunctionToolChoiceSchema,
   ToolChoiceValueEnumSchema,
   AllowedToolChoiceSchema,
 );
 
-const JsonObjectResponseFormatSchema = Schema.Struct({
+export const JsonObjectResponseFormatSchema = Schema.Struct({
   type: Schema.Literal("json_object"),
 });
 
-const JsonSchemaResponseFormatSchema = Schema.Struct({
+export const JsonSchemaResponseFormatSchema = Schema.Struct({
   type: Schema.Literal("json_schema"),
   name: Schema.String,
   description: Schema.NullOr(Schema.String),
@@ -457,26 +457,26 @@ const JsonSchemaResponseFormatSchema = Schema.Struct({
   strict: Schema.Boolean,
 });
 
-const TextFieldFormatSchema = Schema.Union(
+export const TextFieldFormatSchema = Schema.Union(
   TextResponseFormatSchema,
   JsonObjectResponseFormatSchema,
   JsonSchemaResponseFormatSchema,
 );
 
-const TextFieldSchema = Schema.Struct({
+export const TextFieldSchema = Schema.Struct({
   format: TextFieldFormatSchema,
   verbosity: Schema.optionalWith(VerbosityEnumSchema, { exact: true }),
 });
 
-const ReasoningSchema = Schema.Struct({
+export const ReasoningSchema = Schema.Struct({
   effort: Schema.NullOr(ReasoningEffortEnumSchema),
   summary: Schema.NullOr(ReasoningSummaryEnumSchema),
 });
 
-const InputTokensDetailsSchema = Schema.Struct({ cached_tokens: Schema.Number });
-const OutputTokensDetailsSchema = Schema.Struct({ reasoning_tokens: Schema.Number });
+export const InputTokensDetailsSchema = Schema.Struct({ cached_tokens: Schema.Number });
+export const OutputTokensDetailsSchema = Schema.Struct({ reasoning_tokens: Schema.Number });
 
-const UsageSchema = Schema.Struct({
+export const UsageSchema = Schema.Struct({
   input_tokens: Schema.Number,
   output_tokens: Schema.Number,
   total_tokens: Schema.Number,
@@ -518,57 +518,57 @@ export const ResponseResourceSchema = Schema.Struct({
   prompt_cache_key: Schema.NullOr(Schema.String),
 });
 
-const ResponseCreatedStreamingEventSchema = Schema.Struct({
+export const ResponseCreatedStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseCreatedStreamingEvent"),
   sequence_number: Schema.Number,
   response: ResponseResourceSchema,
 });
 
-const ResponseQueuedStreamingEventSchema = Schema.Struct({
+export const ResponseQueuedStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseQueuedStreamingEvent"),
   sequence_number: Schema.Number,
   response: ResponseResourceSchema,
 });
 
-const ResponseInProgressStreamingEventSchema = Schema.Struct({
+export const ResponseInProgressStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseInProgressStreamingEvent"),
   sequence_number: Schema.Number,
   response: ResponseResourceSchema,
 });
 
-const ResponseCompletedStreamingEventSchema = Schema.Struct({
+export const ResponseCompletedStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseCompletedStreamingEvent"),
   sequence_number: Schema.Number,
   response: ResponseResourceSchema,
 });
 
-const ResponseFailedStreamingEventSchema = Schema.Struct({
+export const ResponseFailedStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseFailedStreamingEvent"),
   sequence_number: Schema.Number,
   response: ResponseResourceSchema,
 });
 
-const ResponseIncompleteStreamingEventSchema = Schema.Struct({
+export const ResponseIncompleteStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseIncompleteStreamingEvent"),
   sequence_number: Schema.Number,
   response: ResponseResourceSchema,
 });
 
-const ResponseOutputItemAddedStreamingEventSchema = Schema.Struct({
+export const ResponseOutputItemAddedStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseOutputItemAddedStreamingEvent"),
   sequence_number: Schema.Number,
   output_index: Schema.Number,
   item: Schema.NullOr(ItemFieldWithoutTypeSchema),
 });
 
-const ResponseOutputItemDoneStreamingEventSchema = Schema.Struct({
+export const ResponseOutputItemDoneStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseOutputItemDoneStreamingEvent"),
   sequence_number: Schema.Number,
   output_index: Schema.Number,
   item: Schema.NullOr(ItemFieldWithoutTypeSchema),
 });
 
-const ResponseReasoningSummaryPartAddedStreamingEventSchema = Schema.Struct({
+export const ResponseReasoningSummaryPartAddedStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseReasoningSummaryPartAddedStreamingEvent"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
@@ -577,7 +577,7 @@ const ResponseReasoningSummaryPartAddedStreamingEventSchema = Schema.Struct({
   part: ResponseContentPartSchema,
 });
 
-const ResponseReasoningSummaryPartDoneStreamingEventSchema = Schema.Struct({
+export const ResponseReasoningSummaryPartDoneStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseReasoningSummaryPartDoneStreamingEvent"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
@@ -586,7 +586,7 @@ const ResponseReasoningSummaryPartDoneStreamingEventSchema = Schema.Struct({
   part: ResponseContentPartSchema,
 });
 
-const ResponseContentPartAddedStreamingEventSchema = Schema.Struct({
+export const ResponseContentPartAddedStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseContentPartAddedStreamingEvent"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
@@ -595,7 +595,7 @@ const ResponseContentPartAddedStreamingEventSchema = Schema.Struct({
   part: ResponseContentPartSchema,
 });
 
-const ResponseContentPartDoneStreamingEventSchema = Schema.Struct({
+export const ResponseContentPartDoneStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseContentPartDoneStreamingEvent"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
@@ -604,7 +604,7 @@ const ResponseContentPartDoneStreamingEventSchema = Schema.Struct({
   part: ResponseContentPartSchema,
 });
 
-const ResponseOutputTextDeltaStreamingEventSchema = Schema.Struct({
+export const ResponseOutputTextDeltaStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseOutputTextDeltaStreamingEvent"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
@@ -615,7 +615,7 @@ const ResponseOutputTextDeltaStreamingEventSchema = Schema.Struct({
   obfuscation: Schema.optionalWith(Schema.String, { exact: true }),
 });
 
-const ResponseOutputTextDoneStreamingEventSchema = Schema.Struct({
+export const ResponseOutputTextDoneStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseOutputTextDoneStreamingEvent"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
@@ -625,7 +625,7 @@ const ResponseOutputTextDoneStreamingEventSchema = Schema.Struct({
   logprobs: Schema.Array(LogProbSchema),
 });
 
-const ResponseRefusalDeltaStreamingEventSchema = Schema.Struct({
+export const ResponseRefusalDeltaStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseRefusalDeltaStreamingEvent"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
@@ -634,7 +634,7 @@ const ResponseRefusalDeltaStreamingEventSchema = Schema.Struct({
   delta: Schema.String,
 });
 
-const ResponseRefusalDoneStreamingEventSchema = Schema.Struct({
+export const ResponseRefusalDoneStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseRefusalDoneStreamingEvent"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
@@ -643,7 +643,7 @@ const ResponseRefusalDoneStreamingEventSchema = Schema.Struct({
   refusal: Schema.String,
 });
 
-const ResponseReasoningDeltaStreamingEventSchema = Schema.Struct({
+export const ResponseReasoningDeltaStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseReasoningDeltaStreamingEvent"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
@@ -653,7 +653,7 @@ const ResponseReasoningDeltaStreamingEventSchema = Schema.Struct({
   obfuscation: Schema.optionalWith(Schema.String, { exact: true }),
 });
 
-const ResponseReasoningDoneStreamingEventSchema = Schema.Struct({
+export const ResponseReasoningDoneStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseReasoningDoneStreamingEvent"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
@@ -662,7 +662,7 @@ const ResponseReasoningDoneStreamingEventSchema = Schema.Struct({
   text: Schema.String,
 });
 
-const ResponseReasoningSummaryDeltaStreamingEventSchema = Schema.Struct({
+export const ResponseReasoningSummaryDeltaStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseReasoningSummaryDeltaStreamingEvent"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
@@ -672,7 +672,7 @@ const ResponseReasoningSummaryDeltaStreamingEventSchema = Schema.Struct({
   obfuscation: Schema.optionalWith(Schema.String, { exact: true }),
 });
 
-const ResponseReasoningSummaryDoneStreamingEventSchema = Schema.Struct({
+export const ResponseReasoningSummaryDoneStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseReasoningSummaryDoneStreamingEvent"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
@@ -681,7 +681,7 @@ const ResponseReasoningSummaryDoneStreamingEventSchema = Schema.Struct({
   text: Schema.String,
 });
 
-const ResponseOutputTextAnnotationAddedStreamingEventSchema = Schema.Struct({
+export const ResponseOutputTextAnnotationAddedStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseOutputTextAnnotationAddedStreamingEvent"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
@@ -691,7 +691,7 @@ const ResponseOutputTextAnnotationAddedStreamingEventSchema = Schema.Struct({
   annotation: Schema.NullOr(AnnotationWithoutTypeSchema),
 });
 
-const ResponseFunctionCallArgumentsDeltaStreamingEventSchema = Schema.Struct({
+export const ResponseFunctionCallArgumentsDeltaStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseFunctionCallArgumentsDeltaStreamingEvent"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
@@ -700,7 +700,7 @@ const ResponseFunctionCallArgumentsDeltaStreamingEventSchema = Schema.Struct({
   obfuscation: Schema.optionalWith(Schema.String, { exact: true }),
 });
 
-const ResponseFunctionCallArgumentsDoneStreamingEventSchema = Schema.Struct({
+export const ResponseFunctionCallArgumentsDoneStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ResponseFunctionCallArgumentsDoneStreamingEvent"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
@@ -708,7 +708,7 @@ const ResponseFunctionCallArgumentsDoneStreamingEventSchema = Schema.Struct({
   arguments: Schema.String,
 });
 
-const ErrorPayloadSchema = Schema.Struct({
+export const ErrorPayloadSchema = Schema.Struct({
   type: Schema.String,
   code: Schema.NullOr(Schema.String),
   message: Schema.String,
@@ -718,7 +718,7 @@ const ErrorPayloadSchema = Schema.Struct({
   }),
 });
 
-const ErrorStreamingEventSchema = Schema.Struct({
+export const ErrorStreamingEventSchema = Schema.Struct({
   type: Schema.Literal("ErrorStreamingEvent"),
   sequence_number: Schema.Number,
   error: ErrorPayloadSchema,

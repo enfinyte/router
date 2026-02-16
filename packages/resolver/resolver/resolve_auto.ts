@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+
 import { DataFetchError, IntentPair, INTENTS } from "../types";
 import { Output, generateText } from "ai";
 import { bedrock } from "@ai-sdk/amazon-bedrock";
@@ -79,15 +80,53 @@ export const resolveAuto =
   (options: CreateResponseBody, userProviders: string[], excludedResponses: ResolvedResponse[]) =>
   (pair: IntentPair) =>
     Effect.gen(function* () {
-      if (typeof options.input !== "string") {
-        return yield* new ResolveError({
-          reason: "UnsupportedInputType",
-          message: `We currently only support text inputs.`,
-        });
+      const proritizePrompt = true;
+
+      if (proritizePrompt) {
+        if (typeof options.input === "string") {
+          const category = yield* Effect.retry(getCategory(options.input), { times: 5 });
+          const intentPair = new IntentPair({ intent: category, intentPolicy: pair.intentPolicy });
+          return yield* resolveIntentPair(intentPair, userProviders, excludedResponses);
+        }
+
+        if (Array.isArray(options.input)) {
+          const textContent = options.input
+            .filter((item) => item.role === "user")
+            .map((item) => item.content.text)
+            .join(" ");
+
+          if (textContent) {
+            const category = yield* Effect.retry(getCategory(textContent), { times: 5 });
+            const intentPair = new IntentPair({
+              intent: category,
+              intentPolicy: pair.intentPolicy,
+            });
+            return yield* resolveIntentPair(intentPair, userProviders, excludedResponses);
+          }
+        }
       }
 
-      const category = yield* Effect.retry(getCategory(options.input), { times: 5 });
-      const intentPair = new IntentPair({ intent: category, intentPolicy: pair.intentPolicy });
+      if (typeof options.instructions === "string") {
+        const category = yield* Effect.retry(getCategory(options.instructions), { times: 5 });
+        const intentPair = new IntentPair({ intent: category, intentPolicy: pair.intentPolicy });
+        return yield* resolveIntentPair(intentPair, userProviders, excludedResponses);
+      }
 
-      return yield* resolveIntentPair(intentPair, userProviders, excludedResponses);
+      if (Array.isArray(options.input)) {
+        const textContent = options.input
+          .filter((item) => item.role === "system" || item.role === "developer")
+          .map((item) => item.content.text)
+          .join(" ");
+
+        if (textContent) {
+          const category = yield* Effect.retry(getCategory(textContent), { times: 5 });
+          const intentPair = new IntentPair({ intent: category, intentPolicy: pair.intentPolicy });
+          return yield* resolveIntentPair(intentPair, userProviders, excludedResponses);
+        }
+      }
+
+      return yield* new ResolveError({
+        reason: "UnsupportedInputType",
+        message: `We currently only support texts.`,
+      });
     });
