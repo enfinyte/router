@@ -7,22 +7,37 @@ const findMatchingMapping = (
   modelMap: Record<string, ReadonlyArray<ResolvedResponse>>,
   slug: string,
   userProviderSet: ReadonlySet<string>,
-): Option.Option<ResolvedResponse> =>
-  pipe(
+  excludedResponsesSet: ReadonlySet<string>,
+): Option.Option<ResolvedResponse> => {
+  return pipe(
     modelMap[slug] ?? [],
-    Arr.findFirst((mapping) => userProviderSet.has(mapping.provider)),
+    Arr.findFirst(
+      (mapping) =>
+        !excludedResponsesSet.has(`${mapping.provider}:${mapping.model}`) &&
+        userProviderSet.has(mapping.provider),
+    ),
   );
+};
 
-export const resolveIntentPair = (pair: IntentPair, userProviders: string[]) =>
+export const resolveIntentPair = (
+  pair: IntentPair,
+  userProviders: string[],
+  excludedResponses: ResolvedResponse[],
+) =>
   Effect.gen(function* () {
     const openRouterData = yield* getOpenRouterDataByPair(pair);
     const userProviderSet = new Set(userProviders);
+    const excludedResponsesSet = new Set(excludedResponses.map((r) => `${r.provider}:${r.model}`));
     const modelMap = yield* getModelMap;
 
     const match = pipe(
       openRouterData,
-      Arr.findFirst((slug) => Option.isSome(findMatchingMapping(modelMap, slug, userProviderSet))),
-      Option.flatMap((slug) => findMatchingMapping(modelMap, slug, userProviderSet)),
+      Arr.findFirst((slug) =>
+        Option.isSome(findMatchingMapping(modelMap, slug, userProviderSet, excludedResponsesSet)),
+      ),
+      Option.flatMap((slug) =>
+        findMatchingMapping(modelMap, slug, userProviderSet, excludedResponsesSet),
+      ),
     );
 
     if (Option.isSome(match)) {
