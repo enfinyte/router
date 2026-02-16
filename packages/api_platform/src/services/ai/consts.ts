@@ -1,4 +1,4 @@
-import type { ResponseResource } from "../responses/schema";
+import type { ResponseResource } from "common";
 
 export const DEFAULT_TEMPERATURE: ResponseResource["temperature"] = 1.0;
 export const DEFAULT_TOP_P: ResponseResource["top_p"] = 1.0;

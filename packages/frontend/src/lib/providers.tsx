@@ -32,7 +32,7 @@ export const PROVIDERS: ProviderConfig[] = [
     docsUrl: "https://platform.openai.com/api-keys",
   },
   {
-    id: "aws-bedrock",
+    id: "amazon-bedrock",
     name: "AWS Bedrock",
     description: "Access foundation models through AWS infrastructure",
     icon: <Aws className="h-5 w-5" />,

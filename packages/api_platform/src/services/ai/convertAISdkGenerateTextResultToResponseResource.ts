@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import type { CreateResponseBody, ResponseResource } from "../responses/schema";
+import type { CreateResponseBody, ResponseResource } from "common";
 import type { generateText } from "ai";
 import {
   DEFAULT_BACKGROUND,
@@ -18,7 +18,7 @@ import {
   resolveToolChoice,
 } from "./createResponseBodyFieldsToResponseResourceFieldsResolvers";
 import { convertAISdkGenerateTextMessagesToResponseResourceOutput } from "./convertAISdkGenerateTextMessagesToResponseResourceOutput";
-import type { ResolvedModel } from "../pmr";
+import type { ResolvedResponse } from "common";
 
 export const convertAISdkGenerateTextResultToResponseResource = ({
   result,
@@ -28,7 +28,7 @@ export const convertAISdkGenerateTextResultToResponseResource = ({
 }: {
   result: Awaited<ReturnType<typeof generateText>>;
   createdAt: number;
-  resolvedModelAndProvider: ResolvedModel;
+  resolvedModelAndProvider: ResolvedResponse;
   createResponseBody: CreateResponseBody;
 }) =>
   Effect.gen(function* () {

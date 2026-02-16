@@ -1,5 +1,6 @@
 import { Effect } from "effect";
-import type { ProviderModelPair, ResolvedResponse } from "../types";
+import type { ProviderModelPair } from "../types";
+import type { ResolvedResponse } from "common";
 
 export const resolveProviderModelPair = (
   pair: ProviderModelPair,

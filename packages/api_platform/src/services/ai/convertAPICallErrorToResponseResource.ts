@@ -1,6 +1,6 @@
 import type { APICallError } from "ai";
 import { Effect } from "effect";
-import type { CreateResponseBody, ResponseResource } from "../responses/schema";
+import type { CreateResponseBody, ResponseResource } from "common";
 import {
   DEFAULT_BACKGROUND,
   DEFAULT_FREQUENCY_PENALTY,
@@ -17,7 +17,7 @@ import {
   resolveTools,
   resolveToolChoice,
 } from "./createResponseBodyFieldsToResponseResourceFieldsResolvers";
-import type { ResolvedModel } from "../pmr";
+import type { ResolvedResponse } from "common";
 
 export const convertAPICallErrorToResponseResource = ({
   result,
@@ -28,7 +28,7 @@ export const convertAPICallErrorToResponseResource = ({
   result: APICallError;
   createResponseBody: CreateResponseBody;
   createdAt: number;
-  resolvedModelAndProvider: ResolvedModel;
+  resolvedModelAndProvider: ResolvedResponse;
 }): Effect.Effect<ResponseResource, never, never> =>
   Effect.succeed({
     id: crypto.randomUUID(),

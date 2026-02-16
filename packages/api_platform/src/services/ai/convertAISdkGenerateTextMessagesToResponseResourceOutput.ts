@@ -1,6 +1,6 @@
 import type { generateText } from "ai";
 import { Effect } from "effect";
-import type { FunctionCall, FunctionCallOutput, ItemField, Message } from "../responses/schema";
+import type { FunctionCall, FunctionCallOutput, ItemField, Message } from "common";
 import { isValidUrl } from "../../utils";
 
 export const convertAISdkGenerateTextMessagesToResponseResourceOutput = (

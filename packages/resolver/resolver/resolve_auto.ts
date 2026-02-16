@@ -1,11 +1,11 @@
 import { Effect } from "effect";
-import { DataFetchError, IntentPair, type ResponseCreateParams } from "../types";
+import { DataFetchError, IntentPair, INTENTS } from "../types";
 import { Output, generateText } from "ai";
 import { bedrock } from "@ai-sdk/amazon-bedrock";
 import { ResolveError } from "../types";
-import { INTENTS } from "../types";
 import { resolveIntentPair } from "./resolve_intent";
 import { z } from "zod";
+import type { CreateResponseBody, ResolvedResponse } from "common";
 
 const SYSTEM_PROMPT = `
 You are an intent classification system.
@@ -75,17 +75,19 @@ const getCategory = (prompt: string) =>
       }),
   });
 
-export const resolveAuto = (options: ResponseCreateParams, userProviders: string[]) =>
-  Effect.gen(function* () {
-    if (typeof options.input !== "string") {
-      return yield* new ResolveError({
-        reason: "UnsupportedInputType",
-        message: `We currently only support text inputs.`,
-      });
-    }
+export const resolveAuto =
+  (options: CreateResponseBody, userProviders: string[], excludedResponses: ResolvedResponse[]) =>
+  (pair: IntentPair) =>
+    Effect.gen(function* () {
+      if (typeof options.input !== "string") {
+        return yield* new ResolveError({
+          reason: "UnsupportedInputType",
+          message: `We currently only support text inputs.`,
+        });
+      }
 
-    const category = yield* getCategory(options.input as string);
-    const intentPair = new IntentPair({ intent: category, intentPolicy: "most-popular" });
+      const category = yield* Effect.retry(getCategory(options.input), { times: 5 });
+      const intentPair = new IntentPair({ intent: category, intentPolicy: pair.intentPolicy });
 
-    return yield* resolveIntentPair(intentPair, userProviders);
-  });
+      return yield* resolveIntentPair(intentPair, userProviders, excludedResponses);
+    });

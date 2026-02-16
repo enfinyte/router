@@ -1,7 +1,5 @@
 import { Data, Schema } from "effect";
 
-export type { ResponseCreateParams } from "openai/resources/responses/responses";
-
 export const Intent = Schema.Literal(
   "auto",
   "academia",
@@ -47,12 +45,6 @@ export class ProviderModelPair extends Data.TaggedClass("ProviderModelPair")<{
   readonly model: string;
   readonly provider: string;
 }> {}
-
-export const ResolvedResponseSchema = Schema.Struct({
-  model: Schema.String,
-  provider: Schema.String,
-});
-export type ResolvedResponse = Schema.Schema.Type<typeof ResolvedResponseSchema>;
 
 export class ResolveError extends Data.TaggedError("ResolveError")<{
   readonly reason: "InvalidModelType" | "UnsupportedInputType";

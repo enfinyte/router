@@ -1,5 +1,5 @@
 import { Effect, Data } from "effect";
-import type { CreateResponseBody, ResponseResource } from "./schema";
+import type { CreateResponseBody, ResponseResource } from "common";
 import * as AIService from "../ai";
 import * as DatabaseService from "../database";
 
