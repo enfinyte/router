@@ -1,6 +1,6 @@
 import type { generateText } from "ai";
 import { Effect } from "effect";
-import type { FunctionCall, FunctionCallOutput, ItemField, Message } from "common";
+import type { FunctionCall, FunctionCallOutput, ItemField, Message, ReasoningBody } from "common";
 import { isValidUrl } from "../../utils";
 
 export const convertAISdkGenerateTextMessagesToResponseResourceOutput = (
@@ -123,14 +123,18 @@ export const convertAISdkGenerateTextMessagesToResponseResourceOutput = (
     return itemEntry?.itemId ?? fallbackId;
   };
 
-  const toolAsOutput: FunctionCall[] = result.toolCalls.map((toolCall) => ({
-    type: "function_call",
-    id: getItemIdFromProviderOptions(toolCall.providerMetadata, toolCall.toolCallId),
-    status: toolCall.providerExecuted ? "completed" : "incomplete",
-    arguments: toolCall.input as string,
-    call_id: toolCall.toolCallId,
-    name: toolCall.toolName,
-  }));
+  const getEncryptedContentFromProviderOptions = (
+    providerOptions: unknown,
+  ): string | undefined => {
+    if (!providerOptions || typeof providerOptions !== "object") return undefined;
+    const entry = Object.entries(providerOptions).find(
+      ([_, metadata]) =>
+        typeof metadata === "object" &&
+        metadata !== null &&
+        "reasoningEncryptedContent" in metadata,
+    )?.[1] as { reasoningEncryptedContent?: string } | undefined;
+    return entry?.reasoningEncryptedContent;
+  };
 
   const messagesAsOutput: ItemField[] = result.response.messages.flatMap((message, indx) => {
     const messageRole = message.role as Message["role"] | "tool";
@@ -214,19 +218,24 @@ export const convertAISdkGenerateTextMessagesToResponseResourceOutput = (
               ];
             }
             case "reasoning": {
+              const encryptedContent = getEncryptedContentFromProviderOptions(
+                contentItem.providerOptions,
+              );
               return [
                 {
-                  type: "message",
-                  id: getItemIdFromProviderOptions(contentItem.providerOptions, `message-${indx}`),
-                  status: "completed",
-                  role: "assistant",
-                  content: [
+                  type: "reasoning",
+                  id: getItemIdFromProviderOptions(
+                    contentItem.providerOptions,
+                    `reasoning-${indx}`,
+                  ),
+                  summary: [
                     {
-                      type: "reasoning",
+                      type: "summary_text",
                       text: contentItem.text,
                     },
                   ],
-                } satisfies Message,
+                  ...(encryptedContent ? { encrypted_content: encryptedContent } : {}),
+                } satisfies ReasoningBody,
               ];
             }
             case "file": {
@@ -306,7 +315,10 @@ export const convertAISdkGenerateTextMessagesToResponseResourceOutput = (
                   status: "completed",
                   call_id: contentItem.toolCallId,
                   name: contentItem.toolName,
-                  arguments: contentItem.input as string,
+                  arguments:
+                    typeof contentItem.input === "string"
+                      ? contentItem.input
+                      : JSON.stringify(contentItem.input),
                 } satisfies FunctionCall,
               ];
             }
@@ -341,5 +353,5 @@ export const convertAISdkGenerateTextMessagesToResponseResourceOutput = (
     }
   });
 
-  return Effect.succeed([...toolAsOutput, ...messagesAsOutput]);
+  return Effect.succeed(messagesAsOutput);
 };

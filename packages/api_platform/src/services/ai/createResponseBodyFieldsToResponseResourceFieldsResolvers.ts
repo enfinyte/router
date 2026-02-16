@@ -22,3 +22,19 @@ export const resolveReasoning = (
   reasoning: CreateResponseBody["reasoning"],
 ): ResponseResource["reasoning"] =>
   reasoning ? { effort: reasoning.effort ?? null, summary: reasoning.summary ?? null } : null;
+
+export const resolveTextFormat = (
+  text: CreateResponseBody["text"],
+): ResponseResource["text"] => {
+  const format = text?.format;
+  if (!format || format.type === "text") return { format: { type: "text" as const } };
+  return {
+    format: {
+      type: "json_schema" as const,
+      name: format.name ?? "json_schema",
+      description: format.description ?? null,
+      schema: format.schema ?? null,
+      strict: format.strict ?? false,
+    },
+  };
+};
