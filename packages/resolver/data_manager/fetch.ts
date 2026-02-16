@@ -1,13 +1,8 @@
 import { Effect, Clock, Duration, Schema } from "effect";
 import { FileSystem } from "@effect/platform/FileSystem";
 import { DataFetchError } from "../types";
-import {
-  CATEGORIES,
-  LAST_FETCH_PATH,
-  MODELS_DEV_DATA_PATH,
-  MODELS_MAP_DATA_PATH,
-  ORDERS,
-} from "./const";
+import { LAST_FETCH_PATH, MODELS_DEV_DATA_PATH, MODELS_MAP_DATA_PATH } from "./const";
+import { ORDERS, CATEGORIES } from "../types";
 import { SUPPORTED_PROVIDERS } from "common";
 import { ProviderModelMapSchema } from "./schema/modelsdev";
 import { OpenRouterMapSchema } from "./schema/openrouter";

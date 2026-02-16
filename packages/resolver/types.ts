@@ -25,6 +25,7 @@ export const CATEGORIES: ReadonlyArray<Intent> = INTENTS.filter(
 );
 
 export const IntentPolicy = Schema.Literal(
+  "auto",
   "most-popular",
   "pricing-low-to-high",
   "pricing-high-to-low",
@@ -35,6 +36,11 @@ export const IntentPolicy = Schema.Literal(
 export type IntentPolicy = Schema.Schema.Type<typeof IntentPolicy>;
 
 export const INTENT_POLICIES: ReadonlyArray<IntentPolicy> = IntentPolicy.literals;
+
+/** All intents except "auto", used for data fetching orders. */
+export const ORDERS: ReadonlyArray<IntentPolicy> = INTENT_POLICIES.filter(
+  (i): i is Exclude<IntentPolicy, "auto"> => i !== "auto",
+);
 
 export class IntentPair extends Data.TaggedClass("IntentPair")<{
   readonly intent: Intent;

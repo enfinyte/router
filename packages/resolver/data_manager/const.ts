@@ -1,8 +1,3 @@
-import { CATEGORIES, INTENT_POLICIES } from "../types";
-
-export { CATEGORIES };
-
-export const ORDERS = INTENT_POLICIES;
 export const DATA_PATH = `${__dirname}/../__data`;
 export const MODELS_DEV_DATA_PATH = `${DATA_PATH}/models_dev.json`;
 export const MODELS_MAP_DATA_PATH = `${DATA_PATH}/models_map.json`;
