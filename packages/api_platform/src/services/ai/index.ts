@@ -5,7 +5,13 @@ import * as CredentialsService from "../credentials";
 import { Providers } from "common";
 import { buildLanguageModelFromResolvedModelAndProvider } from "./buildLanguageModelFromResolvedModelAndProvider";
 import { APICallError, generateText } from "ai";
-import { convertCreateResponseBodyInputFieldToCallSettingsMessages } from "./responseFieldsToAISDKGenerateTextCallSettingsAdapters";
+import {
+  convertCreateResponseBodyInputFieldToCallSettingsMessages,
+  convertCreateResponseBodyToolsToCallSettingsTools,
+  convertCreateResponseBodyToolChoiceToCallSettingsToolChoice,
+  convertCreateResponseBodyTextFormatToCallSettingsOutput,
+  convertCreateResponseBodyReasoningToProviderOptions,
+} from "./responseFieldsToAISDKGenerateTextCallSettingsAdapters";
 import { convertAPICallErrorToResponseResource } from "./convertAPICallErrorToResponseResource";
 import { convertAISdkGenerateTextResultToResponseResource } from "./convertAISdkGenerateTextResultToResponseResource";
 import type { ResolvedResponse } from "common";
@@ -46,7 +52,7 @@ const pmrRoutine = (
 
     const resolvedModelAndProvider = isLastAttempt
       ? // NOTE: grab this from onboarding
-        { model: "", provider: "" }
+        { model: "global.anthropic.claude-haiku-4-5-20251001-v1:0", provider: "amazon-bedrock" }
       : resolvedModelResult.right;
 
     const credentials = yield* CredentialsService.getCredentials(
@@ -65,6 +71,27 @@ const pmrRoutine = (
 
     const messages =
       yield* convertCreateResponseBodyInputFieldToCallSettingsMessages(createResponseBody);
+
+    const tools = convertCreateResponseBodyToolsToCallSettingsTools(
+      createResponseBody.tools,
+      createResponseBody.tool_choice,
+    );
+
+    const toolChoice = convertCreateResponseBodyToolChoiceToCallSettingsToolChoice(
+      createResponseBody.tool_choice,
+    );
+
+    const outputFormat = convertCreateResponseBodyTextFormatToCallSettingsOutput(
+      createResponseBody.text,
+    );
+
+    const hasStructuredOutput = createResponseBody.text?.format?.type === "json_schema";
+
+    const providerOptions = convertCreateResponseBodyReasoningToProviderOptions(
+      createResponseBody.reasoning,
+      resolvedModelAndProvider.model,
+      hasStructuredOutput,
+    );
 
     // NOTE: parallel_tool_calls, max_tool_calls, prompt_cache_key, truncation, top_logProbs
     const generateTextOptions = {
@@ -89,8 +116,12 @@ const pmrRoutine = (
           generateText({
             ...generateTextOptions,
             abortSignal,
+            ...(tools ? { tools } : {}),
+            ...(toolChoice ? { toolChoice } : {}),
+            ...(outputFormat ? { output: outputFormat } : {}),
+            ...(providerOptions ? { providerOptions } : {}),
           }),
-        catch: (error) => {
+        catch(error) {
           if (error instanceof APICallError) return error;
           return new AIServiceError({
             cause: error,
