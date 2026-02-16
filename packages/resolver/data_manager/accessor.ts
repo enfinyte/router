@@ -1,7 +1,8 @@
 import { Effect, Schema } from "effect";
-import { type IntentPair, ResolvedResponseSchema } from "../types";
+import { type IntentPair } from "../types";
 import { DATA_PATH, MODELS_MAP_DATA_PATH } from "./const";
 import { FileSystem } from "@effect/platform/FileSystem";
+import { ResolvedResponseSchema } from "common";
 
 export const getOpenRouterDataByPair = (pair: IntentPair) =>
   Effect.gen(function* () {

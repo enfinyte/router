@@ -1,16 +1,11 @@
 import { Effect } from "effect";
-import {
-  DataFetchError,
-  IntentPair,
-  INTENTS,
-  type ResolvedResponse,
-  type ResponseCreateParams,
-} from "../types";
+import { DataFetchError, IntentPair, INTENTS } from "../types";
 import { Output, generateText } from "ai";
 import { bedrock } from "@ai-sdk/amazon-bedrock";
 import { ResolveError } from "../types";
 import { resolveIntentPair } from "./resolve_intent";
 import { z } from "zod";
+import type { CreateResponseBody, ResolvedResponse } from "common";
 
 const SYSTEM_PROMPT = `
 You are an intent classification system.
@@ -81,7 +76,7 @@ const getCategory = (prompt: string) =>
   });
 
 export const resolveAuto =
-  (options: ResponseCreateParams, userProviders: string[], excludedResponses: ResolvedResponse[]) =>
+  (options: CreateResponseBody, userProviders: string[], excludedResponses: ResolvedResponse[]) =>
   (pair: IntentPair) =>
     Effect.gen(function* () {
       if (typeof options.input !== "string") {

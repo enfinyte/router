@@ -1,6 +1,6 @@
 import { Effect, Data } from "effect";
 import { VaultService } from "vault";
-import { type ProviderCredentials, Providers } from "./types";
+import { type ProviderCredentials, Providers } from "common";
 
 export class CredentialsError extends Data.TaggedError("CredentialsError")<{
   cause?: unknown;

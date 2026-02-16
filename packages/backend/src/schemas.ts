@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { SUPPORTED_PROVIDERS } from "common/const";
+import { SUPPORTED_PROVIDERS } from "common";
 
 const SupportedProvider = Schema.Literal(...SUPPORTED_PROVIDERS);
 

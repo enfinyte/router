@@ -8,10 +8,15 @@ BACKEND="$PROJECT_ROOT/backend"
 FRONTEND="$PROJECT_ROOT/frontend"
 VAULT="$PROJECT_ROOT/vault"
 
+cleanup() {
+  echo "Shutting down servers..."
+  kill -- -$$ 2>/dev/null
+}
+
 start_vault() {
   echo "[1/4] Starting vault ..."
   cd "$VAULT"
-  podman-compose up >podman.log 2>&1 &
+  podman-compose up # >podman.log 2>&1 &
   sleep 2
   bun run init.ts >init.log 2>&1 &
 }
@@ -19,7 +24,7 @@ start_vault() {
 start_backend() {
   echo "[2/4] Starting backend ..."
   cd "$BACKEND"
-  bun run index.ts >backend.log 2>&1 &
+  bun run src/index.ts # >backend.log 2>&1 &
 }
 
 start_frontend() {
@@ -34,10 +39,12 @@ start_api_platform() {
   bun run src/index.ts >api_platform.log 2>&1 &
 }
 
-start_vault
+# start_vault
 start_backend
-start_frontend
 start_api_platform
+start_frontend
+
+trap cleanup EXIT INT TERM
 
 echo "[4/4] Running..."
 wait

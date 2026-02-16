@@ -159,8 +159,7 @@ export const make = (poolConfig: PoolConfig) =>
             );
             return rows;
           },
-          catch: (error) =>
-            new LedgerError({ cause: error, message: "Failed to get error rate" }),
+          catch: (error) => new LedgerError({ cause: error, message: "Failed to get error rate" }),
         }),
     });
   });
