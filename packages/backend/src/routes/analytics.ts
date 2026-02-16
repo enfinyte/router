@@ -1,6 +1,5 @@
 import { Effect, Schema } from "effect";
 import { Hono } from "hono";
-
 import { LedgerService } from "ledger";
 import { getAuthenticatedUser } from "../middleware/auth";
 import { RequestValidationError } from "../errors";
