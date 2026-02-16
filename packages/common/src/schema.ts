@@ -403,6 +403,7 @@ export const ItemFieldSchema = Schema.Union(
 );
 
 export type ItemField = Schema.Schema.Type<typeof ItemFieldSchema>;
+export type ReasoningBody = Schema.Schema.Type<typeof ReasoningBodySchema>;
 
 export const ItemFieldWithoutTypeSchema = Schema.Struct({ id: Schema.String });
 
@@ -453,7 +454,7 @@ export const JsonSchemaResponseFormatSchema = Schema.Struct({
   type: Schema.Literal("json_schema"),
   name: Schema.String,
   description: Schema.NullOr(Schema.String),
-  schema: Schema.Null,
+  schema: Schema.NullOr(Schema.Record({ key: Schema.String, value: Schema.Unknown })),
   strict: Schema.Boolean,
 });
 

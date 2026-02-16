@@ -8,6 +8,8 @@ import type {
   TextPart,
   ToolResultPart,
 } from "ai";
+import { jsonSchema, Output } from "ai";
+import type { ToolSet } from "ai";
 import { AIServiceError } from ".";
 import { isNotNullable } from "effect/Predicate";
 import { detectMimeTypeFromBase64EncodedString, detectMimeTypeFromURL } from "../../utils";
@@ -349,3 +351,132 @@ const convertInputItemToModelMessage = (
       }
     }
   });
+
+const EFFORT_TO_BUDGET_TOKENS: Record<string, number> = {
+  low: 1024,
+  medium: 4096,
+  high: 10000,
+  xhigh: 32000,
+};
+
+const EFFORT_TO_NOVA_REASONING_EFFORT: Record<string, string> = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+  xhigh: "max",
+};
+
+export const convertCreateResponseBodyReasoningToProviderOptions = (
+  reasoning: CreateResponseBody["reasoning"],
+  bedrockModelId?: string,
+  hasStructuredOutput?: boolean,
+) => {
+  if (!reasoning) return undefined;
+
+  const effort = reasoning.effort;
+  const summary = reasoning.summary;
+
+  if (!effort && !summary) return undefined;
+
+  const openaiOptions = {
+    ...(effort && effort !== "none"
+      ? { reasoningEffort: effort === "xhigh" ? "high" : effort }
+      : {}),
+    ...(summary ? { reasoningSummary: summary } : {}),
+  };
+
+  const anthropicThinkingConfig =
+    !effort || effort === "none"
+      ? ({ type: "disabled" } as const)
+      : ({ type: "enabled", budgetTokens: EFFORT_TO_BUDGET_TOKENS[effort] ?? 4096 } as const);
+
+  const bedrockReasoningConfig = (() => {
+    if (!effort || effort === "none") return undefined;
+    if (hasStructuredOutput) return undefined;
+
+    const isAnthropicModel = bedrockModelId?.includes("anthropic") ?? false;
+    const isAmazonModel =
+      bedrockModelId?.includes("amazon") ?? false;
+
+    if (isAnthropicModel) {
+      return {
+        type: "enabled" as const,
+        budgetTokens: EFFORT_TO_BUDGET_TOKENS[effort] ?? 4096,
+      };
+    }
+    if (isAmazonModel) {
+      return {
+        type: "enabled" as const,
+        maxReasoningEffort: EFFORT_TO_NOVA_REASONING_EFFORT[effort] ?? "medium",
+      };
+    }
+    return undefined;
+  })();
+
+  return {
+    openai: openaiOptions,
+    anthropic: { thinking: anthropicThinkingConfig },
+    ...(bedrockReasoningConfig
+      ? { bedrock: { reasoningConfig: bedrockReasoningConfig } }
+      : {}),
+  };
+};
+
+export const convertCreateResponseBodyToolsToCallSettingsTools = (
+  tools: CreateResponseBody["tools"],
+  toolChoice: CreateResponseBody["tool_choice"],
+): ToolSet | undefined => {
+  if (!tools?.length) return undefined;
+
+  const filteredTools =
+    toolChoice &&
+    typeof toolChoice !== "string" &&
+    toolChoice.type === "allowed_tools"
+      ? tools.filter((t) =>
+          toolChoice.tools.some((allowed) => allowed.name === t.name),
+        )
+      : tools;
+
+  if (!filteredTools.length) return undefined;
+
+  return Object.fromEntries(
+    filteredTools.map((t) => [
+      t.name,
+      {
+        ...(t.description != null ? { description: t.description } : {}),
+        inputSchema: jsonSchema(
+          (t.parameters as Parameters<typeof jsonSchema>[0]) ?? {
+            type: "object" as const,
+          },
+        ),
+        ...(t.strict != null ? { strict: t.strict } : {}),
+      },
+    ]),
+  ) as ToolSet;
+};
+
+export const convertCreateResponseBodyToolChoiceToCallSettingsToolChoice = (
+  toolChoice: CreateResponseBody["tool_choice"],
+) => {
+  if (!toolChoice) return undefined;
+  if (typeof toolChoice === "string") return toolChoice;
+  if (toolChoice.type === "function")
+    return { type: "tool" as const, toolName: toolChoice.name };
+  return toolChoice.mode ?? ("auto" as const);
+};
+
+export const convertCreateResponseBodyTextFormatToCallSettingsOutput = (
+  text: CreateResponseBody["text"],
+) => {
+  const format = text?.format;
+  if (!format || format.type === "text") return undefined;
+  return Output.object({
+    schema: jsonSchema(
+      (format.schema as Parameters<typeof jsonSchema>[0]) ?? {
+        type: "object" as const,
+      },
+    ),
+    ...(format.name != null ? { name: format.name } : {}),
+    ...(format.description != null ? { description: format.description } : {}),
+  });
+};

@@ -16,6 +16,7 @@ import {
 import {
   resolveTools,
   resolveToolChoice,
+  resolveTextFormat,
 } from "./createResponseBodyFieldsToResponseResourceFieldsResolvers";
 import { convertAISdkGenerateTextMessagesToResponseResourceOutput } from "./convertAISdkGenerateTextMessagesToResponseResourceOutput";
 import type { ResolvedResponse } from "common";
@@ -39,15 +40,11 @@ export const convertAISdkGenerateTextResultToResponseResource = ({
       completed_at: Date.now(),
       status: "completed",
       incomplete_details: null,
-      model: `${resolvedModelAndProvider.provider}:${resolvedModelAndProvider.model}`,
+      model: `${resolvedModelAndProvider.provider}/${resolvedModelAndProvider.model}`,
       previous_response_id: createResponseBody.previous_response_id ?? null,
       instructions: createResponseBody.instructions ?? null,
       output: yield* convertAISdkGenerateTextMessagesToResponseResourceOutput(result),
-      text: {
-        format: {
-          type: "text" as const,
-        },
-      },
+      text: resolveTextFormat(createResponseBody.text),
       top_logprobs: createResponseBody.top_logprobs ?? DEFAULT_TOP_LOGPROBS,
       reasoning: createResponseBody.reasoning
         ? {

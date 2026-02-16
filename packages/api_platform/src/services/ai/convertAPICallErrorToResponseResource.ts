@@ -16,6 +16,7 @@ import {
 import {
   resolveTools,
   resolveToolChoice,
+  resolveTextFormat,
 } from "./createResponseBodyFieldsToResponseResourceFieldsResolvers";
 import type { ResolvedResponse } from "common";
 
@@ -49,7 +50,7 @@ export const convertAPICallErrorToResponseResource = ({
     tools: resolveTools(createResponseBody.tools),
     tool_choice: resolveToolChoice(createResponseBody.tool_choice),
     truncation: createResponseBody.truncation ?? DEFAULT_TRUNCATION,
-    text: { format: { type: "text" as const } },
+    text: resolveTextFormat(createResponseBody.text),
     top_p: createResponseBody.top_p ?? DEFAULT_TOP_P,
     presence_penalty: createResponseBody.presence_penalty ?? DEFAULT_PRESENCE_PENALTY,
     frequency_penalty: createResponseBody.frequency_penalty ?? DEFAULT_FREQUENCY_PENALTY,
