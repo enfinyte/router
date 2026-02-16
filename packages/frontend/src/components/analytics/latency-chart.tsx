@@ -5,7 +5,13 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAnalyticsLatency, type AnalyticsInterval } from "@/lib/api/analytics";
 import { useIsInitialMount } from "@/hooks/use-initial-mount";
@@ -30,9 +36,12 @@ export function LatencyChart({ interval }: { interval: AnalyticsInterval }) {
   const { data, isLoading, isError } = useAnalyticsLatency(interval);
   const animate = useIsInitialMount();
 
-  const chartConfig = useMemo<ChartConfig>(() => ({
-    [percentile]: { label: PERCENTILES[percentile], color: "var(--chart-2)" },
-  }), [percentile]);
+  const chartConfig = useMemo<ChartConfig>(
+    () => ({
+      [percentile]: { label: PERCENTILES[percentile], color: "var(--chart-2)" },
+    }),
+    [percentile],
+  );
 
   const chartData = useMemo(() => {
     if (!data?.latency) return [];
@@ -43,24 +52,27 @@ export function LatencyChart({ interval }: { interval: AnalyticsInterval }) {
     }));
   }, [data]);
 
-  const header = (
-    <CardHeader className="flex flex-row items-start justify-between space-y-0">
-      <div className="flex flex-col gap-1.5">
-        <CardTitle>Latency by Provider/Model</CardTitle>
-        <CardDescription>{PERCENTILES[percentile]} response time per model</CardDescription>
-      </div>
-      <Select value={percentile} onValueChange={(v) => setPercentile(v as PercentileKey)}>
-        <SelectTrigger className="w-28" size="sm">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="avg_latency_ms">Average</SelectItem>
-          <SelectItem value="p50_latency_ms">P50</SelectItem>
-          <SelectItem value="p95_latency_ms">P95</SelectItem>
-          <SelectItem value="p99_latency_ms">P99</SelectItem>
-        </SelectContent>
-      </Select>
-    </CardHeader>
+  const header = useMemo(
+    () => (
+      <CardHeader className="flex flex-row items-start justify-between space-y-0">
+        <div className="flex flex-col gap-1.5">
+          <CardTitle>Latency by Provider/Model</CardTitle>
+          <CardDescription>{PERCENTILES[percentile]} response time per model</CardDescription>
+        </div>
+        <Select value={percentile} onValueChange={(v) => setPercentile(v as PercentileKey)}>
+          <SelectTrigger className="w-28" size="sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="avg_latency_ms">Average</SelectItem>
+            <SelectItem value="p50_latency_ms">P50</SelectItem>
+            <SelectItem value="p95_latency_ms">P95</SelectItem>
+            <SelectItem value="p99_latency_ms">P99</SelectItem>
+          </SelectContent>
+        </Select>
+      </CardHeader>
+    ),
+    [percentile],
   );
 
   if (isLoading) {
@@ -143,10 +155,18 @@ export function LatencyChart({ interval }: { interval: AnalyticsInterval }) {
                     <span className="font-medium text-foreground">{item.fullLabel}</span>
                     {all.map((m) => (
                       <div key={m.key} className="flex items-center gap-2">
-                        <span className={m.key === percentile ? "font-semibold text-foreground" : "text-muted-foreground"}>
+                        <span
+                          className={
+                            m.key === percentile
+                              ? "font-semibold text-foreground"
+                              : "text-muted-foreground"
+                          }
+                        >
                           {m.label}:
                         </span>
-                        <span className={`ml-auto font-mono ${m.key === percentile ? "font-semibold text-foreground" : "font-medium text-muted-foreground"}`}>
+                        <span
+                          className={`ml-auto font-mono ${m.key === percentile ? "font-semibold text-foreground" : "font-medium text-muted-foreground"}`}
+                        >
                           {m.value.toFixed(0)}ms
                         </span>
                       </div>

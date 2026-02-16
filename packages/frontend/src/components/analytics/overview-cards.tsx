@@ -2,23 +2,18 @@
 
 import { useAnalyticsOverview } from "@/lib/api/analytics";
 import type { AnalyticsInterval } from "@/lib/api/analytics";
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const GRID_CLASSNAME =
+  "grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4";
 
 export function OverviewCards({ interval }: { interval: AnalyticsInterval }) {
   const { data, isLoading, isError } = useAnalyticsOverview(interval);
 
-  const gridClassName =
-    "grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4";
-
   if (isLoading) {
     return (
-      <div className={gridClassName}>
+      <div className={GRID_CLASSNAME}>
         {["Total Requests", "Avg Latency", "Total Cost", "Error Rate"].map((label) => (
           <Card key={label}>
             <CardHeader>
@@ -49,7 +44,7 @@ export function OverviewCards({ interval }: { interval: AnalyticsInterval }) {
   } = data?.overview ?? {};
 
   return (
-    <div className={gridClassName}>
+    <div className={GRID_CLASSNAME}>
       <Card>
         <CardHeader>
           <CardDescription>Total Requests</CardDescription>
