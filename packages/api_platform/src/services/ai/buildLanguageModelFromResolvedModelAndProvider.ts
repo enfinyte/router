@@ -1,10 +1,10 @@
 import { Effect } from "effect";
-import { Providers, SUPPORTED_PROVIDERS, type ProviderCredentials } from "../types";
+import { Providers, SUPPORTED_PROVIDERS, type ProviderCredentials } from "common";
 import { AIServiceError } from ".";
 import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import type { ResolvedModel } from "../pmr";
+import type { ResolvedResponse } from "common";
 
 const buildInvalidProviderModelError = (provider?: string) =>
   Effect.fail(
@@ -15,7 +15,7 @@ const buildInvalidProviderModelError = (provider?: string) =>
   );
 
 export const buildLanguageModelFromResolvedModelAndProvider = (
-  resolved: ResolvedModel,
+  resolved: ResolvedResponse,
   credentials: ProviderCredentials<Providers>,
 ) =>
   Effect.gen(function* () {
@@ -30,9 +30,7 @@ export const buildLanguageModelFromResolvedModelAndProvider = (
     const languageModelProvider = yield* Effect.gen(function* () {
       switch (provider as Providers) {
         case Providers.AmazonBedrock: {
-          return createAmazonBedrock(
-            credentials as ProviderCredentials<Providers.AmazonBedrock>,
-          );
+          return createAmazonBedrock(credentials as ProviderCredentials<Providers.AmazonBedrock>);
         }
         case Providers.OpenAI: {
           return createOpenAI(credentials as ProviderCredentials<Providers.OpenAI>);

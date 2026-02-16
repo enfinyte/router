@@ -1,22 +1,19 @@
 import { Effect, Data } from "effect";
 import { resolve as resolverResolve } from "resolver";
 import type { FileSystem } from "@effect/platform/FileSystem";
+import type { CreateResponseBody, ResolvedResponse } from "common";
 
 export class PMRError extends Data.TaggedError("PMRError")<{
   cause?: unknown;
   message?: string;
 }> {}
 
-export interface ResolvedModel {
-  readonly provider: string;
-  readonly model: string;
-}
-
 export const resolve = (
-  model: string,
+  createResponseBody: CreateResponseBody,
   userProviders: string[],
-): Effect.Effect<ResolvedModel, PMRError, FileSystem> =>
-  resolverResolve({ model }, userProviders).pipe(
+  excludedResponses: ResolvedResponse[] = [],
+): Effect.Effect<ResolvedResponse, PMRError, FileSystem> =>
+  resolverResolve(createResponseBody, userProviders, excludedResponses).pipe(
     Effect.mapError(
       (error) =>
         new PMRError({

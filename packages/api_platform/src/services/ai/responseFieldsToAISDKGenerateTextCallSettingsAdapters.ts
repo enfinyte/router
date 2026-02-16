@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import type { CreateResponseBody, CreateResponseBodyInputItem } from "../responses/schema";
+import type { CreateResponseBody, CreateResponseBodyInputItem } from "common";
 import type {
   FilePart,
   ImagePart,
@@ -19,9 +19,9 @@ export const convertCreateResponseBodyInputFieldToCallSettingsMessages = (
     const { input, instructions } = createResponseBody;
 
     if (!input) {
-      return yield* Effect.fail(
-        new AIServiceError({ message: "Input field is required for message-based models." }),
-      );
+      return yield* new AIServiceError({
+        message: "Input field is required for message-based models.",
+      });
     }
 
     const instructionsAsSystemMessage: SystemModelMessage[] = instructions

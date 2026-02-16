@@ -11,7 +11,7 @@ import {
 import { SUPPORTED_PROVIDERS } from "common";
 import { ProviderModelMapSchema } from "./schema/modelsdev";
 import { OpenRouterMapSchema } from "./schema/openrouter";
-import { buildCombinedModelMap } from "./model_map";
+import { generateModelMap } from "./model_map";
 
 const OPENROUTER_BASE = "https://openrouter.ai/api/frontend/models";
 const MODELS_DEV_BASE = "https://models.dev/api.json";
@@ -99,7 +99,7 @@ const populate = (path: string) =>
       },
     );
 
-    const modelMap = buildCombinedModelMap(
+    const modelMap = generateModelMap(
       openRouter.flat() as string[],
       modelsDev as Readonly<Record<string, string[]>>,
     );

@@ -1,4 +1,4 @@
-import type { CreateResponseBody, ResponseResource } from "../responses/schema";
+import type { CreateResponseBody, ResponseResource } from "common";
 
 export const resolveToolChoice = (
   tc: CreateResponseBody["tool_choice"],

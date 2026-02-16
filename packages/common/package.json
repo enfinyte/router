@@ -2,6 +2,7 @@
   "name": "common",
   "module": "index.ts",
   "type": "module",
+  "main": "src/index.ts",
   "private": true,
   "devDependencies": {
     "@types/bun": "latest"

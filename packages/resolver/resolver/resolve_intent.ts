@@ -1,7 +1,8 @@
 import { Array as Arr, Effect, Option, pipe } from "effect";
 import { getModelMap, getOpenRouterDataByPair } from "../data_manager";
-import type { IntentPair, ResolvedResponse } from "../types";
+import type { IntentPair } from "../types";
 import { NoProviderAvailableError } from "../types";
+import type { ResolvedResponse } from "common";
 
 const findMatchingMapping = (
   modelMap: Record<string, ReadonlyArray<ResolvedResponse>>,

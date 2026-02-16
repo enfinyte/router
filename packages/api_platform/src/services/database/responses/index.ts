@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { DatabaseService, DatabaseServiceError } from "..";
 import { RESPONSES_TABLE } from "./table";
-import type { ResponseResource } from "../../responses/schema";
+import type { ResponseResource } from "common";
 import {
   adaptResponsesResourcefromResponsesTable,
   convertResponsesResourcetoResponsesTable,

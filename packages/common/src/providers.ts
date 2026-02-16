@@ -1,6 +1,7 @@
 import { type AmazonBedrockProviderSettings } from "@ai-sdk/amazon-bedrock";
 import { type OpenAIProviderSettings } from "@ai-sdk/openai";
 import { type AnthropicProviderSettings } from "@ai-sdk/anthropic";
+
 export enum Providers {
   AmazonBedrock = "amazon-bedrock",
   OpenAI = "openai",
@@ -9,7 +10,7 @@ export enum Providers {
 
 export const SUPPORTED_PROVIDERS = Object.values(Providers);
 
-type ProviderCredentialsMap = {
+export type ProviderCredentialsMap = {
   [Providers.AmazonBedrock]: Omit<
     AmazonBedrockProviderSettings,
     "region" | "accessKeyId" | "secretAccessKey"

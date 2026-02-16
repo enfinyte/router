@@ -2,7 +2,7 @@ import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platf
 import { Data, Effect, Schema } from "effect";
 import * as ResponsesService from "../../services/responses";
 import { withProperContentTypeValidation } from "../../middlewares";
-import { CreateResponseBodySchema, type CreateResponseBody } from "../../services/responses/schema";
+import { CreateResponseBodySchema, type CreateResponseBody } from "common";
 import { RequestContext } from "../../services/request-context";
 
 const MIN_TEMPERATURE = 0;

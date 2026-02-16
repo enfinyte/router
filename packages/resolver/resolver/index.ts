@@ -1,16 +1,12 @@
 import { Effect, Match, pipe } from "effect";
 import { parseImpl } from "../parser";
 import { ResolveError } from "../types";
-import type {
-  IntentPair,
-  ProviderModelPair,
-  ResolvedResponse,
-  ResponseCreateParams,
-} from "../types";
+import type { IntentPair, ProviderModelPair } from "../types";
 import { resolveProviderModelPair } from "./resolve_provider_model";
 import { resolveIntentPair } from "./resolve_intent";
 import { resolveAuto } from "./resolve_auto";
 import { parseIntentImpl } from "../parser/parse_intent";
+import type { CreateResponseBody, ResolvedResponse } from "common";
 
 const resolve = (userProviders: string[], excludedResponses: ResolvedResponse[]) =>
   Match.type<IntentPair | ProviderModelPair>().pipe(
@@ -20,7 +16,7 @@ const resolve = (userProviders: string[], excludedResponses: ResolvedResponse[])
   );
 
 export const resolveImpl = (
-  options: ResponseCreateParams,
+  options: CreateResponseBody,
   userProviders: string[],
   excludedResponses: ResolvedResponse[],
 ) =>

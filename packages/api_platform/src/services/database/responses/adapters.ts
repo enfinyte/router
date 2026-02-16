@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect";
 import type { ResponsesTable } from "./table";
-import { ResponseResourceSchema, type ResponseResource } from "../../responses/schema";
+import { ResponseResourceSchema, type ResponseResource } from "common";
 
 const fields = ResponseResourceSchema.fields;
 
