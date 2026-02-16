@@ -1,5 +1,9 @@
 import { Context, Effect, Layer } from "effect";
-import { VaultKV, VaultPathError, VaultError, VaultKVLive } from "./kv";
+import type { VaultError, VaultPathError } from "./kv";
+import { VaultKV, VaultKVLive } from "./kv";
+
+export { VaultError, VaultPathError } from "./kv";
+export { VaultLoggerLive } from "./logger";
 
 export class VaultService extends Context.Tag("VaultService")<
   VaultService,
@@ -27,14 +31,111 @@ export const VaultServiceLive = Layer.effect(
   Effect.gen(function* () {
     const kv = yield* VaultKV;
 
+    yield* Effect.logInfo("VaultService initialized").pipe(
+      Effect.annotateLogs({ service: "VaultService" }),
+    );
+
     return VaultService.of({
       addSecret: (userId, provider, data) =>
-        kv.makePath(userId, provider).pipe(Effect.flatMap((path) => kv.write(path, data))),
+        Effect.logInfo("Adding secret").pipe(
+          Effect.annotateLogs({
+            service: "VaultService",
+            operation: "addSecret",
+            userId,
+            provider,
+          }),
+          Effect.flatMap(() =>
+            kv.makePath(userId, provider).pipe(Effect.flatMap((path) => kv.write(path, data))),
+          ),
+          Effect.tap(() =>
+            Effect.logInfo("Secret added").pipe(
+              Effect.annotateLogs({
+                service: "VaultService",
+                operation: "addSecret",
+                userId,
+                provider,
+              }),
+            ),
+          ),
+          Effect.tapError((err) =>
+            Effect.logError("Failed to add secret").pipe(
+              Effect.annotateLogs({
+                service: "VaultService",
+                operation: "addSecret",
+                userId,
+                provider,
+                error: err._tag,
+                message: err.message,
+              }),
+            ),
+          ),
+        ),
 
-      getSecret: (userId, provider) => kv.makePath(userId, provider).pipe(Effect.flatMap(kv.read)),
+      getSecret: (userId, provider) =>
+        Effect.logInfo("Getting secret").pipe(
+          Effect.annotateLogs({
+            service: "VaultService",
+            operation: "getSecret",
+            userId,
+            provider,
+          }),
+          Effect.flatMap(() => kv.makePath(userId, provider).pipe(Effect.flatMap(kv.read))),
+          Effect.tap((_) =>
+            Effect.logInfo("Secret retrieved").pipe(
+              Effect.annotateLogs({
+                service: "VaultService",
+                operation: "getSecret",
+                userId,
+                provider,
+              }),
+            ),
+          ),
+          Effect.tapError((err) =>
+            Effect.logError("Failed to get secret").pipe(
+              Effect.annotateLogs({
+                service: "VaultService",
+                operation: "getSecret",
+                userId,
+                provider,
+                error: err._tag,
+                message: err.message,
+              }),
+            ),
+          ),
+        ),
 
       deleteSecret: (userId, provider) =>
-        kv.makePath(userId, provider).pipe(Effect.flatMap(kv.delete)),
+        Effect.logInfo("Deleting secret").pipe(
+          Effect.annotateLogs({
+            service: "VaultService",
+            operation: "deleteSecret",
+            userId,
+            provider,
+          }),
+          Effect.flatMap(() => kv.makePath(userId, provider).pipe(Effect.flatMap(kv.delete))),
+          Effect.tap(() =>
+            Effect.logInfo("Secret deleted").pipe(
+              Effect.annotateLogs({
+                service: "VaultService",
+                operation: "deleteSecret",
+                userId,
+                provider,
+              }),
+            ),
+          ),
+          Effect.tapError((err) =>
+            Effect.logError("Failed to delete secret").pipe(
+              Effect.annotateLogs({
+                service: "VaultService",
+                operation: "deleteSecret",
+                userId,
+                provider,
+                error: err._tag,
+                message: err.message,
+              }),
+            ),
+          ),
+        ),
     });
   }),
 ).pipe(Layer.provide(VaultKVLive));
