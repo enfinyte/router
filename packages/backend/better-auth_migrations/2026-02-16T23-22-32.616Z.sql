@@ -8,6 +8,8 @@ create table "verification" ("id" text not null primary key, "identifier" text n
 
 create table "apikey" ("id" text not null primary key, "name" text, "start" text, "prefix" text, "key" text not null, "userId" text not null references "user" ("id") on delete cascade, "refillInterval" integer, "refillAmount" integer, "lastRefillAt" timestamptz, "enabled" boolean, "rateLimitEnabled" boolean, "rateLimitTimeWindow" integer, "rateLimitMax" integer, "requestCount" integer, "remaining" integer, "lastRequest" timestamptz, "expiresAt" timestamptz, "createdAt" timestamptz not null, "updatedAt" timestamptz not null, "permissions" text, "metadata" text);
 
+create table "secrets" ("id" text not null primary key, "userId" text not null references "user" ("id") on delete cascade, "providers" jsonb, "disabledProviders" jsonb, "createdAt" timestamptz not null, "updatedAt" timestamptz not null);
+
 create index "session_userId_idx" on "session" ("userId");
 
 create index "account_userId_idx" on "account" ("userId");
