@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "module": "index.ts",
+  "main": "src/index.ts",
   "dependencies": {
     "@ai-sdk/amazon-bedrock": "^4.0.55",
     "@effect/platform": "^0.94.2",

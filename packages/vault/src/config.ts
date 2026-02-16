@@ -14,6 +14,11 @@ export const VaultConfigLive = Layer.effect(
       Config.withDefault("http://127.0.0.1:8200"),
     );
     const token = yield* Config.string("VAULT_TOKEN");
+
+    yield* Effect.logInfo("VaultConfig loaded").pipe(
+      Effect.annotateLogs({ service: "VaultConfig", endpoint, token: "***" }),
+    );
+
     return VaultConfig.of({
       endpoint,
       token,

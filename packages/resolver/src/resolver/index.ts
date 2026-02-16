@@ -22,6 +22,13 @@ export const resolveImpl = (
 ) =>
   Effect.gen(function* () {
     if (typeof options.model !== "string") {
+      yield* Effect.logError("Invalid model type").pipe(
+        Effect.annotateLogs({
+          service: "Resolver",
+          operation: "resolve",
+          modelType: typeof options.model,
+        }),
+      );
       return yield* new ResolveError({
         reason: "InvalidModelType",
         message: `Expected model to be a string, got ${typeof options.model}`,
@@ -29,12 +36,31 @@ export const resolveImpl = (
     }
 
     if (options.model.startsWith("auto")) {
+      yield* Effect.logInfo("Resolving via auto-classification").pipe(
+        Effect.annotateLogs({
+          service: "Resolver",
+          operation: "resolve",
+          model: options.model,
+          providerCount: userProviders.length,
+          excludedCount: excludedResponses.length,
+        }),
+      );
       return yield* pipe(
         options.model,
         parseIntentImpl,
         Effect.flatMap(resolveAuto(options, userProviders, excludedResponses)),
       );
     }
+
+    yield* Effect.logInfo("Resolving via direct parse").pipe(
+      Effect.annotateLogs({
+        service: "Resolver",
+        operation: "resolve",
+        model: options.model,
+        providerCount: userProviders.length,
+        excludedCount: excludedResponses.length,
+      }),
+    );
 
     return yield* pipe(
       options.model,

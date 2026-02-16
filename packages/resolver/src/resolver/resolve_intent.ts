@@ -26,6 +26,17 @@ export const resolveIntentPair = (
   excludedResponses: ResolvedResponse[],
 ) =>
   Effect.gen(function* () {
+    yield* Effect.logDebug("Resolving intent pair").pipe(
+      Effect.annotateLogs({
+        service: "Resolver",
+        operation: "resolveIntentPair",
+        intent: pair.intent,
+        intentPolicy: pair.intentPolicy,
+        providerCount: userProviders.length,
+        excludedCount: excludedResponses.length,
+      }),
+    );
+
     const openRouterData = yield* getOpenRouterDataByPair(pair);
     const userProviderSet = new Set(userProviders);
     const excludedResponsesSet = new Set(excludedResponses.map((r) => `${r.provider}:${r.model}`));
@@ -42,6 +53,16 @@ export const resolveIntentPair = (
     );
 
     if (Option.isSome(match)) {
+      yield* Effect.logInfo("Intent resolved to provider/model").pipe(
+        Effect.annotateLogs({
+          service: "Resolver",
+          operation: "resolveIntentPair",
+          intent: pair.intent,
+          intentPolicy: pair.intentPolicy,
+          provider: match.value.provider,
+          model: match.value.model,
+        }),
+      );
       return match.value;
     }
 
@@ -49,6 +70,18 @@ export const resolveIntentPair = (
       openRouterData,
       Arr.flatMap((s): string[] => (modelMap[s] ?? []).map((m) => m.provider)),
       Arr.dedupe,
+    );
+
+    yield* Effect.logWarning("No matching provider found for intent").pipe(
+      Effect.annotateLogs({
+        service: "Resolver",
+        operation: "resolveIntentPair",
+        intent: pair.intent,
+        intentPolicy: pair.intentPolicy,
+        userProviders: userProviders.join(","),
+        availableProviders: availableProviders.join(","),
+        candidateCount: openRouterData.length,
+      }),
     );
 
     return yield* new NoProviderAvailableError({
