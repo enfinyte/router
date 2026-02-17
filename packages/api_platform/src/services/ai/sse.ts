@@ -3,5 +3,4 @@ export const encodeSSEEvent = (eventType: string, data: object): string =>
 
 export const encodeSSEDone = (): string => "data: [DONE]\n\n";
 
-export const encodeSSEToUint8Array = (sse: string): Uint8Array =>
-  new TextEncoder().encode(sse);
+export const encodeSSEToUint8Array = (sse: string): Uint8Array => new TextEncoder().encode(sse);
