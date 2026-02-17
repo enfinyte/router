@@ -1,8 +1,9 @@
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Data, Effect, Schema } from "effect";
+import { Headers, HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
+import { Data, Effect, Schema, Stream } from "effect";
 import * as ResponsesService from "../../services/responses";
 import { withProperContentTypeValidation } from "../../middlewares";
 import { CreateResponseBodySchema, type CreateResponseBody } from "common";
+import { DatabaseService } from "../../services/database";
 import { RequestContext } from "../../services/request-context";
 
 const MIN_TEMPERATURE = 0;
@@ -102,7 +103,28 @@ export const responsesRouter = HttpRouter.empty.pipe(
     Effect.gen(function* () {
       const createResponseBody = yield* HttpServerRequest.schemaBodyJson(CreateResponseBodySchema);
       yield* validateCreateResponseBody(createResponseBody);
-      const { userId, userProviders, fallbackProviderModelPair, analysisTarget } = yield* RequestContext;
+      const { userId, userProviders, fallbackProviderModelPair, analysisTarget } =
+        yield* RequestContext;
+      if (createResponseBody.stream === true) {
+        const db = yield* DatabaseService;
+        const sseStream = yield* ResponsesService.createStream(
+          createResponseBody,
+          userId,
+          userProviders,
+        );
+        return HttpServerResponse.stream(
+          sseStream.pipe(Stream.provideService(DatabaseService, db)),
+          {
+            contentType: "text/event-stream",
+            headers: Headers.fromInput({
+              "cache-control": "no-cache",
+              connection: "keep-alive",
+              "x-accel-buffering": "no",
+            }),
+          },
+        );
+      }
+
       const responsesObject = yield* ResponsesService.create(
         createResponseBody,
         userId,
