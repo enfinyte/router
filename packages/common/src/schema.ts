@@ -405,7 +405,46 @@ export const ItemFieldSchema = Schema.Union(
 export type ItemField = Schema.Schema.Type<typeof ItemFieldSchema>;
 export type ReasoningBody = Schema.Schema.Type<typeof ReasoningBodySchema>;
 
-export const ItemFieldWithoutTypeSchema = Schema.Struct({ id: Schema.String });
+const MessageWithoutTypeSchema = Schema.Struct({
+  id: Schema.String,
+  status: MessageStatusSchema,
+  role: MessageRoleSchema,
+  content: Schema.Array(MessageContentPartSchema),
+});
+
+const FunctionCallWithoutTypeSchema = Schema.Struct({
+  id: Schema.String,
+  call_id: Schema.String,
+  name: Schema.String,
+  arguments: Schema.String,
+  status: FunctionCallStatusSchema,
+});
+
+const FunctionCallOutputWithoutTypeSchema = Schema.Struct({
+  id: Schema.String,
+  call_id: Schema.String,
+  output: Schema.Union(
+    Schema.String,
+    Schema.Array(
+      Schema.Union(InputTextContentSchema, InputImageContentSchema, InputFileContentSchema),
+    ),
+  ),
+  status: FunctionCallStatusSchema,
+});
+
+const ReasoningBodyWithoutTypeSchema = Schema.Struct({
+  id: Schema.String,
+  content: Schema.optionalWith(Schema.Array(ResponseContentPartSchema), { exact: true }),
+  summary: Schema.Array(ResponseContentPartSchema),
+  encrypted_content: Schema.optionalWith(Schema.String, { exact: true }),
+});
+
+export const ItemFieldWithoutTypeSchema = Schema.Union(
+  MessageWithoutTypeSchema,
+  FunctionCallWithoutTypeSchema,
+  FunctionCallOutputWithoutTypeSchema,
+  ReasoningBodyWithoutTypeSchema,
+);
 
 export const AnnotationWithoutTypeSchema = Schema.Struct({
   url: Schema.String,
@@ -520,57 +559,57 @@ export const ResponseResourceSchema = Schema.Struct({
 });
 
 export const ResponseCreatedStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseCreatedStreamingEvent"),
+  type: Schema.Literal("response.created"),
   sequence_number: Schema.Number,
   response: ResponseResourceSchema,
 });
 
 export const ResponseQueuedStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseQueuedStreamingEvent"),
+  type: Schema.Literal("response.queued"),
   sequence_number: Schema.Number,
   response: ResponseResourceSchema,
 });
 
 export const ResponseInProgressStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseInProgressStreamingEvent"),
+  type: Schema.Literal("response.in_progress"),
   sequence_number: Schema.Number,
   response: ResponseResourceSchema,
 });
 
 export const ResponseCompletedStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseCompletedStreamingEvent"),
+  type: Schema.Literal("response.completed"),
   sequence_number: Schema.Number,
   response: ResponseResourceSchema,
 });
 
 export const ResponseFailedStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseFailedStreamingEvent"),
+  type: Schema.Literal("response.failed"),
   sequence_number: Schema.Number,
   response: ResponseResourceSchema,
 });
 
 export const ResponseIncompleteStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseIncompleteStreamingEvent"),
+  type: Schema.Literal("response.incomplete"),
   sequence_number: Schema.Number,
   response: ResponseResourceSchema,
 });
 
 export const ResponseOutputItemAddedStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseOutputItemAddedStreamingEvent"),
+  type: Schema.Literal("response.output_item.added"),
   sequence_number: Schema.Number,
   output_index: Schema.Number,
   item: Schema.NullOr(ItemFieldWithoutTypeSchema),
 });
 
 export const ResponseOutputItemDoneStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseOutputItemDoneStreamingEvent"),
+  type: Schema.Literal("response.output_item.done"),
   sequence_number: Schema.Number,
   output_index: Schema.Number,
   item: Schema.NullOr(ItemFieldWithoutTypeSchema),
 });
 
 export const ResponseReasoningSummaryPartAddedStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseReasoningSummaryPartAddedStreamingEvent"),
+  type: Schema.Literal("response.reasoning_summary_part.added"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
   output_index: Schema.Number,
@@ -579,7 +618,7 @@ export const ResponseReasoningSummaryPartAddedStreamingEventSchema = Schema.Stru
 });
 
 export const ResponseReasoningSummaryPartDoneStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseReasoningSummaryPartDoneStreamingEvent"),
+  type: Schema.Literal("response.reasoning_summary_part.done"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
   output_index: Schema.Number,
@@ -588,7 +627,7 @@ export const ResponseReasoningSummaryPartDoneStreamingEventSchema = Schema.Struc
 });
 
 export const ResponseContentPartAddedStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseContentPartAddedStreamingEvent"),
+  type: Schema.Literal("response.content_part.added"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
   output_index: Schema.Number,
@@ -597,7 +636,7 @@ export const ResponseContentPartAddedStreamingEventSchema = Schema.Struct({
 });
 
 export const ResponseContentPartDoneStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseContentPartDoneStreamingEvent"),
+  type: Schema.Literal("response.content_part.done"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
   output_index: Schema.Number,
@@ -606,7 +645,7 @@ export const ResponseContentPartDoneStreamingEventSchema = Schema.Struct({
 });
 
 export const ResponseOutputTextDeltaStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseOutputTextDeltaStreamingEvent"),
+  type: Schema.Literal("response.output_text.delta"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
   output_index: Schema.Number,
@@ -617,7 +656,7 @@ export const ResponseOutputTextDeltaStreamingEventSchema = Schema.Struct({
 });
 
 export const ResponseOutputTextDoneStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseOutputTextDoneStreamingEvent"),
+  type: Schema.Literal("response.output_text.done"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
   output_index: Schema.Number,
@@ -627,7 +666,7 @@ export const ResponseOutputTextDoneStreamingEventSchema = Schema.Struct({
 });
 
 export const ResponseRefusalDeltaStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseRefusalDeltaStreamingEvent"),
+  type: Schema.Literal("response.refusal.delta"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
   output_index: Schema.Number,
@@ -636,7 +675,7 @@ export const ResponseRefusalDeltaStreamingEventSchema = Schema.Struct({
 });
 
 export const ResponseRefusalDoneStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseRefusalDoneStreamingEvent"),
+  type: Schema.Literal("response.refusal.done"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
   output_index: Schema.Number,
@@ -645,7 +684,7 @@ export const ResponseRefusalDoneStreamingEventSchema = Schema.Struct({
 });
 
 export const ResponseReasoningDeltaStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseReasoningDeltaStreamingEvent"),
+  type: Schema.Literal("response.reasoning.delta"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
   output_index: Schema.Number,
@@ -655,7 +694,7 @@ export const ResponseReasoningDeltaStreamingEventSchema = Schema.Struct({
 });
 
 export const ResponseReasoningDoneStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseReasoningDoneStreamingEvent"),
+  type: Schema.Literal("response.reasoning.done"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
   output_index: Schema.Number,
@@ -664,7 +703,7 @@ export const ResponseReasoningDoneStreamingEventSchema = Schema.Struct({
 });
 
 export const ResponseReasoningSummaryDeltaStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseReasoningSummaryDeltaStreamingEvent"),
+  type: Schema.Literal("response.reasoning_summary.delta"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
   output_index: Schema.Number,
@@ -674,7 +713,7 @@ export const ResponseReasoningSummaryDeltaStreamingEventSchema = Schema.Struct({
 });
 
 export const ResponseReasoningSummaryDoneStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseReasoningSummaryDoneStreamingEvent"),
+  type: Schema.Literal("response.reasoning_summary.done"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
   output_index: Schema.Number,
@@ -683,7 +722,7 @@ export const ResponseReasoningSummaryDoneStreamingEventSchema = Schema.Struct({
 });
 
 export const ResponseOutputTextAnnotationAddedStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseOutputTextAnnotationAddedStreamingEvent"),
+  type: Schema.Literal("response.output_text.annotation.added"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
   output_index: Schema.Number,
@@ -693,7 +732,7 @@ export const ResponseOutputTextAnnotationAddedStreamingEventSchema = Schema.Stru
 });
 
 export const ResponseFunctionCallArgumentsDeltaStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseFunctionCallArgumentsDeltaStreamingEvent"),
+  type: Schema.Literal("response.function_call_arguments.delta"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
   output_index: Schema.Number,
@@ -702,7 +741,7 @@ export const ResponseFunctionCallArgumentsDeltaStreamingEventSchema = Schema.Str
 });
 
 export const ResponseFunctionCallArgumentsDoneStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ResponseFunctionCallArgumentsDoneStreamingEvent"),
+  type: Schema.Literal("response.function_call_arguments.done"),
   sequence_number: Schema.Number,
   item_id: Schema.String,
   output_index: Schema.Number,
@@ -720,7 +759,7 @@ export const ErrorPayloadSchema = Schema.Struct({
 });
 
 export const ErrorStreamingEventSchema = Schema.Struct({
-  type: Schema.Literal("ErrorStreamingEvent"),
+  type: Schema.Literal("error"),
   sequence_number: Schema.Number,
   error: ErrorPayloadSchema,
 });

@@ -38,6 +38,7 @@ export const updateResponsesResource = (responses: ResponseResource) =>
       conn
         .updateTable(RESPONSES_TABLE)
         .set(adaptedResponseResource)
+        .where("id", "==", adaptedResponseResource.id)
         .returningAll()
         .executeTakeFirst(),
     );
