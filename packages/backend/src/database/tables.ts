@@ -12,6 +12,7 @@ export interface SecretsTable {
 export interface UserTable {
   id: string;
   fallbackProviderModelPair: string | null;
+  analysisTarget: string | null;
 }
 
 export interface BackendDatabase {

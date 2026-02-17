@@ -7,10 +7,25 @@ import { toast } from "sonner";
 import { useGetUser } from "@/lib/api/user";
 import { useGetModels } from "@/lib/api/models";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Crosshair, Check, Pencil } from "lucide-react";
+import { Loader2, Crosshair, Check, Pencil, ScanSearch } from "lucide-react";
 import { PROVIDERS } from "@/lib/providers";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
+
+const ANALYSIS_TARGET_OPTIONS = [
+  {
+    value: "per_prompt",
+    label: "Analyze each message",
+    description:
+      "Routes each request based on the user's message content. Best for applications with varied query types.",
+  },
+  {
+    value: "per_system_prompt",
+    label: "Analyze system instructions",
+    description:
+      "Routes based on your system prompt. Classification is cached for faster subsequent requests. Falls back to your default model if no system prompt is provided.",
+  },
+] as const;
 
 interface ModelOption {
   provider: string;
@@ -29,6 +44,10 @@ export default function SettingsPage() {
   const [isEditingFallback, setIsEditingFallback] = useState(false);
   const [selectedFallback, setSelectedFallback] = useState<string | null>(null);
   const [isSavingFallback, setIsSavingFallback] = useState(false);
+
+  const [isEditingAnalysisTarget, setIsEditingAnalysisTarget] = useState(false);
+  const [selectedAnalysisTarget, setSelectedAnalysisTarget] = useState<string | null>(null);
+  const [isSavingAnalysisTarget, setIsSavingAnalysisTarget] = useState(false);
 
   const fallbackModelOptions = useMemo<ModelOption[]>(() => {
     if (!modelsData?.models) return [];
@@ -87,6 +106,27 @@ export default function SettingsPage() {
       setIsSavingFallback(false);
     }
   }, [selectedFallback, queryClient]);
+
+  const currentAnalysisTarget = useMemo(() => {
+    const value = user?.analysisTarget ?? "per_prompt";
+    return ANALYSIS_TARGET_OPTIONS.find((o) => o.value === value) ?? ANALYSIS_TARGET_OPTIONS[0];
+  }, [user?.analysisTarget]);
+
+  const handleSaveAnalysisTarget = useCallback(async () => {
+    if (!selectedAnalysisTarget) return;
+    try {
+      setIsSavingAnalysisTarget(true);
+      await authClient.updateUser({ analysisTarget: selectedAnalysisTarget });
+      await queryClient.invalidateQueries({ queryKey: ["user"] });
+      toast.success("Analysis target updated");
+      setIsEditingAnalysisTarget(false);
+      setSelectedAnalysisTarget(null);
+    } catch {
+      toast.error("Failed to update analysis target");
+    } finally {
+      setIsSavingAnalysisTarget(false);
+    }
+  }, [selectedAnalysisTarget, queryClient]);
 
   const isLoading = isUserLoading || isModelsLoading;
 
@@ -218,6 +258,105 @@ export default function SettingsPage() {
                     className="cursor-pointer"
                   >
                     {isSavingFallback && (
+                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                    )}
+                    Save
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <ScanSearch className="h-5 w-5 text-muted-foreground" />
+              <h2 className="text-lg font-semibold tracking-tight">Analysis Target</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Controls how the router classifies requests when using auto-routing mode.
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-border bg-card p-6">
+            {isLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-5 w-48" />
+                <Skeleton className="h-9 w-full" />
+              </div>
+            ) : !isEditingAnalysisTarget ? (
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium">{currentAnalysisTarget.label}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {currentAnalysisTarget.description}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedAnalysisTarget(user?.analysisTarget ?? "per_prompt");
+                    setIsEditingAnalysisTarget(true);
+                  }}
+                  className="gap-1.5 cursor-pointer shrink-0 ml-4"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Change
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {ANALYSIS_TARGET_OPTIONS.map((option) => {
+                  const isSelected = selectedAnalysisTarget === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setSelectedAnalysisTarget(option.value)}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors cursor-pointer",
+                        "hover:bg-accent/50",
+                        isSelected
+                          ? "border-foreground/30 bg-accent"
+                          : "border-border",
+                      )}
+                    >
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-medium">{option.label}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {option.description}
+                        </span>
+                      </div>
+                      {isSelected && (
+                        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground ml-3">
+                          <Check className="h-3 w-3 text-background" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsEditingAnalysisTarget(false);
+                      setSelectedAnalysisTarget(null);
+                    }}
+                    className="cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveAnalysisTarget}
+                    disabled={!selectedAnalysisTarget || isSavingAnalysisTarget}
+                    className="cursor-pointer"
+                  >
+                    {isSavingAnalysisTarget && (
                       <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                     )}
                     Save

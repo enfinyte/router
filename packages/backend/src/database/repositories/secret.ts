@@ -12,6 +12,7 @@ interface UserSecrets {
 interface SecretRepositoryImpl {
   getUserSecrets: (userId: string) => Effect.Effect<UserSecrets, DatabaseServiceError>;
   getUserFallback: (userId: string) => Effect.Effect<string | undefined, DatabaseServiceError>;
+  getUserAnalysisTarget: (userId: string) => Effect.Effect<string | undefined, DatabaseServiceError>;
   upsertProvider: (userId: string, provider: string) => Effect.Effect<void, DatabaseServiceError>;
   enableProvider: (userId: string, provider: string) => Effect.Effect<void, DatabaseServiceError>;
   disableProvider: (userId: string, provider: string) => Effect.Effect<void, DatabaseServiceError>;
@@ -56,6 +57,19 @@ export const SecretRepositoryLive = Layer.effect(
           )
           .pipe(
             Effect.map((row) => row?.fallbackProviderModelPair ?? undefined),
+          ),
+
+      getUserAnalysisTarget: (userId) =>
+        db
+          .use((conn) =>
+            conn
+              .selectFrom(USER_TABLE)
+              .where("id", "=", userId)
+              .select(["analysisTarget"])
+              .executeTakeFirst(),
+          )
+          .pipe(
+            Effect.map((row) => row?.analysisTarget ?? undefined),
           ),
 
       upsertProvider: (userId, provider) =>

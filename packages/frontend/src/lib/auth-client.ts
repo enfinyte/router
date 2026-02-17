@@ -20,6 +20,10 @@ export const authClient = createAuthClient({
           type: "string",
           required: false,
         },
+        analysisTarget: {
+          type: "string",
+          required: false,
+        },
       },
     }),
   ],

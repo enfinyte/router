@@ -95,12 +95,13 @@ export const responsesRouter = HttpRouter.empty.pipe(
     Effect.gen(function* () {
       const createResponseBody = yield* HttpServerRequest.schemaBodyJson(CreateResponseBodySchema);
       yield* validateCreateResponseBody(createResponseBody);
-      const { userId, userProviders, fallbackProviderModelPair } = yield* RequestContext;
+      const { userId, userProviders, fallbackProviderModelPair, analysisTarget } = yield* RequestContext;
       const responsesObject = yield* ResponsesService.create(
         createResponseBody,
         userId,
         userProviders,
         fallbackProviderModelPair,
+        analysisTarget,
       );
       return yield* HttpServerResponse.json(responsesObject);
     }).pipe(

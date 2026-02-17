@@ -188,58 +188,90 @@ const resolveWith = (
     return yield* resolveIntentPair(intentPair, userProviders, excludedResponses);
   });
 
+/**
+ * Extracts the appropriate text for auto-classification based on analysisTarget.
+ *
+ * - "per_system_prompt": prioritizes system/developer prompt and instructions.
+ *   Returns null if none found (caller should use fallback model).
+ * - "per_prompt" (default): prioritizes user prompt, then instructions, then system prompt.
+ */
+const extractAnalysisText = (
+  options: CreateResponseBody,
+  analysisTarget: string | undefined,
+): { text: string; source: string } | null => {
+  if (analysisTarget === "per_system_prompt") {
+    // System prompt mode: look for system/developer messages first, then instructions
+    const systemPrompt = extractTextFromInput(options.input, ["system", "developer"]);
+    if (systemPrompt) return { text: systemPrompt, source: "systemPrompt" };
+
+    if (typeof options.instructions === "string" && options.instructions.length > 0) {
+      return { text: options.instructions, source: "instructions" };
+    }
+
+    // No system prompt found — caller should use fallback model
+    return null;
+  }
+
+  // Default: per_prompt — prioritize user prompt, then instructions, then system prompt
+  const userPrompt = extractTextFromInput(options.input, ["user"]);
+  if (userPrompt) return { text: userPrompt, source: "userPrompt" };
+
+  if (typeof options.instructions === "string" && options.instructions.length > 0) {
+    return { text: options.instructions, source: "instructions" };
+  }
+
+  const systemPrompt = extractTextFromInput(options.input, ["system", "developer"]);
+  if (systemPrompt) return { text: systemPrompt, source: "systemPrompt" };
+
+  return null;
+};
+
 export const resolveAuto =
-  (options: CreateResponseBody, userProviders: string[], excludedResponses: ResolvedResponse[]) =>
+  (options: CreateResponseBody, userProviders: string[], excludedResponses: ResolvedResponse[], analysisTarget: string | undefined = undefined) =>
   (pair: IntentPair) =>
     Effect.gen(function* () {
-      const userPrompt = extractTextFromInput(options.input, ["user"]);
-      if (userPrompt) {
-        yield* Effect.logDebug("Using user prompt for auto-classification").pipe(
+      const extracted = extractAnalysisText(options, analysisTarget);
+
+      if (!extracted) {
+        if (analysisTarget === "per_system_prompt") {
+          yield* Effect.logInfo("No system prompt found for per_system_prompt analysis, signaling fallback").pipe(
+            Effect.annotateLogs({
+              service: "Resolver",
+              operation: "resolveAuto",
+              analysisTarget,
+            }),
+          );
+
+          return yield* new ResolveError({
+            reason: "UnsupportedInputType",
+            message: "No system prompt found. Using fallback model.",
+          });
+        }
+
+        yield* Effect.logError("No extractable text for auto-classification").pipe(
           Effect.annotateLogs({
             service: "Resolver",
             operation: "resolveAuto",
-            source: "userPrompt",
-            promptLength: userPrompt.length,
+            inputType: typeof options.input,
+            analysisTarget: analysisTarget ?? "per_prompt",
           }),
         );
-        return yield* resolveWith(userPrompt, pair, userProviders, excludedResponses);
+
+        return yield* new ResolveError({
+          reason: "UnsupportedInputType",
+          message: "We currently only support texts.",
+        });
       }
 
-      if (typeof options.instructions === "string") {
-        yield* Effect.logDebug("Using instructions for auto-classification").pipe(
-          Effect.annotateLogs({
-            service: "Resolver",
-            operation: "resolveAuto",
-            source: "instructions",
-            promptLength: options.instructions.length,
-          }),
-        );
-        return yield* resolveWith(options.instructions, pair, userProviders, excludedResponses);
-      }
-
-      const systemPrompt = extractTextFromInput(options.input, ["system", "developer"]);
-      if (systemPrompt) {
-        yield* Effect.logDebug("Using system/developer prompt for auto-classification").pipe(
-          Effect.annotateLogs({
-            service: "Resolver",
-            operation: "resolveAuto",
-            source: "systemPrompt",
-            promptLength: systemPrompt.length,
-          }),
-        );
-        return yield* resolveWith(systemPrompt, pair, userProviders, excludedResponses);
-      }
-
-      yield* Effect.logError("No extractable text for auto-classification").pipe(
+      yield* Effect.logDebug(`Using ${extracted.source} for auto-classification`).pipe(
         Effect.annotateLogs({
           service: "Resolver",
           operation: "resolveAuto",
-          inputType: typeof options.input,
+          source: extracted.source,
+          promptLength: extracted.text.length,
+          analysisTarget: analysisTarget ?? "per_prompt",
         }),
       );
 
-      return yield* new ResolveError({
-        reason: "UnsupportedInputType",
-        message: "We currently only support texts.",
-      });
+      return yield* resolveWith(extracted.text, pair, userProviders, excludedResponses);
     });

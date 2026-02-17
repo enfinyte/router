@@ -76,6 +76,11 @@ const createAuth = (
           input: true,
           required: false,
         },
+        analysisTarget: {
+          type: "string",
+          input: true,
+          required: false,
+        },
       },
     },
     socialProviders: {

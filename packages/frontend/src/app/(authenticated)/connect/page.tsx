@@ -6,10 +6,11 @@ import { OnboardingStepper } from "@/components/Onboarding";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConnectProvidersStep } from "./_steps/connect-providers";
 import { SetDefaultModelStep } from "./_steps/set-default-model";
+import { SetAnalysisTargetStep } from "./_steps/set-analysis-target";
 import { CreateApiKeyStep } from "./_steps/create-api-key";
 import { useGetAllSecrets } from "@/lib/api/secrets";
 
-const STEP_LABELS = ["Connect Providers", "Set Default Model", "Create API Key"];
+const STEP_LABELS = ["Connect Providers", "Set Default Model", "Analysis Target", "Create API Key"];
 
 export default function OnboardingPage() {
   const [step, setStep] = useQueryState(
@@ -55,7 +56,8 @@ export default function OnboardingPage() {
             <>
               {safeStep === 0 && <ConnectProvidersStep onContinue={goToNext} />}
               {safeStep === 1 && <SetDefaultModelStep onContinue={goToNext} onBack={goToPrev} />}
-              {safeStep === 2 && <CreateApiKeyStep onBack={goToPrev} />}
+              {safeStep === 2 && <SetAnalysisTargetStep onContinue={goToNext} onBack={goToPrev} />}
+              {safeStep === 3 && <CreateApiKeyStep onBack={goToPrev} />}
             </>
           )}
         </div>

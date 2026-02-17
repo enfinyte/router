@@ -13,9 +13,10 @@ export const create = (
   userId: string,
   userProviders: readonly string[],
   fallbackProviderModelPair: string | undefined,
+  analysisTarget: string | undefined,
 ) =>
   Effect.gen(function* () {
-    const responseResource = yield* AIService.execute(req, userId, userProviders, fallbackProviderModelPair);
+    const responseResource = yield* AIService.execute(req, userId, userProviders, fallbackProviderModelPair, analysisTarget);
     yield* persistResponseResourceInDatabase(responseResource);
     return responseResource;
   }).pipe(

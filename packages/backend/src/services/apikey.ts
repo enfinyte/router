@@ -21,6 +21,7 @@ export interface VerifyResult {
   readonly providers?: string[] | undefined;
   readonly userId?: string | undefined;
   readonly fallbackProviderModelPair?: string | undefined;
+  readonly analysisTarget?: string | undefined;
   readonly error?: string | undefined;
 }
 
@@ -174,6 +175,7 @@ export const ApiKeyServiceLive = Layer.effect(
 
           let providers: string[] = [];
           let fallbackProviderModelPair: string | undefined;
+          let analysisTarget: string | undefined;
           if (result.key?.userId) {
             const userSecrets = yield* secrets
               .getUserSecrets(result.key.userId)
@@ -199,6 +201,17 @@ export const ApiKeyServiceLive = Layer.effect(
                   ),
                 ),
               );
+
+            analysisTarget = yield* secrets
+              .getUserAnalysisTarget(result.key.userId)
+              .pipe(
+                Effect.catchTag("DatabaseServiceError", (err) =>
+                  Effect.logError("Failed to fetch user analysis target during verify").pipe(
+                    Effect.annotateLogs("cause", String(err.cause)),
+                    Effect.as(undefined),
+                  ),
+                ),
+              );
           }
 
           return {
@@ -206,6 +219,7 @@ export const ApiKeyServiceLive = Layer.effect(
             providers,
             userId: result.key?.userId,
             fallbackProviderModelPair,
+            analysisTarget,
           };
         }),
     });

@@ -124,6 +124,7 @@ apikeyRoute.post("/verify", (c) =>
         providers: result.providers,
         userId: result.userId,
         fallbackProviderModelPair: result.fallbackProviderModelPair,
+        analysisTarget: result.analysisTarget,
       });
     }).pipe(
       Effect.catchTags({

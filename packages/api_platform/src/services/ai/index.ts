@@ -17,6 +17,7 @@ import { convertAISdkGenerateTextResultToResponseResource } from "./convertAISdk
 import type { ResolvedResponse } from "common";
 import type { FileSystem } from "@effect/platform/FileSystem";
 import type { VaultService } from "vault";
+import { classificationCache } from "../classification-cache";
 
 export class AIServiceError extends Data.TaggedError("AIServiceError")<{
   cause?: unknown | "PMRDepthReached";
@@ -40,12 +41,31 @@ const parseFallbackPair = (
   return { provider, model };
 };
 
+/**
+ * Extracts system/developer prompt text from the request input.
+ * Used as the cache key for "per_system_prompt" analysis target.
+ */
+const extractSystemPromptText = (input: CreateResponseBody["input"], instructions: string | undefined): string | null => {
+  if (Array.isArray(input)) {
+    const text = input
+      .filter((item) => item.role === "system" || item.role === "developer")
+      .map((item) => item.content.text)
+      .join(" ");
+    if (text) return text;
+  }
+
+  if (typeof instructions === "string" && instructions.length > 0) return instructions;
+
+  return null;
+};
+
 export const execute = (
   createResponseBody: CreateResponseBody,
   userId: string,
   userProviders: readonly string[],
   fallbackProviderModelPair: string | undefined,
-) => pmrRoutine(createResponseBody, userId, userProviders, [], fallbackProviderModelPair);
+  analysisTarget: string | undefined,
+) => pmrRoutine(createResponseBody, userId, userProviders, [], fallbackProviderModelPair, analysisTarget);
 
 const pmrRoutine = (
   createResponseBody: CreateResponseBody,
@@ -53,6 +73,7 @@ const pmrRoutine = (
   userProviders: readonly string[],
   excludedProviders: ResolvedResponse[],
   fallbackProviderModelPair: string | undefined,
+  analysisTarget: string | undefined,
 ): Effect.Effect<ResponseResource, AIServiceError, FileSystem | VaultService> =>
   Effect.gen(function* () {
     const requestedModel = createResponseBody.model;
@@ -63,15 +84,52 @@ const pmrRoutine = (
       });
     }
 
-    const resolvedModelResult = yield* pmrService
-      .resolve(createResponseBody, [...userProviders], excludedProviders)
-      .pipe(Effect.either);
+    const isAutoRoute = typeof requestedModel === "string" && requestedModel.startsWith("auto");
+    const useSystemPromptCache = analysisTarget === "per_system_prompt" && isAutoRoute;
+    const systemPromptText = useSystemPromptCache
+      ? extractSystemPromptText(createResponseBody.input, createResponseBody.instructions ?? undefined)
+      : null;
+
+    // Check classification cache for per_system_prompt mode
+    let cachedResult: ResolvedResponse | undefined;
+    if (useSystemPromptCache && systemPromptText) {
+      cachedResult = yield* Effect.promise(() => classificationCache.get(userId, systemPromptText));
+      if (cachedResult) {
+        yield* Effect.logInfo("Using cached classification for system prompt").pipe(
+          Effect.annotateLogs({
+            service: "AIService",
+            operation: "pmrRoutine",
+            cachedProvider: cachedResult.provider,
+            cachedModel: cachedResult.model,
+          }),
+        );
+      }
+    }
+
+    const resolvedModelResult = cachedResult
+      ? Either.right(cachedResult)
+      : yield* pmrService
+          .resolve(createResponseBody, [...userProviders], excludedProviders, analysisTarget)
+          .pipe(Effect.either);
 
     const isLastAttempt = Either.isLeft(resolvedModelResult);
 
     const resolvedModelAndProvider = isLastAttempt
       ? (parseFallbackPair(fallbackProviderModelPair) ?? HARDCODED_FALLBACK)
       : resolvedModelResult.right;
+
+    // Cache the classification result for per_system_prompt mode
+    if (useSystemPromptCache && systemPromptText && !isLastAttempt && !cachedResult) {
+      yield* Effect.promise(() => classificationCache.set(userId, systemPromptText, resolvedModelAndProvider));
+      yield* Effect.logDebug("Cached classification result for system prompt").pipe(
+        Effect.annotateLogs({
+          service: "AIService",
+          operation: "pmrRoutine",
+          cachedProvider: resolvedModelAndProvider.provider,
+          cachedModel: resolvedModelAndProvider.model,
+        }),
+      );
+    }
 
     const credentials = yield* CredentialsService.getCredentials(
       userId,
@@ -154,7 +212,7 @@ const pmrRoutine = (
         return yield* pmrRoutine(createResponseBody, userId, userProviders, [
           ...excludedProviders,
           resolvedModelAndProvider,
-        ], fallbackProviderModelPair);
+        ], fallbackProviderModelPair, analysisTarget);
       }
 
       const errorValue = result.left;

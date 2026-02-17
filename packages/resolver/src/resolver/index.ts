@@ -19,6 +19,7 @@ export const resolveImpl = (
   options: CreateResponseBody,
   userProviders: string[],
   excludedResponses: ResolvedResponse[],
+  analysisTarget: string | undefined = undefined,
 ) =>
   Effect.gen(function* () {
     if (typeof options.model !== "string") {
@@ -48,7 +49,7 @@ export const resolveImpl = (
       return yield* pipe(
         options.model,
         parseIntentImpl,
-        Effect.flatMap(resolveAuto(options, userProviders, excludedResponses)),
+        Effect.flatMap(resolveAuto(options, userProviders, excludedResponses, analysisTarget)),
       );
     }
 
