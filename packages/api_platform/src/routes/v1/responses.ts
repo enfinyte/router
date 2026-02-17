@@ -86,6 +86,13 @@ const validateCreateResponseBody = (
   if (!body.input)
     return Effect.fail(new RequestValidationError({ message: "`input` field is required" }));
 
+  if (body.stream === true && body.text?.format?.type === "json_schema")
+    return Effect.fail(
+      new RequestValidationError({
+        message: "Streaming is not supported with json_schema output format",
+      }),
+    );
+
   return Effect.void;
 };
 
