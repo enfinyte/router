@@ -38,6 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { useRouter } from "next/navigation";
 
+
 export default function AccountPage() {
   const queryClient = useQueryClient();
   const router = useRouter();

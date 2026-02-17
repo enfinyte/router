@@ -8,9 +8,15 @@ export class ResponseServiceError extends Data.TaggedError("ResponseServiceError
   message?: string;
 }> {}
 
-export const create = (req: CreateResponseBody, userId: string, userProviders: readonly string[]) =>
+export const create = (
+  req: CreateResponseBody,
+  userId: string,
+  userProviders: readonly string[],
+  fallbackProviderModelPair: string | undefined,
+  analysisTarget: string | undefined,
+) =>
   Effect.gen(function* () {
-    const responseResource = yield* AIService.execute(req, userId, userProviders);
+    const responseResource = yield* AIService.execute(req, userId, userProviders, fallbackProviderModelPair, analysisTarget);
     yield* persistResponseResourceInDatabase(responseResource);
     return responseResource;
   }).pipe(

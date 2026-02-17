@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect";
 import { type IntentPair } from "../types";
-import { DATA_PATH, MODELS_MAP_DATA_PATH } from "./const";
+import { DATA_PATH, MODELS_DEV_DATA_PATH, MODELS_MAP_DATA_PATH } from "./const";
 import { FileSystem } from "@effect/platform/FileSystem";
 import { ResolvedResponseSchema } from "common";
 
@@ -86,3 +86,16 @@ export const getModelMap = Effect.gen(function* () {
 
   return result;
 });
+
+export const getAvailableModels = async (): Promise<Record<string, string[]>> => {
+  const file = Bun.file(MODELS_DEV_DATA_PATH);
+  const exists = await file.exists();
+
+  if (!exists) {
+    throw new Error(
+      `Models data not available yet. The resolver data cache at ${MODELS_DEV_DATA_PATH} has not been populated. Start the api_platform service first to trigger the initial data fetch.`,
+    );
+  }
+
+  return file.json() as Promise<Record<string, string[]>>;
+};

@@ -6,6 +6,7 @@ import {
   IconDashboard,
   IconKey,
   IconPlug,
+  IconSettings,
 } from "@tabler/icons-react";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
@@ -39,6 +40,11 @@ const data = {
       title: "API Keys",
       url: "/api-keys",
       icon: IconKey,
+    },
+    {
+      title: "Settings",
+      url: "/settings",
+      icon: IconSettings,
     },
   ],
   navSecondary: [

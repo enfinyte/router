@@ -12,8 +12,9 @@ export const resolve = (
   createResponseBody: CreateResponseBody,
   userProviders: string[],
   excludedResponses: ResolvedResponse[] = [],
+  analysisTarget: string | undefined = undefined,
 ): Effect.Effect<ResolvedResponse, PMRError, FileSystem> =>
-  resolverResolve(createResponseBody, userProviders, excludedResponses).pipe(
+  resolverResolve(createResponseBody, userProviders, excludedResponses, analysisTarget).pipe(
     Effect.mapError(
       (error) =>
         new PMRError({

@@ -16,6 +16,14 @@ export const authClient = createAuthClient({
         hasCompletedOnboarding: {
           type: "boolean",
         },
+        fallbackProviderModelPair: {
+          type: "string",
+          required: false,
+        },
+        analysisTarget: {
+          type: "string",
+          required: false,
+        },
       },
     }),
   ],
