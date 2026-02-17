@@ -25,6 +25,7 @@ interface VerifyResponse {
   valid: boolean;
   userId: string;
   providers?: string[];
+  fallbackProviderModelPair?: string;
 }
 
 const verifyApiKey = (backendUrl: string, apiKey: string) =>
@@ -71,10 +72,14 @@ export const withAuthorizationValidation = () =>
 
       const userId = verifyResult.userId;
       const userProviders = verifyResult.providers ?? [];
+      const fallbackProviderModelPair = verifyResult.fallbackProviderModelPair;
 
       return yield* Effect.provide(
         app,
-        Layer.succeed(RequestContext, RequestContext.of({ userId, userProviders })),
+        Layer.succeed(
+          RequestContext,
+          RequestContext.of({ userId, userProviders, fallbackProviderModelPair }),
+        ),
       );
     }),
   );

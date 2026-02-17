@@ -74,6 +74,7 @@ const createAuth = (
         fallbackProviderModelPair: {
           type: "string",
           input: true,
+          required: false,
         },
       },
     },
@@ -120,4 +121,4 @@ export const AuthServiceLive = Layer.effect(
 ).pipe(Layer.provide(AppConfigLive));
 
 // NOTE: Only used for generating
-// export const auth = Effect.runSync(Effect.provide(AuthService, AuthServiceLive));
+export const auth = Effect.runSync(Effect.provide(AuthService, AuthServiceLive));

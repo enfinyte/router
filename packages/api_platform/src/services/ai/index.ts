@@ -23,17 +23,36 @@ export class AIServiceError extends Data.TaggedError("AIServiceError")<{
   message?: string;
 }> {}
 
+const HARDCODED_FALLBACK = {
+  model: "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+  provider: "amazon-bedrock",
+} as const;
+
+const parseFallbackPair = (
+  pair: string | undefined,
+): { provider: string; model: string } | undefined => {
+  if (!pair) return undefined;
+  const slashIndex = pair.indexOf("/");
+  if (slashIndex === -1) return undefined;
+  const provider = pair.slice(0, slashIndex);
+  const model = pair.slice(slashIndex + 1);
+  if (!provider || !model) return undefined;
+  return { provider, model };
+};
+
 export const execute = (
   createResponseBody: CreateResponseBody,
   userId: string,
   userProviders: readonly string[],
-) => pmrRoutine(createResponseBody, userId, userProviders, []);
+  fallbackProviderModelPair: string | undefined,
+) => pmrRoutine(createResponseBody, userId, userProviders, [], fallbackProviderModelPair);
 
 const pmrRoutine = (
   createResponseBody: CreateResponseBody,
   userId: string,
   userProviders: readonly string[],
   excludedProviders: ResolvedResponse[],
+  fallbackProviderModelPair: string | undefined,
 ): Effect.Effect<ResponseResource, AIServiceError, FileSystem | VaultService> =>
   Effect.gen(function* () {
     const requestedModel = createResponseBody.model;
@@ -51,8 +70,7 @@ const pmrRoutine = (
     const isLastAttempt = Either.isLeft(resolvedModelResult);
 
     const resolvedModelAndProvider = isLastAttempt
-      ? // NOTE: grab this from onboarding
-        { model: "global.anthropic.claude-haiku-4-5-20251001-v1:0", provider: "amazon-bedrock" }
+      ? (parseFallbackPair(fallbackProviderModelPair) ?? HARDCODED_FALLBACK)
       : resolvedModelResult.right;
 
     const credentials = yield* CredentialsService.getCredentials(
@@ -136,7 +154,7 @@ const pmrRoutine = (
         return yield* pmrRoutine(createResponseBody, userId, userProviders, [
           ...excludedProviders,
           resolvedModelAndProvider,
-        ]);
+        ], fallbackProviderModelPair);
       }
 
       const errorValue = result.left;

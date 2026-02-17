@@ -123,6 +123,7 @@ apikeyRoute.post("/verify", (c) =>
         valid: true as const,
         providers: result.providers,
         userId: result.userId,
+        fallbackProviderModelPair: result.fallbackProviderModelPair,
       });
     }).pipe(
       Effect.catchTags({

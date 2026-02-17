@@ -5,10 +5,11 @@ import { useQueryState, parseAsInteger } from "nuqs";
 import { OnboardingStepper } from "@/components/Onboarding";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConnectProvidersStep } from "./_steps/connect-providers";
+import { SetDefaultModelStep } from "./_steps/set-default-model";
 import { CreateApiKeyStep } from "./_steps/create-api-key";
 import { useGetAllSecrets } from "@/lib/api/secrets";
 
-const STEP_LABELS = ["Connect Providers", "Create API Key"];
+const STEP_LABELS = ["Connect Providers", "Set Default Model", "Create API Key"];
 
 export default function OnboardingPage() {
   const [step, setStep] = useQueryState(
@@ -53,7 +54,8 @@ export default function OnboardingPage() {
           ) : (
             <>
               {safeStep === 0 && <ConnectProvidersStep onContinue={goToNext} />}
-              {safeStep === 1 && <CreateApiKeyStep onBack={goToPrev} />}
+              {safeStep === 1 && <SetDefaultModelStep onContinue={goToNext} onBack={goToPrev} />}
+              {safeStep === 2 && <CreateApiKeyStep onBack={goToPrev} />}
             </>
           )}
         </div>

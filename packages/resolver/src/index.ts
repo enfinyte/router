@@ -4,6 +4,7 @@ import { resolveImpl } from "./resolver";
 import type { ResolvedResponse, CreateResponseBody } from "common";
 
 export { ResolverLoggerLive } from "./logger";
+export { getAvailableModels } from "./data_manager";
 
 export const resolve = (
   options: CreateResponseBody,

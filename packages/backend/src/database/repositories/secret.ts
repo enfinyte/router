@@ -2,7 +2,7 @@ import { Context, Effect, Layer } from "effect";
 import { sql } from "kysely";
 
 import { DatabaseService, DatabaseServiceError, DatabaseServiceLive } from "../client";
-import { SECRETS_TABLE } from "../tables";
+import { SECRETS_TABLE, USER_TABLE } from "../tables";
 
 interface UserSecrets {
   readonly providers: string[];
@@ -11,6 +11,7 @@ interface UserSecrets {
 
 interface SecretRepositoryImpl {
   getUserSecrets: (userId: string) => Effect.Effect<UserSecrets, DatabaseServiceError>;
+  getUserFallback: (userId: string) => Effect.Effect<string | undefined, DatabaseServiceError>;
   upsertProvider: (userId: string, provider: string) => Effect.Effect<void, DatabaseServiceError>;
   enableProvider: (userId: string, provider: string) => Effect.Effect<void, DatabaseServiceError>;
   disableProvider: (userId: string, provider: string) => Effect.Effect<void, DatabaseServiceError>;
@@ -44,34 +45,63 @@ export const SecretRepositoryLive = Layer.effect(
             })),
           ),
 
-      upsertProvider: (userId, provider) =>
+      getUserFallback: (userId) =>
         db
           .use((conn) =>
-            sql`
-              INSERT INTO ${sql.table(SECRETS_TABLE)} ("userId", "providers", "updatedAt")
-              VALUES (${userId}, ARRAY[${provider}]::text[], CURRENT_TIMESTAMP)
-              ON CONFLICT ("userId")
-              DO UPDATE SET
-                "providers" = CASE
-                  WHEN ${provider} = ANY("secrets"."providers") THEN "secrets"."providers"
-                  ELSE array_append("secrets"."providers", ${provider})
+            conn
+              .selectFrom(USER_TABLE)
+              .where("id", "=", userId)
+              .select(["fallbackProviderModelPair"])
+              .executeTakeFirst(),
+          )
+          .pipe(
+            Effect.map((row) => row?.fallbackProviderModelPair ?? undefined),
+          ),
+
+      upsertProvider: (userId, provider) =>
+        Effect.gen(function* () {
+          const existing = yield* db.use((conn) =>
+            conn
+              .selectFrom(SECRETS_TABLE)
+              .where("userId", "=", userId)
+              .select(["userId"])
+              .executeTakeFirst(),
+          );
+
+          if (existing) {
+            yield* db.use((conn) =>
+              sql`
+                UPDATE ${sql.table(SECRETS_TABLE)}
+                SET "providers" = CASE
+                  WHEN COALESCE("providers", '[]'::jsonb) @> to_jsonb(CAST(${provider} AS text)) THEN "providers"
+                  ELSE COALESCE("providers", '[]'::jsonb) || to_jsonb(CAST(${provider} AS text))
                 END,
                 "updatedAt" = CURRENT_TIMESTAMP
-            `.execute(conn),
-          )
-          .pipe(Effect.asVoid),
+                WHERE "userId" = ${userId}
+              `.execute(conn),
+            );
+          } else {
+            yield* db.use((conn) =>
+              sql`
+                INSERT INTO ${sql.table(SECRETS_TABLE)} ("id", "userId", "providers", "createdAt", "updatedAt")
+                VALUES (gen_random_uuid(), ${userId}, jsonb_build_array(CAST(${provider} AS text)), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+              `.execute(conn),
+            );
+          }
+        }).pipe(Effect.asVoid),
 
       enableProvider: (userId, provider) =>
         db
           .use((conn) =>
-            conn
-              .updateTable(SECRETS_TABLE)
-              .set({
-                disabledProviders: sql`array_remove("disabledProviders", ${provider})`,
-                updatedAt: sql`CURRENT_TIMESTAMP`,
-              })
-              .where("userId", "=", userId)
-              .execute(),
+            sql`
+              UPDATE ${sql.table(SECRETS_TABLE)}
+              SET "disabledProviders" = COALESCE(
+                (SELECT jsonb_agg(elem) FROM jsonb_array_elements("disabledProviders") elem WHERE elem #>> '{}' != CAST(${provider} AS text)),
+                '[]'::jsonb
+              ),
+              "updatedAt" = CURRENT_TIMESTAMP
+              WHERE "userId" = ${userId}
+            `.execute(conn),
           )
           .pipe(Effect.asVoid),
 
@@ -81,8 +111,8 @@ export const SecretRepositoryLive = Layer.effect(
             sql`
               UPDATE ${sql.table(SECRETS_TABLE)}
               SET "disabledProviders" = CASE
-                WHEN ${provider} = ANY("disabledProviders") THEN "disabledProviders"
-                ELSE array_append(COALESCE("disabledProviders", '{}'), ${provider})
+                WHEN COALESCE("disabledProviders", '[]'::jsonb) @> to_jsonb(CAST(${provider} AS text)) THEN "disabledProviders"
+                ELSE COALESCE("disabledProviders", '[]'::jsonb) || to_jsonb(CAST(${provider} AS text))
               END,
               "updatedAt" = CURRENT_TIMESTAMP
               WHERE "userId" = ${userId}
@@ -93,14 +123,15 @@ export const SecretRepositoryLive = Layer.effect(
       removeProvider: (userId, provider) =>
         db
           .use((conn) =>
-            conn
-              .updateTable(SECRETS_TABLE)
-              .set({
-                providers: sql`array_remove("providers", ${provider})`,
-                updatedAt: sql`CURRENT_TIMESTAMP`,
-              })
-              .where("userId", "=", userId)
-              .execute(),
+            sql`
+              UPDATE ${sql.table(SECRETS_TABLE)}
+              SET "providers" = COALESCE(
+                (SELECT jsonb_agg(elem) FROM jsonb_array_elements("providers") elem WHERE elem #>> '{}' != CAST(${provider} AS text)),
+                '[]'::jsonb
+              ),
+              "updatedAt" = CURRENT_TIMESTAMP
+              WHERE "userId" = ${userId}
+            `.execute(conn),
           )
           .pipe(Effect.asVoid),
     });

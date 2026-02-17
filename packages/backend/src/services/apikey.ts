@@ -20,6 +20,7 @@ export interface VerifyResult {
   readonly valid: boolean;
   readonly providers?: string[] | undefined;
   readonly userId?: string | undefined;
+  readonly fallbackProviderModelPair?: string | undefined;
   readonly error?: string | undefined;
 }
 
@@ -172,6 +173,7 @@ export const ApiKeyServiceLive = Layer.effect(
           }
 
           let providers: string[] = [];
+          let fallbackProviderModelPair: string | undefined;
           if (result.key?.userId) {
             const userSecrets = yield* secrets
               .getUserSecrets(result.key.userId)
@@ -186,12 +188,24 @@ export const ApiKeyServiceLive = Layer.effect(
             providers = userSecrets.providers.filter(
               (p) => !userSecrets.disabledProviders.includes(p),
             );
+
+            fallbackProviderModelPair = yield* secrets
+              .getUserFallback(result.key.userId)
+              .pipe(
+                Effect.catchTag("DatabaseServiceError", (err) =>
+                  Effect.logError("Failed to fetch user fallback during verify").pipe(
+                    Effect.annotateLogs("cause", String(err.cause)),
+                    Effect.as(undefined),
+                  ),
+                ),
+              );
           }
 
           return {
             valid: true as const,
             providers,
             userId: result.key?.userId,
+            fallbackProviderModelPair,
           };
         }),
     });
