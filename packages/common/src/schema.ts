@@ -405,7 +405,46 @@ export const ItemFieldSchema = Schema.Union(
 export type ItemField = Schema.Schema.Type<typeof ItemFieldSchema>;
 export type ReasoningBody = Schema.Schema.Type<typeof ReasoningBodySchema>;
 
-export const ItemFieldWithoutTypeSchema = Schema.Struct({ id: Schema.String });
+const MessageWithoutTypeSchema = Schema.Struct({
+  id: Schema.String,
+  status: MessageStatusSchema,
+  role: MessageRoleSchema,
+  content: Schema.Array(MessageContentPartSchema),
+});
+
+const FunctionCallWithoutTypeSchema = Schema.Struct({
+  id: Schema.String,
+  call_id: Schema.String,
+  name: Schema.String,
+  arguments: Schema.String,
+  status: FunctionCallStatusSchema,
+});
+
+const FunctionCallOutputWithoutTypeSchema = Schema.Struct({
+  id: Schema.String,
+  call_id: Schema.String,
+  output: Schema.Union(
+    Schema.String,
+    Schema.Array(
+      Schema.Union(InputTextContentSchema, InputImageContentSchema, InputFileContentSchema),
+    ),
+  ),
+  status: FunctionCallStatusSchema,
+});
+
+const ReasoningBodyWithoutTypeSchema = Schema.Struct({
+  id: Schema.String,
+  content: Schema.optionalWith(Schema.Array(ResponseContentPartSchema), { exact: true }),
+  summary: Schema.Array(ResponseContentPartSchema),
+  encrypted_content: Schema.optionalWith(Schema.String, { exact: true }),
+});
+
+export const ItemFieldWithoutTypeSchema = Schema.Union(
+  MessageWithoutTypeSchema,
+  FunctionCallWithoutTypeSchema,
+  FunctionCallOutputWithoutTypeSchema,
+  ReasoningBodyWithoutTypeSchema,
+);
 
 export const AnnotationWithoutTypeSchema = Schema.Struct({
   url: Schema.String,

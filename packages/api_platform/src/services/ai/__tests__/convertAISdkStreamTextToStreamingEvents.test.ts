@@ -45,6 +45,21 @@ describe("convertAISdkStreamTextToStreamingEvents", () => {
       expect(collected[4]?.type).toBe("response.output_text.done");
       expect(collected[5]?.type).toBe("response.content_part.done");
       expect(collected[6]?.type).toBe("response.output_item.done");
+
+      const addedItem = (collected[0] as StreamingEvent & { item: Record<string, unknown> }).item;
+      expect(addedItem.id).toBeString();
+      expect(addedItem.status).toBe("in_progress");
+      expect(addedItem.role).toBe("assistant");
+      expect(addedItem.content).toEqual([]);
+      expect(addedItem).not.toHaveProperty("type");
+
+      const doneItem = (collected[6] as StreamingEvent & { item: Record<string, unknown> }).item;
+      expect(doneItem.id).toBeString();
+      expect(doneItem.status).toBe("completed");
+      expect(doneItem.role).toBe("assistant");
+      expect((doneItem.content as Array<{ type: string; text: string }>)[0]?.type).toBe("output_text");
+      expect((doneItem.content as Array<{ type: string; text: string }>)[0]?.text).toBe("Hello world");
+      expect(doneItem).not.toHaveProperty("type");
     });
 
     it("accumulates text deltas and includes full text in done events", async () => {
@@ -107,9 +122,11 @@ describe("convertAISdkStreamTextToStreamingEvents", () => {
       );
       const collected = await collectEvents(events);
 
-      const addedEvent = collected[0] as StreamingEvent & { item: { id: string } };
+      const addedEvent = collected[0] as StreamingEvent & { item: { id: string; [key: string]: unknown } };
       const itemId = addedEvent.item.id;
       expect(itemId).toBeTruthy();
+      expect(addedEvent.item).toHaveProperty("status", "in_progress");
+      expect(addedEvent.item).toHaveProperty("role", "assistant");
 
       for (const event of collected) {
         if ("item_id" in event) {
@@ -145,6 +162,22 @@ describe("convertAISdkStreamTextToStreamingEvents", () => {
       expect(collected[4]?.type).toBe("response.function_call_arguments.done");
       expect(collected[5]?.type).toBe("response.content_part.done");
       expect(collected[6]?.type).toBe("response.output_item.done");
+
+      const addedItem = (collected[0] as StreamingEvent & { item: Record<string, unknown> }).item;
+      expect(addedItem.id).toBeString();
+      expect(addedItem.status).toBe("in_progress");
+      expect(addedItem.call_id).toBe("call_abc");
+      expect(addedItem.name).toBe("get_weather");
+      expect(addedItem.arguments).toBe("");
+      expect(addedItem).not.toHaveProperty("type");
+
+      const doneItem = (collected[6] as StreamingEvent & { item: Record<string, unknown> }).item;
+      expect(doneItem.id).toBeString();
+      expect(doneItem.status).toBe("completed");
+      expect(doneItem.call_id).toBe("call_abc");
+      expect(doneItem.name).toBe("get_weather");
+      expect(doneItem.arguments).toBe('{"location":"NYC"}');
+      expect(doneItem).not.toHaveProperty("type");
     });
 
     it("accumulates arguments and includes full args in done event", async () => {
@@ -220,6 +253,20 @@ describe("convertAISdkStreamTextToStreamingEvents", () => {
       expect(collected[4]?.type).toBe("response.reasoning.done");
       expect(collected[5]?.type).toBe("response.content_part.done");
       expect(collected[6]?.type).toBe("response.output_item.done");
+
+      const addedItem = (collected[0] as StreamingEvent & { item: Record<string, unknown> }).item;
+      expect(addedItem.id).toBeString();
+      expect(addedItem.summary).toEqual([]);
+      expect(addedItem).not.toHaveProperty("type");
+      expect(addedItem).not.toHaveProperty("status");
+
+      const doneItem = (collected[6] as StreamingEvent & { item: Record<string, unknown> }).item;
+      expect(doneItem.id).toBeString();
+      expect(doneItem.summary).toEqual([]);
+      expect((doneItem.content as Array<{ type: string; text: string }>)[0]?.type).toBe("reasoning");
+      expect((doneItem.content as Array<{ type: string; text: string }>)[0]?.text).toBe("Let me think...");
+      expect(doneItem).not.toHaveProperty("type");
+      expect(doneItem).not.toHaveProperty("status");
     });
 
     it("accumulates reasoning text in done event", async () => {

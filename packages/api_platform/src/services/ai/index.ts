@@ -19,7 +19,7 @@ import type { VaultService } from "vault";
 import { classificationCache } from "../classification-cache";
 
 export class AIServiceError extends Data.TaggedError("AIServiceError")<{
-  cause?: unknown | "PMRDepthReached";
+  cause?: unknown;
   message?: string;
 }> {}
 

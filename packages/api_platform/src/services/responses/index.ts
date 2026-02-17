@@ -38,6 +38,7 @@ export const create = (
   Effect.gen(function* () {
     const responseResource = yield* AIService.execute(req, userId, userProviders, fallbackProviderModelPair, analysisTarget);
     yield* persistResponseResourceInDatabase(responseResource);
+
     return responseResource;
   }).pipe(
     Effect.catchTags({
@@ -177,6 +178,7 @@ export const createStream = (
       Stream.concat(completionStream),
       Stream.catchAll((err: ResponseServiceError) => {
         const state = getAccumulatedState();
+
         finalResponse = {
           ...skeletonResponse,
           status: "failed",

@@ -86,7 +86,12 @@ export const convertAISdkStreamTextToStreamingEvents = (
             type: "response.output_item.added",
             sequence_number: nextSequenceNumber(),
             output_index: outputIndex,
-            item: { id: currentItemId },
+            item: {
+              id: currentItemId,
+              status: "in_progress",
+              role: "assistant",
+              content: [],
+            },
           };
 
           const contentAddedEvent: StreamingEvent = {
@@ -150,26 +155,30 @@ export const convertAISdkStreamTextToStreamingEvents = (
             },
           };
 
+          const completedMessageItem = {
+            id: currentItemId,
+            status: "completed" as const,
+            role: "assistant" as const,
+            content: [
+              {
+                type: "output_text" as const,
+                text: accumulatedText,
+                annotations: [] as never[],
+                logprobs: [] as never[],
+              },
+            ],
+          };
+
           const outputDoneEvent: StreamingEvent = {
             type: "response.output_item.done",
             sequence_number: nextSequenceNumber(),
             output_index: outputIndex,
-            item: { id: currentItemId },
+            item: completedMessageItem,
           };
 
           outputItems.push({
             type: "message",
-            id: currentItemId,
-            status: "completed",
-            role: "assistant",
-            content: [
-              {
-                type: "output_text",
-                text: accumulatedText,
-                annotations: [],
-                logprobs: [],
-              },
-            ],
+            ...completedMessageItem,
           } satisfies Message);
 
           yield [textDoneEvent, contentDoneEvent, outputDoneEvent];
@@ -185,7 +194,10 @@ export const convertAISdkStreamTextToStreamingEvents = (
             type: "response.output_item.added",
             sequence_number: nextSequenceNumber(),
             output_index: outputIndex,
-            item: { id: currentItemId },
+            item: {
+              id: currentItemId,
+              summary: [],
+            },
           };
 
           const contentAddedEvent: StreamingEvent = {
@@ -243,18 +255,22 @@ export const convertAISdkStreamTextToStreamingEvents = (
             },
           };
 
+          const completedReasoningItem = {
+            id: currentItemId,
+            summary: [] as never[],
+            content: [{ type: "reasoning" as const, text: accumulatedText }],
+          };
+
           const outputDoneEvent: StreamingEvent = {
             type: "response.output_item.done",
             sequence_number: nextSequenceNumber(),
             output_index: outputIndex,
-            item: { id: currentItemId },
+            item: completedReasoningItem,
           };
 
           outputItems.push({
             type: "reasoning",
-            id: currentItemId,
-            summary: [],
-            content: [{ type: "reasoning", text: accumulatedText }],
+            ...completedReasoningItem,
           } satisfies ReasoningBody);
 
           yield [reasoningDoneEvent, contentDoneEvent, outputDoneEvent];
@@ -273,7 +289,13 @@ export const convertAISdkStreamTextToStreamingEvents = (
             type: "response.output_item.added",
             sequence_number: nextSequenceNumber(),
             output_index: outputIndex,
-            item: { id: currentItemId },
+            item: {
+              id: currentItemId,
+              call_id: currentToolCallId ?? "",
+              name: currentToolName ?? "",
+              arguments: "",
+              status: "in_progress" as const,
+            },
           };
 
           const contentAddedEvent: StreamingEvent = {
@@ -329,20 +351,24 @@ export const convertAISdkStreamTextToStreamingEvents = (
             },
           };
 
+          const completedFunctionCallItem = {
+            id: currentItemId,
+            status: "completed" as const,
+            call_id: currentToolCallId ?? "",
+            name: currentToolName ?? "",
+            arguments: accumulatedText,
+          };
+
           const outputDoneEvent: StreamingEvent = {
             type: "response.output_item.done",
             sequence_number: nextSequenceNumber(),
             output_index: outputIndex,
-            item: { id: currentItemId },
+            item: completedFunctionCallItem,
           };
 
           outputItems.push({
             type: "function_call",
-            id: currentItemId,
-            status: "completed",
-            call_id: currentToolCallId ?? "",
-            name: currentToolName ?? "",
-            arguments: accumulatedText,
+            ...completedFunctionCallItem,
           } satisfies FunctionCall);
 
           yield [argumentsDoneEvent, contentDoneEvent, outputDoneEvent];
@@ -359,12 +385,11 @@ export const convertAISdkStreamTextToStreamingEvents = (
             type: "error",
             sequence_number: nextSequenceNumber(),
             error: {
-              type:
-                (typeof errorObject?.type === "string"
-                  ? errorObject?.type
-                  : typeof errorObject?.name === "string"
-                    ? errorObject?.name
-                    : "error") as string,
+              type: (typeof errorObject?.type === "string"
+                ? errorObject?.type
+                : typeof errorObject?.name === "string"
+                  ? errorObject?.name
+                  : "error") as string,
               code: typeof errorObject?.code === "string" ? errorObject?.code : null,
               message:
                 typeof errorObject?.message === "string"
