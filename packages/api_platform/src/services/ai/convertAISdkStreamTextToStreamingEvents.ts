@@ -27,10 +27,11 @@ const getTextDelta = (part: ToolInputPart): string =>
 export const convertAISdkStreamTextToStreamingEvents = (
   fullStream: AsyncIterable<TextStreamPart<Record<string, never>>>,
   responseId: string,
+  startingSequenceNumber = 0,
 ) => {
   void responseId;
 
-  let sequenceNumber = 0;
+  let sequenceNumber = startingSequenceNumber;
   let currentItemId: string | null = null;
   let outputIndex = -1;
   let contentIndex = 0;

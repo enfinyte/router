@@ -102,6 +102,7 @@ export const createStream = (
     const { events, getAccumulatedState } = convertAISdkStreamTextToStreamingEvents(
       stream as AsyncIterable<TextStreamPart<Record<string, never>>>,
       responseId,
+      2, // Start after lifecycle events (response.created=0, response.in_progress=1)
     );
 
     let finalResponse: ResponseResource = skeletonResponse;
