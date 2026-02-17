@@ -105,6 +105,7 @@ export const responsesRouter = HttpRouter.empty.pipe(
       yield* validateCreateResponseBody(createResponseBody);
       const { userId, userProviders, fallbackProviderModelPair, analysisTarget } =
         yield* RequestContext;
+
       if (createResponseBody.stream === true) {
         const db = yield* DatabaseService;
         const sseStream = yield* ResponsesService.createStream(
