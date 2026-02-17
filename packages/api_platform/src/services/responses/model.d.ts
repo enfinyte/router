@@ -897,7 +897,7 @@ export interface components {
        * @description The type of the event, always `response.created`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseCreatedStreamingEvent";
+      type: "response.created";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       response: components["schemas"]["ResponseResource"] & unknown;
@@ -911,7 +911,7 @@ export interface components {
        * @description The type of the event, always `response.queued`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseQueuedStreamingEvent";
+      type: "response.queued";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       response: components["schemas"]["ResponseResource"] & unknown;
@@ -925,7 +925,7 @@ export interface components {
        * @description The type of the event, always `response.in_progress`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseInProgressStreamingEvent";
+      type: "response.in_progress";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       response: components["schemas"]["ResponseResource"] & unknown;
@@ -939,7 +939,7 @@ export interface components {
        * @description The type of the event, always `response.completed`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseCompletedStreamingEvent";
+      type: "response.completed";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       response: components["schemas"]["ResponseResource"] & unknown;
@@ -953,7 +953,7 @@ export interface components {
        * @description The type of the event, always `response.failed`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseFailedStreamingEvent";
+      type: "response.failed";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       response: components["schemas"]["ResponseResource"] & unknown;
@@ -967,7 +967,7 @@ export interface components {
        * @description The type of the event, always `response.incomplete`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseIncompleteStreamingEvent";
+      type: "response.incomplete";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       response: components["schemas"]["ResponseResource"] & unknown;
@@ -981,7 +981,7 @@ export interface components {
        * @description The type of the event, always `response.output_item.added`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseOutputItemAddedStreamingEvent";
+      type: "response.output_item.added";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       /** @description The index of the output item that was added. */
@@ -997,7 +997,7 @@ export interface components {
        * @description The type of the event, always `response.output_item.done`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseOutputItemDoneStreamingEvent";
+      type: "response.output_item.done";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       /** @description The index of the output item that was completed. */
@@ -1013,7 +1013,7 @@ export interface components {
        * @description The type of the event, always `response.reasoning_summary_part.added`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseReasoningSummaryPartAddedStreamingEvent";
+      type: "response.reasoning_summary_part.added";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       /** @description The ID of the item that was updated. */
@@ -1042,7 +1042,7 @@ export interface components {
        * @description The type of the event, always `response.reasoning_summary_part.done`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseReasoningSummaryPartDoneStreamingEvent";
+      type: "response.reasoning_summary_part.done";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       /** @description The ID of the item that was updated. */
@@ -1071,7 +1071,7 @@ export interface components {
        * @description The type of the event, always `response.content_part.added`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseContentPartAddedStreamingEvent";
+      type: "response.content_part.added";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       /** @description The ID of the item that was updated. */
@@ -1100,7 +1100,7 @@ export interface components {
        * @description The type of the event, always `response.content_part.done`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseContentPartDoneStreamingEvent";
+      type: "response.content_part.done";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       /** @description The ID of the item that was updated. */
@@ -1129,7 +1129,7 @@ export interface components {
        * @description The type of the event, always `response.output_text.delta`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseOutputTextDeltaStreamingEvent";
+      type: "response.output_text.delta";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       /** @description The ID of the item that was updated. */
@@ -1154,7 +1154,7 @@ export interface components {
        * @description The type of the event, always `response.output_text.done`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseOutputTextDoneStreamingEvent";
+      type: "response.output_text.done";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       /** @description The ID of the item that was updated. */
@@ -1177,7 +1177,7 @@ export interface components {
        * @description The type of the event, always `response.refusal.delta`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseRefusalDeltaStreamingEvent";
+      type: "response.refusal.delta";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       /** @description The ID of the item that was updated. */
@@ -1198,7 +1198,7 @@ export interface components {
        * @description The type of the event, always `response.refusal.done`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseRefusalDoneStreamingEvent";
+      type: "response.refusal.done";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       /** @description The ID of the item that was updated. */
@@ -1219,7 +1219,7 @@ export interface components {
        * @description The type of the event, always `response.reasoning.delta`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseReasoningDeltaStreamingEvent";
+      type: "response.reasoning.delta";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       /** @description The ID of the item that was updated. */
@@ -1242,7 +1242,7 @@ export interface components {
        * @description The type of the event, always `response.reasoning.done`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseReasoningDoneStreamingEvent";
+      type: "response.reasoning.done";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       /** @description The ID of the item that was updated. */
@@ -1263,7 +1263,7 @@ export interface components {
        * @description The type of the event, always `response.reasoning_summary.delta`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseReasoningSummaryDeltaStreamingEvent";
+      type: "response.reasoning_summary.delta";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       /** @description The ID of the item that was updated. */
@@ -1286,7 +1286,7 @@ export interface components {
        * @description The type of the event, always `response.reasoning_summary.done`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseReasoningSummaryDoneStreamingEvent";
+      type: "response.reasoning_summary.done";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       /** @description The ID of the item that was updated. */
@@ -1307,7 +1307,7 @@ export interface components {
        * @description The type of the event, always `response.output_text.annotation.added`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseOutputTextAnnotationAddedStreamingEvent";
+      type: "response.output_text.annotation.added";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       /** @description The ID of the item that was updated. */
@@ -1329,7 +1329,7 @@ export interface components {
        * @description The type of the event, always `response.function_call_arguments.delta`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseFunctionCallArgumentsDeltaStreamingEvent";
+      type: "response.function_call_arguments.delta";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       /** @description The ID of the tool call item that was updated. */
@@ -1350,7 +1350,7 @@ export interface components {
        * @description The type of the event, always `response.function_call_arguments.done`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ResponseFunctionCallArgumentsDoneStreamingEvent";
+      type: "response.function_call_arguments.done";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       /** @description The ID of the tool call item that was updated. */
@@ -1385,7 +1385,7 @@ export interface components {
        * @description The type of the event, always `error`. (enum property replaced by openapi-typescript)
        * @enum {string}
        */
-      type: "ErrorStreamingEvent";
+      type: "error";
       /** @description The sequence number of the event that was emitted. */
       sequence_number: number;
       error: components["schemas"]["ErrorPayload"] & unknown;
