@@ -44,11 +44,11 @@ This is a Bun monorepo implementing an LLM router API. It uses Effect-TS for typ
 |---------|-------------|
 | `api_platform` | HTTP API server — the main LLM routing service. Built with @effect/platform, Kysely (Postgres), and Vercel AI SDK. |
 | `backend` | Auth and dashboard backend. Built with Hono and better-auth (GitHub OAuth). |
-| `common` | Shared utilities and OpenAI type definitions. |
-| `core` | Core routing logic. |
-| `frontend` | Web dashboard UI. Built with SolidJS, Tailwind CSS, and Vite. |
-| `resolver` | Model resolution logic — determines which provider/model to route to. |
-| `vault` | HashiCorp Vault integration for secrets management. |
+| `common` | Shared types and Effect Schema definitions (request/response contracts, provider registry). |
+| `frontend` | Web dashboard. Built with Next.js 16, Tailwind CSS v4, shadcn/ui, deployed via OpenNext on Cloudflare Workers. |
+| `ledger` | Time-series analytics ledger. TimescaleDB hypertable with continuous aggregates for usage dashboards. |
+| `resolver` | Intelligent model selection — resolves model strings to concrete provider/model pairs (direct, intent, or auto modes). |
+| `vault` | HashiCorp Vault integration for per-user provider credential storage. |
 
 ## Tech Stack
 
