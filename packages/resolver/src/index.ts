@@ -6,12 +6,17 @@ import type { ResolvedResponse, CreateResponseBody } from "common";
 export { ResolverLoggerLive } from "./logger";
 export { getAvailableModels } from "./data_manager";
 
-export const resolve = (
-  options: CreateResponseBody,
-  userProviders: string[],
-  excludedResponses: ResolvedResponse[] = [],
-  analysisTarget: string | undefined = undefined,
-) =>
+export const resolve = ({
+  options,
+  userProviders,
+  excludedResponses = [],
+  analysisTarget = undefined,
+}: {
+  options: CreateResponseBody;
+  userProviders: string[];
+  excludedResponses?: ResolvedResponse[];
+  analysisTarget?: string | undefined;
+}) =>
   Effect.gen(function* () {
     yield* Effect.logInfo("Resolve request received").pipe(
       Effect.annotateLogs({

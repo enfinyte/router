@@ -14,9 +14,6 @@ import {
 } from "./responseFieldsToAISDKGenerateTextCallSettingsAdapters";
 import { convertAPICallErrorToResponseResource } from "./convertAPICallErrorToResponseResource";
 import { convertAISdkGenerateTextResultToResponseResource } from "./convertAISdkGenerateTextResultToResponseResource";
-import type { FileSystem } from "@effect/platform/FileSystem";
-import type { VaultService } from "vault";
-import { classificationCache } from "../classification-cache";
 
 export class AIServiceError extends Data.TaggedError("AIServiceError")<{
   cause?: unknown;
@@ -40,27 +37,6 @@ const parseFallbackPair = (
   return { provider, model };
 };
 
-/**
- * Extracts system/developer prompt text from the request input.
- * Used as the cache key for "per_system_prompt" analysis target.
- */
-const extractSystemPromptText = (
-  input: CreateResponseBody["input"],
-  instructions: string | undefined,
-): string | null => {
-  if (Array.isArray(input)) {
-    const text = input
-      .filter((item) => item.role === "system" || item.role === "developer")
-      .map((item) => item.content.text)
-      .join(" ");
-    if (text) return text;
-  }
-
-  if (typeof instructions === "string" && instructions.length > 0) return instructions;
-
-  return null;
-};
-
 type StreamResult = ReturnType<typeof streamText>;
 
 export const execute = (
@@ -70,206 +46,171 @@ export const execute = (
   fallbackProviderModelPair: string | undefined,
   analysisTarget: string | undefined,
 ) =>
-  pmrRoutine(
+  pmrRoutine({
     createResponseBody,
     userId,
     userProviders,
-    [],
+    excludedProviders: [],
     fallbackProviderModelPair,
     analysisTarget,
-  );
+  });
 
 export const executeStream = (
   createResponseBody: CreateResponseBody,
   userId: string,
   userProviders: readonly string[],
-): Effect.Effect<
-  {
-    stream: AsyncIterable<TextStreamPart<ToolSet>>;
-    result: StreamResult;
-    resolvedModelAndProvider: ResolvedResponse;
-  },
-  AIServiceError,
-  FileSystem | VaultService
-> => pmrStreamRoutine(createResponseBody, userId, userProviders, []);
+) => pmrStreamRoutine(createResponseBody, userId, userProviders, []);
 
-const pmrRoutine = (
-  createResponseBody: CreateResponseBody,
-  userId: string,
-  userProviders: readonly string[],
-  excludedProviders: ResolvedResponse[],
-  fallbackProviderModelPair: string | undefined,
-  analysisTarget: string | undefined,
-): Effect.Effect<ResponseResource, AIServiceError, FileSystem | VaultService> =>
+const pmrRoutine = (params: {
+  createResponseBody: CreateResponseBody;
+  userId: string;
+  userProviders: readonly string[];
+  excludedProviders: ResolvedResponse[];
+  fallbackProviderModelPair: string | undefined;
+  analysisTarget: string | undefined;
+}) =>
   Effect.gen(function* () {
-    const requestedModel = createResponseBody.model;
-    if (!requestedModel) {
-      // XXX: THIS SHOULD BE HANDLED BY ROUTE VALIDATION, BUT JUST IN CASE TO SATISFY TYPESCRIPT
+    const { createResponseBody, userId, userProviders, fallbackProviderModelPair, analysisTarget } =
+      params;
+
+    if (!createResponseBody.model) {
       return yield* new AIServiceError({
         message: "`model` field is required or should not be empty",
       });
     }
 
-    const isAutoRoute = typeof requestedModel === "string" && requestedModel.startsWith("auto");
-    const useSystemPromptCache = analysisTarget === "per_system_prompt" && isAutoRoute;
-    const systemPromptText = useSystemPromptCache
-      ? extractSystemPromptText(
-          createResponseBody.input,
-          createResponseBody.instructions ?? undefined,
-        )
-      : null;
+    return yield* Effect.iterate(
+      {
+        excluded: params.excludedProviders,
+        result: undefined as ResponseResource | undefined,
+      },
+      {
+        while: (state) => state.result === undefined,
+        body: (state) =>
+          Effect.gen(function* () {
+            const [isLastAttempt, resolvedModelAndProvider] = yield* pmrService
+              .resolve({
+                createResponseBody,
+                userProviders: [...userProviders],
+                excludedResponses: state.excluded,
+                analysisTarget,
+                userId,
+              })
+              .pipe(
+                Effect.map((resolved) => [false, resolved] as const),
+                Effect.orElseSucceed(
+                  () =>
+                    [
+                      true,
+                      parseFallbackPair(fallbackProviderModelPair) ?? HARDCODED_FALLBACK,
+                    ] as const,
+                ),
+              );
 
-    // Check classification cache for per_system_prompt mode
-    let cachedResult: ResolvedResponse | undefined;
-    if (useSystemPromptCache && systemPromptText) {
-      cachedResult = yield* Effect.promise(() => classificationCache.get(userId, systemPromptText));
-      if (cachedResult) {
-        yield* Effect.logInfo("Using cached classification for system prompt").pipe(
-          Effect.annotateLogs({
-            service: "AIService",
-            operation: "pmrRoutine",
-            cachedProvider: cachedResult.provider,
-            cachedModel: cachedResult.model,
+            const credentials = yield* CredentialsService.getCredentials(
+              userId,
+              resolvedModelAndProvider.provider as Providers,
+            ).pipe(
+              Effect.catchTag("CredentialsError", (err) =>
+                Effect.fail(new AIServiceError({ cause: err, message: err.message })),
+              ),
+            );
+
+            const languageModel = yield* buildLanguageModelFromResolvedModelAndProvider(
+              resolvedModelAndProvider,
+              credentials,
+            );
+
+            const messages =
+              yield* convertCreateResponseBodyInputFieldToCallSettingsMessages(createResponseBody);
+            const tools = convertCreateResponseBodyToolsToCallSettingsTools(
+              createResponseBody.tools,
+              createResponseBody.tool_choice,
+            );
+            const toolChoice = convertCreateResponseBodyToolChoiceToCallSettingsToolChoice(
+              createResponseBody.tool_choice,
+            );
+            const outputFormat = convertCreateResponseBodyTextFormatToCallSettingsOutput(
+              createResponseBody.text,
+            );
+            const hasStructuredOutput = createResponseBody.text?.format?.type === "json_schema";
+            const providerOptions = convertCreateResponseBodyReasoningToProviderOptions(
+              createResponseBody.reasoning,
+              resolvedModelAndProvider.model,
+              hasStructuredOutput,
+            );
+
+            return yield* Effect.tryPromise({
+              try: (abortSignal) =>
+                generateText({
+                  model: languageModel,
+                  messages,
+                  abortSignal,
+                  ...(createResponseBody.max_output_tokens && {
+                    maxOutputTokens: createResponseBody.max_output_tokens,
+                  }),
+                  ...(createResponseBody.top_p && { topP: createResponseBody.top_p }),
+                  ...(createResponseBody.temperature && {
+                    temperature: createResponseBody.temperature,
+                  }),
+                  ...(createResponseBody.presence_penalty && {
+                    presencePenalty: createResponseBody.presence_penalty,
+                  }),
+                  ...(createResponseBody.frequency_penalty && {
+                    frequencyPenalty: createResponseBody.frequency_penalty,
+                  }),
+                  ...(tools && { tools }),
+                  ...(toolChoice && { toolChoice }),
+                  ...(outputFormat && { output: outputFormat }),
+                  ...(providerOptions && { providerOptions }),
+                }),
+              catch: (error) =>
+                error instanceof APICallError
+                  ? error
+                  : new AIServiceError({
+                      cause: error,
+                      message: "Error while calling generateText",
+                    }),
+            }).pipe(
+              Effect.flatMap((result) =>
+                convertAISdkGenerateTextResultToResponseResource({
+                  result,
+                  createResponseBody,
+                  createdAt: Date.now(),
+                  resolvedModelAndProvider,
+                }).pipe(
+                  Effect.map((responseResource) => ({
+                    excluded: state.excluded,
+                    result: responseResource,
+                  })),
+                ),
+              ),
+              Effect.catchAll((error) => {
+                if (!isLastAttempt) {
+                  return Effect.succeed({
+                    excluded: [...state.excluded, resolvedModelAndProvider],
+                    result: undefined as ResponseResource | undefined,
+                  });
+                }
+
+                if (error instanceof AIServiceError) return Effect.fail(error);
+
+                return convertAPICallErrorToResponseResource({
+                  result: error,
+                  createResponseBody,
+                  createdAt: Date.now(),
+                  resolvedModelAndProvider,
+                }).pipe(
+                  Effect.map((responseResource) => ({
+                    excluded: state.excluded,
+                    result: responseResource,
+                  })),
+                );
+              }),
+            );
           }),
-        );
-      }
-    }
-
-    const resolvedModelResult = cachedResult
-      ? Either.right(cachedResult)
-      : yield* pmrService
-          .resolve(createResponseBody, [...userProviders], excludedProviders, analysisTarget)
-          .pipe(Effect.either);
-
-    const isLastAttempt = Either.isLeft(resolvedModelResult);
-
-    const resolvedModelAndProvider = isLastAttempt
-      ? (parseFallbackPair(fallbackProviderModelPair) ?? HARDCODED_FALLBACK)
-      : resolvedModelResult.right;
-
-    // Cache the classification result for per_system_prompt mode
-    if (useSystemPromptCache && systemPromptText && !isLastAttempt && !cachedResult) {
-      yield* Effect.promise(() =>
-        classificationCache.set(userId, systemPromptText, resolvedModelAndProvider),
-      );
-      yield* Effect.logDebug("Cached classification result for system prompt").pipe(
-        Effect.annotateLogs({
-          service: "AIService",
-          operation: "pmrRoutine",
-          cachedProvider: resolvedModelAndProvider.provider,
-          cachedModel: resolvedModelAndProvider.model,
-        }),
-      );
-    }
-
-    const credentials = yield* CredentialsService.getCredentials(
-      userId,
-      resolvedModelAndProvider.provider as Providers,
-    ).pipe(
-      Effect.catchTag("CredentialsError", (err) =>
-        Effect.fail(new AIServiceError({ cause: err, message: err.message })),
-      ),
-    );
-
-    const languageModel = yield* buildLanguageModelFromResolvedModelAndProvider(
-      resolvedModelAndProvider,
-      credentials,
-    );
-
-    const messages =
-      yield* convertCreateResponseBodyInputFieldToCallSettingsMessages(createResponseBody);
-
-    const tools = convertCreateResponseBodyToolsToCallSettingsTools(
-      createResponseBody.tools,
-      createResponseBody.tool_choice,
-    );
-
-    const toolChoice = convertCreateResponseBodyToolChoiceToCallSettingsToolChoice(
-      createResponseBody.tool_choice,
-    );
-
-    const outputFormat = convertCreateResponseBodyTextFormatToCallSettingsOutput(
-      createResponseBody.text,
-    );
-
-    const hasStructuredOutput = createResponseBody.text?.format?.type === "json_schema";
-
-    const providerOptions = convertCreateResponseBodyReasoningToProviderOptions(
-      createResponseBody.reasoning,
-      resolvedModelAndProvider.model,
-      hasStructuredOutput,
-    );
-
-    // NOTE: parallel_tool_calls, max_tool_calls, prompt_cache_key, truncation, top_logProbs
-    const generateTextOptions = {
-      model: languageModel,
-      messages,
-      ...(createResponseBody.max_output_tokens && {
-        maxOutputTokens: createResponseBody.max_output_tokens,
-      }),
-      ...(createResponseBody.top_p && { topP: createResponseBody.top_p }),
-      ...(createResponseBody.temperature && { temperature: createResponseBody.temperature }),
-      ...(createResponseBody.presence_penalty && {
-        presencePenalty: createResponseBody.presence_penalty,
-      }),
-      ...(createResponseBody.frequency_penalty && {
-        frequencyPenalty: createResponseBody.frequency_penalty,
-      }),
-    };
-
-    const result = yield* Effect.either(
-      Effect.tryPromise({
-        try: (abortSignal) =>
-          generateText({
-            ...generateTextOptions,
-            abortSignal,
-            ...(tools ? { tools } : {}),
-            ...(toolChoice ? { toolChoice } : {}),
-            ...(outputFormat ? { output: outputFormat } : {}),
-            ...(providerOptions ? { providerOptions } : {}),
-          }),
-        catch(error) {
-          if (error instanceof APICallError) return error;
-          return new AIServiceError({
-            cause: error,
-            message: "Error while calling generateText",
-          });
-        },
-      }),
-    );
-
-    if (Either.isLeft(result)) {
-      if (!isLastAttempt) {
-        return yield* pmrRoutine(
-          createResponseBody,
-          userId,
-          userProviders,
-          [...excludedProviders, resolvedModelAndProvider],
-          fallbackProviderModelPair,
-          analysisTarget,
-        );
-      }
-
-      const errorValue = result.left;
-
-      if (errorValue instanceof AIServiceError) {
-        return yield* errorValue;
-      }
-
-      return yield* convertAPICallErrorToResponseResource({
-        result: errorValue,
-        createResponseBody,
-        createdAt: Date.now(),
-        resolvedModelAndProvider,
-      });
-    }
-
-    return yield* convertAISdkGenerateTextResultToResponseResource({
-      result: result.right,
-      createResponseBody,
-      createdAt: Date.now(),
-      resolvedModelAndProvider,
-    });
+      },
+    ).pipe(Effect.map((state) => state.result as ResponseResource));
   });
 
 const pmrStreamRoutine = (
@@ -277,192 +218,197 @@ const pmrStreamRoutine = (
   userId: string,
   userProviders: readonly string[],
   excludedProviders: ResolvedResponse[],
-): Effect.Effect<
-  {
-    stream: AsyncIterable<TextStreamPart<ToolSet>>;
-    result: StreamResult;
-    resolvedModelAndProvider: ResolvedResponse;
-  },
-  AIServiceError,
-  FileSystem | VaultService
-> =>
+) =>
   Effect.gen(function* () {
-    const requestedModel = createResponseBody.model;
-    if (!requestedModel) {
-      // XXX: THIS SHOULD BE HANDLED BY ROUTE VALIDATION, BUT JUST IN CASE TO SATISFY TYPESCRIPT
+    if (!createResponseBody.model) {
       return yield* new AIServiceError({
         message: "`model` field is required or should not be empty",
       });
     }
 
-    const resolvedModelResult = yield* pmrService
-      .resolve(createResponseBody, [...userProviders], excludedProviders)
-      .pipe(Effect.either);
-
-    const isLastAttempt = Either.isLeft(resolvedModelResult);
-
-    const resolvedModelAndProvider = isLastAttempt
-      ? // NOTE: grab this from onboarding
-        { model: "global.anthropic.claude-haiku-4-5-20251001-v1:0", provider: "amazon-bedrock" }
-      : resolvedModelResult.right;
-
-    const credentials = yield* CredentialsService.getCredentials(
-      userId,
-      resolvedModelAndProvider.provider as Providers,
-    ).pipe(
-      Effect.catchTag("CredentialsError", (err) =>
-        Effect.fail(new AIServiceError({ cause: err, message: err.message })),
-      ),
-    );
-
-    const languageModel = yield* buildLanguageModelFromResolvedModelAndProvider(
-      resolvedModelAndProvider,
-      credentials,
-    );
-
-    const messages =
-      yield* convertCreateResponseBodyInputFieldToCallSettingsMessages(createResponseBody);
-
-    const tools = convertCreateResponseBodyToolsToCallSettingsTools(
-      createResponseBody.tools,
-      createResponseBody.tool_choice,
-    );
-
-    const toolChoice = convertCreateResponseBodyToolChoiceToCallSettingsToolChoice(
-      createResponseBody.tool_choice,
-    );
-
-    const outputFormat = convertCreateResponseBodyTextFormatToCallSettingsOutput(
-      createResponseBody.text,
-    );
-
-    const hasStructuredOutput = createResponseBody.text?.format?.type === "json_schema";
-
-    const providerOptions = convertCreateResponseBodyReasoningToProviderOptions(
-      createResponseBody.reasoning,
-      resolvedModelAndProvider.model,
-      hasStructuredOutput,
-    );
-
-    void outputFormat;
-
-    // NOTE: parallel_tool_calls, max_tool_calls, prompt_cache_key, truncation, top_logProbs
-    const generateTextOptions = {
-      model: languageModel,
-      messages,
-      ...(createResponseBody.max_output_tokens && {
-        maxOutputTokens: createResponseBody.max_output_tokens,
-      }),
-      ...(createResponseBody.top_p && { topP: createResponseBody.top_p }),
-      ...(createResponseBody.temperature && { temperature: createResponseBody.temperature }),
-      ...(createResponseBody.presence_penalty && {
-        presencePenalty: createResponseBody.presence_penalty,
-      }),
-      ...(createResponseBody.frequency_penalty && {
-        frequencyPenalty: createResponseBody.frequency_penalty,
-      }),
+    type StreamSuccess = {
+      stream: AsyncIterable<TextStreamPart<ToolSet>>;
+      result: StreamResult;
+      resolvedModelAndProvider: ResolvedResponse;
     };
 
-    const streamResult = yield* Effect.either(
-      Effect.tryPromise<StreamResult, AIServiceError | APICallError>({
-        try: (abortSignal) =>
-          Promise.resolve(
-            streamText({
-              ...generateTextOptions,
-              abortSignal,
-              ...(tools ? { tools } : {}),
-              ...(toolChoice ? { toolChoice } : {}),
-              ...(providerOptions ? { providerOptions } : {}),
-            }),
-          ),
-        catch(error) {
-          if (error instanceof APICallError) return error;
-          if (error instanceof AIServiceError) return error;
-          return new AIServiceError({
-            cause: error,
-            message: "Error while calling streamText",
-          });
-        },
-      }),
-    );
+    return yield* Effect.iterate(
+      { excluded: excludedProviders, result: undefined as StreamSuccess | undefined },
+      {
+        while: (state) => state.result === undefined,
+        body: (state) =>
+          Effect.gen(function* () {
+            const resolvedModelResult = yield* pmrService
+              .resolve({
+                createResponseBody,
+                userProviders: [...userProviders],
+                excludedResponses: state.excluded,
+                userId,
+              })
+              .pipe(Effect.either);
 
-    if (Either.isLeft(streamResult)) {
-      if (!isLastAttempt) {
-        return yield* pmrStreamRoutine(createResponseBody, userId, userProviders, [
-          ...excludedProviders,
-          resolvedModelAndProvider,
-        ]);
-      }
+            const isLastAttempt = Either.isLeft(resolvedModelResult);
+            const resolvedModelAndProvider = isLastAttempt
+              ? {
+                  model: "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+                  provider: "amazon-bedrock",
+                }
+              : resolvedModelResult.right;
 
-      const errorValue = streamResult.left;
+            const credentials = yield* CredentialsService.getCredentials(
+              userId,
+              resolvedModelAndProvider.provider as Providers,
+            ).pipe(
+              Effect.catchTag("CredentialsError", (err) =>
+                Effect.fail(new AIServiceError({ cause: err, message: err.message })),
+              ),
+            );
 
-      if (errorValue instanceof AIServiceError) {
-        return yield* errorValue;
-      }
+            const languageModel = yield* buildLanguageModelFromResolvedModelAndProvider(
+              resolvedModelAndProvider,
+              credentials,
+            );
 
-      return yield* new AIServiceError({
-        cause: errorValue,
-        message: "Error while calling streamText",
-      });
-    }
+            const messages =
+              yield* convertCreateResponseBodyInputFieldToCallSettingsMessages(createResponseBody);
+            const tools = convertCreateResponseBodyToolsToCallSettingsTools(
+              createResponseBody.tools,
+              createResponseBody.tool_choice,
+            );
+            const toolChoice = convertCreateResponseBodyToolChoiceToCallSettingsToolChoice(
+              createResponseBody.tool_choice,
+            );
+            const outputFormat = convertCreateResponseBodyTextFormatToCallSettingsOutput(
+              createResponseBody.text,
+            );
+            const hasStructuredOutput = createResponseBody.text?.format?.type === "json_schema";
+            const providerOptions = convertCreateResponseBodyReasoningToProviderOptions(
+              createResponseBody.reasoning,
+              resolvedModelAndProvider.model,
+              hasStructuredOutput,
+            );
 
-    const streamIterator = streamResult.right.fullStream[Symbol.asyncIterator]();
-    const firstChunkResult = yield* Effect.either(
-      Effect.tryPromise<IteratorResult<TextStreamPart<ToolSet>>, AIServiceError>({
-        try: () => streamIterator.next(),
-        catch(error) {
-          if (error instanceof AIServiceError) return error;
-          return new AIServiceError({
-            cause: error,
-            message: "Error while reading first stream chunk",
-          });
-        },
-      }),
-    );
+            void outputFormat;
 
-    if (Either.isLeft(firstChunkResult)) {
-      if (!isLastAttempt) {
-        return yield* pmrStreamRoutine(createResponseBody, userId, userProviders, [
-          ...excludedProviders,
-          resolvedModelAndProvider,
-        ]);
-      }
+            const streamResult = yield* Effect.either(
+              Effect.tryPromise<StreamResult, AIServiceError | APICallError>({
+                try: (abortSignal) =>
+                  Promise.resolve(
+                    streamText({
+                      model: languageModel,
+                      messages,
+                      ...(createResponseBody.max_output_tokens && {
+                        maxOutputTokens: createResponseBody.max_output_tokens,
+                      }),
+                      ...(createResponseBody.top_p && { topP: createResponseBody.top_p }),
+                      ...(createResponseBody.temperature && {
+                        temperature: createResponseBody.temperature,
+                      }),
+                      ...(createResponseBody.presence_penalty && {
+                        presencePenalty: createResponseBody.presence_penalty,
+                      }),
+                      ...(createResponseBody.frequency_penalty && {
+                        frequencyPenalty: createResponseBody.frequency_penalty,
+                      }),
+                      abortSignal,
+                      ...(tools ? { tools } : {}),
+                      ...(toolChoice ? { toolChoice } : {}),
+                      ...(providerOptions ? { providerOptions } : {}),
+                    }),
+                  ),
+                catch(error) {
+                  if (error instanceof APICallError) return error;
+                  if (error instanceof AIServiceError) return error;
+                  return new AIServiceError({
+                    cause: error,
+                    message: "Error while calling streamText",
+                  });
+                },
+              }),
+            );
 
-      return yield* firstChunkResult.left;
-    }
+            if (Either.isLeft(streamResult)) {
+              if (!isLastAttempt) {
+                return {
+                  excluded: [...state.excluded, resolvedModelAndProvider],
+                  result: undefined as StreamSuccess | undefined,
+                };
+              }
 
-    const firstChunk = firstChunkResult.right;
+              const errorValue = streamResult.left;
+              if (errorValue instanceof AIServiceError) return yield* Effect.fail(errorValue);
+              return yield* Effect.fail(
+                new AIServiceError({
+                  cause: errorValue,
+                  message: "Error while calling streamText",
+                }),
+              );
+            }
 
-    if (!firstChunk.done && firstChunk.value.type === "error") {
-      if (!isLastAttempt) {
-        return yield* pmrStreamRoutine(createResponseBody, userId, userProviders, [
-          ...excludedProviders,
-          resolvedModelAndProvider,
-        ]);
-      }
+            const streamIterator = streamResult.right.fullStream[Symbol.asyncIterator]();
+            const firstChunkResult = yield* Effect.either(
+              Effect.tryPromise<IteratorResult<TextStreamPart<ToolSet>>, AIServiceError>({
+                try: () => streamIterator.next(),
+                catch(error) {
+                  if (error instanceof AIServiceError) return error;
+                  return new AIServiceError({
+                    cause: error,
+                    message: "Error while reading first stream chunk",
+                  });
+                },
+              }),
+            );
 
-      return yield* new AIServiceError({
-        cause: firstChunk.value,
-        message: "Error while reading first stream chunk",
-      });
-    }
+            if (Either.isLeft(firstChunkResult)) {
+              if (!isLastAttempt) {
+                return {
+                  excluded: [...state.excluded, resolvedModelAndProvider],
+                  result: undefined as StreamSuccess | undefined,
+                };
+              }
 
-    async function* reconstitutedStream() {
-      if (!firstChunk.done) {
-        yield firstChunk.value;
-      }
-      while (true) {
-        const nextChunk = await streamIterator.next();
-        if (nextChunk.done) {
-          break;
-        }
-        yield nextChunk.value;
-      }
-    }
+              return yield* Effect.fail(firstChunkResult.left);
+            }
 
-    return {
-      stream: reconstitutedStream(),
-      result: streamResult.right,
-      resolvedModelAndProvider,
-    };
+            const firstChunk = firstChunkResult.right;
+            if (!firstChunk.done && firstChunk.value.type === "error") {
+              if (!isLastAttempt) {
+                return {
+                  excluded: [...state.excluded, resolvedModelAndProvider],
+                  result: undefined as StreamSuccess | undefined,
+                };
+              }
+
+              return yield* Effect.fail(
+                new AIServiceError({
+                  cause: firstChunk.value,
+                  message: "Error while reading first stream chunk",
+                }),
+              );
+            }
+
+            async function* reconstitutedStream() {
+              if (!firstChunk.done) {
+                yield firstChunk.value;
+              }
+              while (true) {
+                const nextChunk = await streamIterator.next();
+                if (nextChunk.done) {
+                  break;
+                }
+                yield nextChunk.value;
+              }
+            }
+
+            return {
+              excluded: state.excluded,
+              result: {
+                stream: reconstitutedStream(),
+                result: streamResult.right,
+                resolvedModelAndProvider,
+              },
+            };
+          }),
+      },
+    ).pipe(Effect.map((state) => state.result as StreamSuccess));
   });
