@@ -8,15 +8,6 @@ interface CacheEntry {
   readonly createdAt: number;
 }
 
-/**
- * Per-user in-memory cache for system prompt classification results.
- *
- * Keyed by userId -> SHA-256 hash of system prompt text -> ResolvedResponse.
- * Used when analysisTarget is "per_system_prompt" to avoid re-classifying
- * the same system prompt on every request.
- *
- * Entries are evicted after TTL or when the per-user limit is reached (LRU-style).
- */
 class ClassificationCache {
   private readonly cache = new Map<string, Map<string, CacheEntry>>();
   private readonly maxEntriesPerUser: number;

@@ -7,10 +7,7 @@ export class CredentialsError extends Data.TaggedError("CredentialsError")<{
   message?: string;
 }> {}
 
-export const getCredentials = <T extends Providers>(
-  userId: string,
-  provider: T,
-): Effect.Effect<ProviderCredentials<T>, CredentialsError, VaultService> =>
+export const getCredentials = <T extends Providers>(userId: string, provider: T) =>
   Effect.gen(function* () {
     const vault = yield* VaultService;
     const secrets = yield* vault.getSecret(userId, provider).pipe(
