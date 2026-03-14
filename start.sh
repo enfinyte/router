@@ -24,7 +24,7 @@ start_vault() {
 start_backend() {
   echo "[2/4] Starting backend ..."
   cd "$BACKEND"
-  bun run src/index.ts # >backend.log 2>&1 &
+  bun run src/index.ts >backend.log 2>&1 &
 }
 
 start_frontend() {

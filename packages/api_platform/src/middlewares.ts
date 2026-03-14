@@ -3,6 +3,7 @@ import { Data, Effect, Layer } from "effect";
 import { BadRequest, Unauthorized } from "@effect/platform/HttpApiError";
 import { AppConfig } from "./services/config";
 import { RequestContext } from "./services/request-context";
+import type { ProviderModelPair } from "resolver/src/types";
 
 export const withProperContentTypeValidation = () =>
   HttpMiddleware.make((app) =>
@@ -25,7 +26,7 @@ interface VerifyResponse {
   valid: boolean;
   userId: string;
   providers?: string[];
-  fallbackProviderModelPair?: string;
+  fallbackProviderModelPair?: ProviderModelPair;
   analysisTarget?: string;
 }
 

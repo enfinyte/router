@@ -1,4 +1,4 @@
-import { Array as Arr, Effect, Option, pipe } from "effect";
+import { Array as Arr, Effect, pipe } from "effect";
 import { getModelMap, getOpenRouterDataByPair } from "../data_manager";
 import type { IntentPair } from "../types";
 import { NoProviderAvailableError } from "../types";
@@ -6,25 +6,16 @@ import type { ResolvedResponse } from "common";
 
 const findMatchingMapping = (
   modelMap: Record<string, ReadonlyArray<ResolvedResponse>>,
-  slug: string,
+  modelNameSlug: string,
   userProviderSet: ReadonlySet<string>,
-  excludedResponsesSet: ReadonlySet<string>,
-): Option.Option<ResolvedResponse> => {
+) => {
   return pipe(
-    modelMap[slug] ?? [],
-    Arr.findFirst(
-      (mapping) =>
-        !excludedResponsesSet.has(`${mapping.provider}:${mapping.model}`) &&
-        userProviderSet.has(mapping.provider),
-    ),
+    modelMap[modelNameSlug] ?? [],
+    Arr.filter((mapping) => userProviderSet.has(mapping.provider)),
   );
 };
 
-export const resolveIntentPair = (
-  pair: IntentPair,
-  userProviders: string[],
-  excludedResponses: ResolvedResponse[],
-) =>
+export const resolveIntentPair = (pair: IntentPair, userProviders: string[]) =>
   Effect.gen(function* () {
     yield* Effect.logDebug("Resolving intent pair").pipe(
       Effect.annotateLogs({
@@ -33,37 +24,28 @@ export const resolveIntentPair = (
         intent: pair.intent,
         intentPolicy: pair.intentPolicy,
         providerCount: userProviders.length,
-        excludedCount: excludedResponses.length,
       }),
     );
 
     const openRouterData = yield* getOpenRouterDataByPair(pair);
     const userProviderSet = new Set(userProviders);
-    const excludedResponsesSet = new Set(excludedResponses.map((r) => `${r.provider}:${r.model}`));
     const modelMap = yield* getModelMap;
 
-    const match = pipe(
-      openRouterData,
-      Arr.findFirst((slug) =>
-        Option.isSome(findMatchingMapping(modelMap, slug, userProviderSet, excludedResponsesSet)),
-      ),
-      Option.flatMap((slug) =>
-        findMatchingMapping(modelMap, slug, userProviderSet, excludedResponsesSet),
-      ),
-    );
+    const pairs = openRouterData
+      .map((modelNameSlug) => findMatchingMapping(modelMap, modelNameSlug, userProviderSet))
+      .flat();
 
-    if (Option.isSome(match)) {
+    if (pairs.length > 0) {
       yield* Effect.logInfo("Intent resolved to provider/model").pipe(
         Effect.annotateLogs({
           service: "Resolver",
           operation: "resolveIntentPair",
           intent: pair.intent,
           intentPolicy: pair.intentPolicy,
-          provider: match.value.provider,
-          model: match.value.model,
+          pairs: pairs,
         }),
       );
-      return match.value;
+      return pairs;
     }
 
     const availableProviders = pipe(

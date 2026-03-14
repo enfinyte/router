@@ -112,6 +112,8 @@ export const responsesRouter = HttpRouter.empty.pipe(
           createResponseBody,
           userId,
           userProviders,
+          fallbackProviderModelPair,
+          analysisTarget,
         );
         return HttpServerResponse.stream(
           sseStream.pipe(Stream.provideService(DatabaseService, db)),

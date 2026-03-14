@@ -22,6 +22,7 @@ import {
   resolveToolChoice,
   resolveTextFormat,
 } from "../ai/createResponseBodyFieldsToResponseResourceFieldsResolvers";
+import type { ProviderModelPair } from "resolver/src/types";
 
 export class ResponseServiceError extends Data.TaggedError("ResponseServiceError")<{
   cause?: unknown;
@@ -32,11 +33,18 @@ export const create = (
   req: CreateResponseBody,
   userId: string,
   userProviders: readonly string[],
-  fallbackProviderModelPair: string | undefined,
+  fallbackProviderModelPair: ProviderModelPair | undefined,
   analysisTarget: string | undefined,
 ) =>
   Effect.gen(function* () {
-    const responseResource = yield* AIService.execute(req, userId, userProviders, fallbackProviderModelPair, analysisTarget);
+    const responseResource = yield* AIService.execute(
+      req,
+      userId,
+      userProviders,
+      fallbackProviderModelPair,
+      analysisTarget,
+    );
+
     yield* persistResponseResourceInDatabase(responseResource);
 
     return responseResource;
@@ -53,12 +61,16 @@ export const createStream = (
   req: CreateResponseBody,
   userId: string,
   userProviders: readonly string[],
+  fallbackProviderModelPair: ProviderModelPair | undefined,
+  analysisTarget: string | undefined,
 ) =>
   Effect.gen(function* () {
     const { stream, result, resolvedModelAndProvider } = yield* AIService.executeStream(
       req,
       userId,
       userProviders,
+      fallbackProviderModelPair,
+      analysisTarget,
     );
 
     const responseId = crypto.randomUUID();
