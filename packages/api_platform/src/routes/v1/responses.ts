@@ -3,7 +3,7 @@ import { Data, Effect, Schema, Stream } from "effect";
 import * as ResponsesService from "../../services/responses";
 import { withProperContentTypeValidation } from "../../middlewares";
 import { CreateResponseBodySchema, type CreateResponseBody } from "common";
-import { DatabaseService } from "../../services/database";
+import { DatabaseService } from "../../services/database/postgres";
 import { RequestContext } from "../../services/request-context";
 
 const MIN_TEMPERATURE = 0;
