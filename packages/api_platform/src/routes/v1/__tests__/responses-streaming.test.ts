@@ -4,11 +4,11 @@ import { BunContext, BunHttpServer } from "@effect/platform-bun";
 import { Effect, Fiber, Layer, flow } from "effect";
 import type { CreateResponseBody, ResponseResource } from "common";
 import type { TextStreamPart, ToolSet, streamText } from "ai";
-import type { ApiPlatformDatabase } from "../../../services/database/tables";
+import type { ApiPlatformDatabase } from "../../../services/database/postgres/tables";
 import type { Kysely } from "kysely";
 import { router } from "../..";
 import { AppConfig } from "../../../services/config";
-import { DatabaseService, DatabaseServiceError } from "../../../services/database";
+import { DatabaseService, DatabaseServiceError } from "../../../services/database/postgres";
 import { VaultService } from "vault";
 
 type StreamResult = ReturnType<typeof streamText>;
@@ -303,9 +303,7 @@ describe("responses streaming integration", () => {
     expect(eventPayloads[1]?.data.type).toBe("response.in_progress");
     expect(eventPayloads.some((evt) => evt.data.type.includes("delta"))).toBe(true);
 
-    const completedIndex = eventPayloads.findIndex(
-      (evt) => evt.data.type === "response.completed",
-    );
+    const completedIndex = eventPayloads.findIndex((evt) => evt.data.type === "response.completed");
     expect(completedIndex).toBeGreaterThan(-1);
     expect(events[events.length - 1]).toEqual({ done: true, raw: "data: [DONE]" });
 

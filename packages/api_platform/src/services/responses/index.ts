@@ -2,7 +2,7 @@ import { Effect, Data, Stream } from "effect";
 import type { CreateResponseBody, ResponseResource, StreamingEvent } from "common";
 import type { TextStreamPart } from "ai";
 import * as AIService from "../ai";
-import * as DatabaseService from "../database";
+import * as DatabaseService from "../database/postgres";
 import { convertAISdkStreamTextToStreamingEvents } from "../ai/convertAISdkStreamTextToStreamingEvents";
 import { encodeSSEEvent, encodeSSEDone, encodeSSEToUint8Array } from "../ai/sse";
 import {
@@ -36,7 +36,13 @@ export const create = (
   analysisTarget: string | undefined,
 ) =>
   Effect.gen(function* () {
-    const responseResource = yield* AIService.execute(req, userId, userProviders, fallbackProviderModelPair, analysisTarget);
+    const responseResource = yield* AIService.execute(
+      req,
+      userId,
+      userProviders,
+      fallbackProviderModelPair,
+      analysisTarget,
+    );
     yield* persistResponseResourceInDatabase(responseResource);
 
     return responseResource;
