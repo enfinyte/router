@@ -5,7 +5,7 @@ import { bedrock } from "@ai-sdk/amazon-bedrock";
 import { ResolveError } from "../types";
 import { resolveIntentPair } from "./resolve_intent";
 import { z } from "zod";
-import type { CreateResponseBody, ResolvedResponse } from "common";
+import type { CreateResponseBody } from "common";
 import { SYSTEM_PROMPT_CAT, SYSTEM_PROMPT_POL } from "./prompts";
 
 const RETRY_POLICY = { times: 5 };
@@ -135,12 +135,7 @@ const extractTextFromInput = (
   return null;
 };
 
-const resolveWith = (
-  prompt: string,
-  pair: IntentPair,
-  userProviders: string[],
-  excludedResponses: ResolvedResponse[],
-) =>
+const resolveWith = (prompt: string, pair: IntentPair, userProviders: string[]) =>
   Effect.gen(function* () {
     yield* Effect.logInfo("Auto-classifying with LLM").pipe(
       Effect.annotateLogs({
@@ -181,11 +176,11 @@ const resolveWith = (
         intent: category,
         intentPolicy: policy,
       });
-      return yield* resolveIntentPair(intentPair, userProviders, excludedResponses);
+      return yield* resolveIntentPair(intentPair, userProviders);
     }
 
     const intentPair = new IntentPair({ intent: category, intentPolicy: pair.intentPolicy });
-    return yield* resolveIntentPair(intentPair, userProviders, excludedResponses);
+    return yield* resolveIntentPair(intentPair, userProviders);
   });
 
 /**
@@ -227,14 +222,20 @@ const extractAnalysisText = (
 };
 
 export const resolveAuto =
-  (options: CreateResponseBody, userProviders: string[], excludedResponses: ResolvedResponse[], analysisTarget: string | undefined = undefined) =>
+  (
+    options: CreateResponseBody,
+    userProviders: string[],
+    analysisTarget: string | undefined = undefined,
+  ) =>
   (pair: IntentPair) =>
     Effect.gen(function* () {
       const extracted = extractAnalysisText(options, analysisTarget);
 
       if (!extracted) {
         if (analysisTarget === "per_system_prompt") {
-          yield* Effect.logInfo("No system prompt found for per_system_prompt analysis, signaling fallback").pipe(
+          yield* Effect.logInfo(
+            "No system prompt found for per_system_prompt analysis, signaling fallback",
+          ).pipe(
             Effect.annotateLogs({
               service: "Resolver",
               operation: "resolveAuto",
@@ -273,5 +274,5 @@ export const resolveAuto =
         }),
       );
 
-      return yield* resolveWith(extracted.text, pair, userProviders, excludedResponses);
+      return yield* resolveWith(extracted.text, pair, userProviders);
     });

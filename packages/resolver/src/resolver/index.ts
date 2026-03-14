@@ -6,11 +6,11 @@ import { resolveProviderModelPair } from "./resolve_provider_model";
 import { resolveIntentPair } from "./resolve_intent";
 import { resolveAuto } from "./resolve_auto";
 import { parseIntentImpl } from "../parser/parse_intent";
-import type { CreateResponseBody, ResolvedResponse } from "common";
+import type { CreateResponseBody } from "common";
 
-const resolve = (userProviders: string[], excludedResponses: ResolvedResponse[]) =>
+const resolve = (userProviders: string[]) =>
   Match.type<IntentPair | ProviderModelPair>().pipe(
-    Match.tag("IntentPair", (pair) => resolveIntentPair(pair, userProviders, excludedResponses)),
+    Match.tag("IntentPair", (pair) => resolveIntentPair(pair, userProviders)),
     Match.tag("ProviderModelPair", resolveProviderModelPair),
     Match.exhaustive,
   );
@@ -18,7 +18,6 @@ const resolve = (userProviders: string[], excludedResponses: ResolvedResponse[])
 export const resolveImpl = (
   options: CreateResponseBody,
   userProviders: string[],
-  excludedResponses: ResolvedResponse[],
   analysisTarget: string | undefined = undefined,
 ) =>
   Effect.gen(function* () {
@@ -43,13 +42,12 @@ export const resolveImpl = (
           operation: "resolve",
           model: options.model,
           providerCount: userProviders.length,
-          excludedCount: excludedResponses.length,
         }),
       );
       return yield* pipe(
         options.model,
         parseIntentImpl,
-        Effect.flatMap(resolveAuto(options, userProviders, excludedResponses, analysisTarget)),
+        Effect.flatMap(resolveAuto(options, userProviders, analysisTarget)),
       );
     }
 
@@ -59,13 +57,8 @@ export const resolveImpl = (
         operation: "resolve",
         model: options.model,
         providerCount: userProviders.length,
-        excludedCount: excludedResponses.length,
       }),
     );
 
-    return yield* pipe(
-      options.model,
-      parseImpl,
-      Effect.flatMap(resolve(userProviders, excludedResponses)),
-    );
+    return yield* pipe(options.model, parseImpl, Effect.flatMap(resolve(userProviders)));
   });

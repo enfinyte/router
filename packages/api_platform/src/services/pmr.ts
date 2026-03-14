@@ -1,6 +1,6 @@
 import { Effect, Data } from "effect";
 import { resolve as resolverResolve } from "resolver";
-import type { CreateResponseBody, ResolvedResponse } from "common";
+import type { CreateResponseBody } from "common";
 
 export class PMRError extends Data.TaggedError("PMRError")<{
   cause?: unknown;
@@ -10,10 +10,9 @@ export class PMRError extends Data.TaggedError("PMRError")<{
 export const resolve = (
   createResponseBody: CreateResponseBody,
   userProviders: string[],
-  excludedResponses: ResolvedResponse[] = [],
   analysisTarget: string | undefined = undefined,
 ) =>
-  resolverResolve(createResponseBody, userProviders, excludedResponses, analysisTarget).pipe(
+  resolverResolve(createResponseBody, userProviders, analysisTarget).pipe(
     Effect.mapError(
       (error) =>
         new PMRError({
