@@ -31,9 +31,9 @@ export const resolveIntentPair = (pair: IntentPair, userProviders: string[]) =>
     const userProviderSet = new Set(userProviders);
     const modelMap = yield* getModelMap;
 
-    const pairs = openRouterData
-      .map((modelNameSlug) => findMatchingMapping(modelMap, modelNameSlug, userProviderSet))
-      .flat();
+    const pairs = openRouterData.flatMap((modelNameSlug) =>
+      findMatchingMapping(modelMap, modelNameSlug, userProviderSet),
+    );
 
     if (pairs.length > 0) {
       yield* Effect.logInfo("Intent resolved to provider/model").pipe(
