@@ -38,12 +38,20 @@ export const execute = (
         message: "`model` field is required or should not be empty",
       });
     }
-
-    const resolvedModelAndProviders = yield* pmrService.resolve(
-      createResponseBody,
-      [...userProviders],
-      analysisTarget,
+    const resolvedModelAndProvidersResult = yield* Effect.either(
+      pmrService.resolve(createResponseBody, [...userProviders], analysisTarget),
     );
+
+    if (Either.isLeft(resolvedModelAndProvidersResult)) {
+      if (fallbackProviderModelPair) {
+        return yield* callLanguageModel(userId, createResponseBody, fallbackProviderModelPair);
+      }
+      return yield* new AIServiceError({
+        message: "Model resolution failed and no fallback provider is configured",
+      });
+    }
+
+    const resolvedModelAndProviders = resolvedModelAndProvidersResult.right;
 
     for (const resolvedModelAndProvider of resolvedModelAndProviders) {
       const result = yield* Effect.either(
@@ -80,11 +88,24 @@ export const executeStream = (
       });
     }
 
-    const resolvedModelAndProviders = yield* pmrService.resolve(
-      createResponseBody,
-      [...userProviders],
-      analysisTarget,
+    const resolvedModelAndProvidersResult = yield* Effect.either(
+      pmrService.resolve(createResponseBody, [...userProviders], analysisTarget),
     );
+
+    if (Either.isLeft(resolvedModelAndProvidersResult)) {
+      if (fallbackProviderModelPair) {
+        return yield* callLanguageModelStreaming(
+          userId,
+          createResponseBody,
+          fallbackProviderModelPair,
+        );
+      }
+      return yield* new AIServiceError({
+        message: "Model resolution failed and no fallback provider is configured",
+      });
+    }
+
+    const resolvedModelAndProviders = resolvedModelAndProvidersResult.right;
 
     for (const resolvedModelAndProvider of resolvedModelAndProviders) {
       const result = yield* Effect.either(
@@ -344,13 +365,9 @@ const callLanguageModelStreaming = (
       if (!firstChunk.done) {
         yield firstChunk.value;
       }
-      while (true) {
-        const nextChunk = await streamIterator.next();
-        if (nextChunk.done) {
-          break;
-        }
-        yield nextChunk.value;
-      }
+      yield* {
+        [Symbol.asyncIterator]: () => streamIterator,
+      };
     }
 
     return {
