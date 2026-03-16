@@ -6,6 +6,7 @@
       "dependencies": {
         "@effect/platform": "^0.94.3",
         "@effect/platform-bun": "^0.87.1",
+        "date-fns": "^4.1.0",
         "effect": "^3.19.15",
       },
       "devDependencies": {

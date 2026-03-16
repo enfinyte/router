@@ -1,39 +1,73 @@
-import { Effect } from "effect";
-import { runDataFetch, DATA_PATH } from "./data_manager";
+import { Context, Effect, Layer } from "effect";
+import { runDataFetch } from "./data_manager";
 import { resolveImpl } from "./resolver";
 import type { CreateResponseBody } from "common";
+import type {
+  DataFetchError,
+  IntentParseError,
+  NoProviderAvailableError,
+  ProviderModelParseError,
+  ResolveError,
+} from "./types";
+import * as Redis from "./redis";
+import type { ParseError } from "effect/ParseResult";
 
 export { ResolverLoggerLive } from "./logger";
 export { getAvailableModels } from "./data_manager";
 
 export * from "./types";
 
-export const resolve = (
-  options: CreateResponseBody,
-  userProviders: string[],
-  analysisTarget: string | undefined,
-) =>
-  Effect.gen(function* () {
-    yield* Effect.logInfo("Resolve request received").pipe(
-      Effect.annotateLogs({
-        service: "Resolver",
-        operation: "resolve",
-        model: typeof options.model === "string" ? options.model : typeof options.model,
-        providerCount: userProviders.length,
-        analysisTarget: analysisTarget ?? "per_prompt",
-      }),
-    );
+export class ResolverService extends Context.Tag("ResolverService")<
+  ResolverService,
+  {
+    resolve: (
+      options: CreateResponseBody,
+      userProviders: string[],
+      analysisTarget: string | undefined,
+    ) => Effect.Effect<
+      {
+        readonly model: string;
+        readonly provider: string;
+      }[],
+      | Redis.RedisError
+      | ParseError
+      | DataFetchError
+      | ResolveError
+      | IntentParseError
+      | NoProviderAvailableError
+      | ProviderModelParseError,
+      Redis.Redis
+    >;
+  }
+>() {}
 
-    yield* runDataFetch(DATA_PATH);
-    const pairs = yield* resolveImpl(options, userProviders, analysisTarget);
+export const ResolverServiceLive = Layer.succeed(
+  ResolverService,
+  ResolverService.of({
+    resolve(options, userProviders, analysisTarget) {
+      return Effect.gen(function* () {
+        yield* Effect.logInfo("Resolve request received").pipe(
+          Effect.annotateLogs({
+            service: "Resolver",
+            operation: "resolve",
+            model: typeof options.model === "string" ? options.model : typeof options.model,
+            providerCount: userProviders.length,
+            analysisTarget: analysisTarget ?? "per_prompt",
+          }),
+        );
 
-    yield* Effect.logInfo("Resolve completed").pipe(
-      Effect.annotateLogs({
-        service: "Resolver",
-        operation: "resolve",
-        pairs: pairs,
-      }),
-    );
+        yield* runDataFetch();
+        const pairs = yield* resolveImpl(options, userProviders, analysisTarget);
+        yield* Effect.logInfo("Resolve completed").pipe(
+          Effect.annotateLogs({
+            service: "Resolver",
+            operation: "resolve",
+            pairs: pairs,
+          }),
+        );
 
-    return pairs;
-  });
+        return pairs;
+      });
+    },
+  }),
+).pipe(Layer.provide(Redis.fromEnv));

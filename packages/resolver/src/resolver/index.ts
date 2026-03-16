@@ -16,7 +16,7 @@ const resolve = (userProviders: string[]) =>
   );
 
 export const resolveImpl = (
-  options: CreateResponseBody,
+  options: Pick<CreateResponseBody, "model">,
   userProviders: string[],
   analysisTarget: string | undefined = undefined,
 ) =>

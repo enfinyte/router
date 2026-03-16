@@ -1,38 +1,19 @@
-import { Effect, Schema } from "effect";
+import { Effect } from "effect";
 import { type IntentPair } from "../types";
-import { DATA_PATH, MODELS_DEV_DATA_PATH, MODELS_MAP_DATA_PATH } from "./const";
-import { FileSystem } from "@effect/platform/FileSystem";
-import { ResolvedResponseSchema } from "common";
+import * as Redis from "../redis/index";
 
-export const getOpenRouterDataByPair = (pair: IntentPair) =>
+export const getPotentialModelsForIntentPair = (pair: IntentPair) =>
   Effect.gen(function* () {
-    const OpenRouterSchema = Schema.ArrayEnsure(Schema.String);
-    const filePath = `${DATA_PATH}/${pair.intent}/${pair.intentPolicy}.json`;
-
-    yield* Effect.logDebug("Reading OpenRouter data").pipe(
+    yield* Effect.logDebug("Reading Categories data").pipe(
       Effect.annotateLogs({
         service: "DataManager",
         operation: "getOpenRouterDataByPair",
         intent: pair.intent,
         intentPolicy: pair.intentPolicy,
-        filePath,
       }),
     );
 
-    const fs = yield* FileSystem;
-    const content = yield* fs.readFileString(filePath);
-    const result = yield* Schema.decode(OpenRouterSchema)(JSON.parse(content)).pipe(
-      Effect.tapError((err) =>
-        Effect.logError("OpenRouter data schema decode failed").pipe(
-          Effect.annotateLogs({
-            service: "DataManager",
-            operation: "getOpenRouterDataByPair",
-            filePath,
-            cause: String(err),
-          }),
-        ),
-      ),
-    );
+    const result = yield* Redis.getModelsForCategoryAndOrder(pair.intent, pair.intentPolicy);
 
     yield* Effect.logDebug("OpenRouter data loaded").pipe(
       Effect.annotateLogs({
@@ -47,55 +28,4 @@ export const getOpenRouterDataByPair = (pair: IntentPair) =>
     return result;
   });
 
-export const getModelMap = Effect.gen(function* () {
-  const ModelMapSchema = Schema.Record({
-    key: Schema.String,
-    value: Schema.ArrayEnsure(ResolvedResponseSchema),
-  });
-
-  yield* Effect.logDebug("Reading model map").pipe(
-    Effect.annotateLogs({
-      service: "DataManager",
-      operation: "getModelMap",
-      filePath: MODELS_MAP_DATA_PATH,
-    }),
-  );
-
-  const fs = yield* FileSystem;
-  const content = yield* fs.readFileString(MODELS_MAP_DATA_PATH);
-  const result = yield* Schema.decode(ModelMapSchema)(JSON.parse(content)).pipe(
-    Effect.tapError((err) =>
-      Effect.logError("Model map schema decode failed").pipe(
-        Effect.annotateLogs({
-          service: "DataManager",
-          operation: "getModelMap",
-          filePath: MODELS_MAP_DATA_PATH,
-          cause: String(err),
-        }),
-      ),
-    ),
-  );
-
-  yield* Effect.logDebug("Model map loaded").pipe(
-    Effect.annotateLogs({
-      service: "DataManager",
-      operation: "getModelMap",
-      entryCount: Object.keys(result).length,
-    }),
-  );
-
-  return result;
-});
-
-export const getAvailableModels = async (): Promise<Record<string, string[]>> => {
-  const file = Bun.file(MODELS_DEV_DATA_PATH);
-  const exists = await file.exists();
-
-  if (!exists) {
-    throw new Error(
-      `Models data not available yet. The resolver data cache at ${MODELS_DEV_DATA_PATH} has not been populated. Start the api_platform service first to trigger the initial data fetch.`,
-    );
-  }
-
-  return file.json() as Promise<Record<string, string[]>>;
-};
+export const getAvailableModels = Redis.getAllModelsGroupedByProvider;
