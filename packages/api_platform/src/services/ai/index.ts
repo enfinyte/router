@@ -59,11 +59,17 @@ export const execute = (
       );
 
       if (Either.isRight(result)) {
-        return result.right;
+        const response = result.right;
+        if (response.error === null) {
+          return response;
+        }
       }
     }
 
     if (fallbackProviderModelPair) {
+      console.log(" -------- -----------");
+      console.log(fallbackProviderModelPair);
+      console.log(" -------- -----------");
       return yield* callLanguageModel(userId, createResponseBody, fallbackProviderModelPair);
     }
 

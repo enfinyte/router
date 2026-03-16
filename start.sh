@@ -18,13 +18,13 @@ start_vault() {
   cd "$VAULT"
   podman-compose up # >podman.log 2>&1 &
   sleep 2
-  bun run init.ts >init.log 2>&1 &
+  bun run --hot init.ts >init.log 2>&1 &
 }
 
 start_backend() {
   echo "[2/4] Starting backend ..."
   cd "$BACKEND"
-  bun run src/index.ts >backend.log 2>&1 &
+  bun run --hot src/index.ts >backend.log 2>&1 &
 }
 
 start_frontend() {
@@ -36,7 +36,7 @@ start_frontend() {
 start_api_platform() {
   echo "[4/4] Starting api_platform ..."
   cd "$API_PLATFORM"
-  bun run src/index.ts >api_platform.log 2>&1 &
+  bun run --hot src/index.ts >api_platform.log 2>&1 &
 }
 
 # start_vault
