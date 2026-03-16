@@ -127,6 +127,99 @@ export function ChatPlayground() {
     [apiKey, model, settings],
   );
 
+  const handleRegenerate = useCallback(
+    (messageId: string) => {
+      if (isStreaming || !apiKey || !model) return;
+
+      const msgIndex = messages.findIndex((m) => m.id === messageId);
+      if (msgIndex < 0) return;
+
+      const userMsg = messages
+        .slice(0, msgIndex)
+        .reverse()
+        .find((m) => m.role === "user");
+      if (!userMsg) return;
+
+      const prevAssistant = messages
+        .slice(0, msgIndex)
+        .reverse()
+        .find((m) => m.role === "assistant" && m.responseId);
+
+      const trimmed = messages.slice(0, msgIndex);
+      const newAssistantId = `assistant-${Date.now()}`;
+      const newAssistant: PlaygroundMessage = {
+        id: newAssistantId,
+        role: "assistant",
+        content: "",
+        isStreaming: true,
+      };
+
+      setMessages([...trimmed, newAssistant]);
+      setIsStreaming(true);
+      lastResponseIdRef.current = prevAssistant?.responseId;
+
+      sendStreamingMessage(
+        {
+          apiKey,
+          model,
+          input: userMsg.content,
+          previousResponseId: prevAssistant?.responseId,
+          settings,
+        },
+        {
+          onTextDelta: (delta) => {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === newAssistantId
+                  ? { ...msg, content: msg.content + delta }
+                  : msg,
+              ),
+            );
+          },
+          onComplete: (response) => {
+            lastResponseIdRef.current = response.id;
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === newAssistantId
+                  ? {
+                      ...msg,
+                      content:
+                        response.outputText.length >= msg.content.length
+                          ? response.outputText
+                          : msg.content,
+                      isStreaming: false,
+                      model: response.model,
+                      responseId: response.id,
+                      usage: response.usage,
+                    }
+                  : msg,
+              ),
+            );
+            setIsStreaming(false);
+          },
+          onError: (error) => {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === newAssistantId
+                  ? {
+                      ...msg,
+                      content: msg.content || `Error: ${error}`,
+                      isStreaming: false,
+                    }
+                  : msg,
+              ),
+            );
+            setIsStreaming(false);
+            toast.error("Error", { description: error });
+          },
+        },
+      ).then((controller) => {
+        abortControllerRef.current = controller;
+      });
+    },
+    [apiKey, model, settings, messages, isStreaming],
+  );
+
   const handleStop = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -177,7 +270,7 @@ export function ChatPlayground() {
           </div>
         </div>
 
-        <MessageList messages={messages} />
+        <MessageList messages={messages} onRegenerate={handleRegenerate} />
 
         <MessageInput
           onSend={handleSend}

@@ -7,9 +7,10 @@ import { Bot } from "lucide-react";
 
 interface MessageListProps {
   messages: PlaygroundMessage[];
+  onRegenerate?: (messageId: string) => void;
 }
 
-export function MessageList({ messages }: MessageListProps) {
+export function MessageList({ messages, onRegenerate }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isStreaming = useMemo(
     () => messages.some((m) => m.isStreaming),
@@ -36,11 +37,23 @@ export function MessageList({ messages }: MessageListProps) {
     );
   }
 
+  const lastAssistantId = [...messages]
+    .reverse()
+    .find((m) => m.role === "assistant" && !m.isStreaming)?.id;
+
   return (
     <div ref={containerRef} className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-3xl py-4">
         {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} />
+          <MessageBubble
+            key={message.id}
+            message={message}
+            onRegenerate={
+              message.id === lastAssistantId && onRegenerate
+                ? () => onRegenerate(message.id)
+                : undefined
+            }
+          />
         ))}
       </div>
     </div>
