@@ -1,15 +1,20 @@
 "use client";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import ky from "ky";
 import { BASE_URL } from ".";
 
 export function useAddSecret() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationKey: ["add-secret"],
     mutationFn: (payload: { provider: string; keys: Record<string, string> }) =>
       ky
         .post(`${BASE_URL}/v1/secret`, { json: payload, credentials: "include" })
         .json<{ success: boolean }>(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["fetch-secrets"] });
+      queryClient.invalidateQueries({ queryKey: ["models"] });
+    },
   });
 }
 
