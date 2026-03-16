@@ -34,5 +34,5 @@
       }
     ]
   },
-  "exclude": ["packages/frontend"]
+  "exclude": ["packages/frontend", "*/**/*.test.ts", "*/**/*.test.tsx"]
 }

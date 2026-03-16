@@ -27,10 +27,11 @@ export const setModelsForProvider = (provider: string, models: readonly string[]
 
 export const bulkSetModelsForProvider = (entries: Record</*Provider Name*/ string, models>) =>
   Effect.gen(function* () {
+    //TODO: use mset
     const setterEffects = Object.entries(entries).map(([provider, models]) =>
       setModelsForProvider(provider, models),
     );
-    yield* Effect.all(setterEffects, { concurrency: 5 });
+    yield* Effect.all(setterEffects, { concurrency: "unbounded" });
   });
 
 export const getAllModelsGroupedByProvider = () =>

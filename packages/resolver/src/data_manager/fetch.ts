@@ -1,11 +1,11 @@
-import { Effect, Clock, Duration, Schema } from "effect";
+import { Effect, Duration, Schema } from "effect";
 import { DataFetchError } from "../types";
 import { ORDERS, CATEGORIES } from "../types";
 import { SUPPORTED_PROVIDERS } from "common";
 import { ProviderModelMapSchema } from "./schema/modelsdev";
 import { OpenRouterMapSchema } from "./schema/openrouter";
 import { generateModelMap } from "./model_map";
-import * as Redis from "../redis";
+import * as Redis from "../redis/index";
 
 const OPENROUTER_BASE = "https://openrouter.ai/api/frontend/models";
 const MODELS_DEV_BASE = "https://models.dev/api.json";
@@ -105,7 +105,7 @@ const openRouterAction = (category: string, order: string) => (json: string[]) =
     return parsed;
   });
 
-const modelsDevAction = (json: Record<string, string[]>) =>
+const modelsDevAction = () => (json: Record<string, string[]>) =>
   Effect.gen(function* () {
     const parsed = yield* Schema.decodeUnknown(ProviderModelMapSchema)(json).pipe(
       Effect.tapError((err) =>
@@ -145,7 +145,7 @@ const populate = () =>
     );
 
     const totalFetches = 1 + categoryFetches.length;
-    yield* Effect.logDebug("Starting concurrent data fetches").pipe(
+    yield* Effect.logInfo("Starting concurrent data fetches").pipe(
       Effect.annotateLogs({
         service: "DataManager",
         operation: "populate",
@@ -156,7 +156,7 @@ const populate = () =>
     );
 
     const [modelsDev, ...openRouter] = yield* Effect.all(
-      [fetchAndAction(MODELS_DEV_BASE, modelsDevAction), ...categoryFetches],
+      [fetchAndAction(MODELS_DEV_BASE, modelsDevAction()), ...categoryFetches],
       {
         concurrency: "unbounded",
       },

@@ -82,12 +82,12 @@ export const ApiKeyServiceLive = Layer.effect(
     const auth = yield* AuthService;
     const secrets = yield* SecretRepository;
 
-    const listKeys = (a: AuthInstance, headers: Headers) =>
-      tryAuth(() => a.api.listApiKeys({ headers }), "Failed to list API keys");
+    const listKeys = (headers: Headers) =>
+      tryAuth(() => auth.api.listApiKeys({ headers }), "Failed to list API keys");
 
-    const createKey = (a: AuthInstance, userId: string) =>
+    const createKey = (userId: string) =>
       tryAuth(
-        () => a.api.createApiKey({ body: { name: "default", userId } }),
+        () => auth.api.createApiKey({ body: { name: "default", userId } }),
         "Failed to create API key",
       );
 
@@ -110,8 +110,8 @@ export const ApiKeyServiceLive = Layer.effect(
 
     return ApiKeyService.of({
       getKey: (headers) =>
-        listKeys(auth, headers).pipe(
-          Effect.map((result) => {
+        listKeys(headers).pipe(
+          Effect.map(({ apiKeys: result }) => {
             if (!result || result.length === 0) return null;
             return toApiKeyResponse(result[0]!);
           }),
@@ -119,29 +119,29 @@ export const ApiKeyServiceLive = Layer.effect(
 
       createKey: (userId, headers) =>
         Effect.gen(function* () {
-          const existing = yield* listKeys(auth, headers);
+          const { apiKeys: existing } = yield* listKeys(headers);
           if (existing && existing.length > 0) {
             return yield* new ApiKeyAlreadyExistsError({
               message: "API key already exists. Use regenerate to replace it.",
             });
           }
-          const result = yield* createKey(auth, userId);
+          const result = yield* createKey(userId);
           return toApiKeyResponse(result, result.key);
         }),
 
       regenerateKey: (userId, headers) =>
         Effect.gen(function* () {
-          const existing = yield* listKeys(auth, headers);
+          const { apiKeys: existing } = yield* listKeys(headers);
           if (existing && existing.length > 0) {
             yield* Effect.forEach(existing, (key) => deleteKey(auth, headers, key.id));
           }
-          const result = yield* createKey(auth, userId);
+          const result = yield* createKey(userId);
           return toApiKeyResponse(result, result.key);
         }),
 
       toggleKey: (headers, enabled) =>
         Effect.gen(function* () {
-          const existing = yield* listKeys(auth, headers);
+          const { apiKeys: existing } = yield* listKeys(headers);
           if (!existing || existing.length === 0) {
             return yield* new ApiKeyNotFoundError({ message: "No API key to update" });
           }
@@ -152,7 +152,7 @@ export const ApiKeyServiceLive = Layer.effect(
 
       deleteAllKeys: (headers) =>
         Effect.gen(function* () {
-          const existing = yield* listKeys(auth, headers);
+          const { apiKeys: existing } = yield* listKeys(headers);
           if (!existing || existing.length === 0) {
             return yield* new ApiKeyNotFoundError({ message: "No API key to delete" });
           }
@@ -169,16 +169,16 @@ export const ApiKeyServiceLive = Layer.effect(
           if (!result.valid) {
             return {
               valid: false as const,
-              error: result.error?.message ?? "Invalid API key",
+              error: result.error?.message?.toString() ?? "Invalid API key",
             };
           }
 
           let providers: string[] = [];
           let fallbackProviderModelPair: string | undefined;
           let analysisTarget: string | undefined;
-          if (result.key?.userId) {
+          if (result.key?.referenceId) {
             const userSecrets = yield* secrets
-              .getUserSecrets(result.key.userId)
+              .getUserSecrets(result.key.referenceId)
               .pipe(
                 Effect.catchTag("DatabaseServiceError", (err) =>
                   Effect.logError("Failed to fetch user providers during verify").pipe(
@@ -192,7 +192,7 @@ export const ApiKeyServiceLive = Layer.effect(
             );
 
             fallbackProviderModelPair = yield* secrets
-              .getUserFallback(result.key.userId)
+              .getUserFallback(result.key.referenceId)
               .pipe(
                 Effect.catchTag("DatabaseServiceError", (err) =>
                   Effect.logError("Failed to fetch user fallback during verify").pipe(
@@ -203,7 +203,7 @@ export const ApiKeyServiceLive = Layer.effect(
               );
 
             analysisTarget = yield* secrets
-              .getUserAnalysisTarget(result.key.userId)
+              .getUserAnalysisTarget(result.key.referenceId)
               .pipe(
                 Effect.catchTag("DatabaseServiceError", (err) =>
                   Effect.logError("Failed to fetch user analysis target during verify").pipe(
@@ -217,7 +217,7 @@ export const ApiKeyServiceLive = Layer.effect(
           return {
             valid: true as const,
             providers,
-            userId: result.key?.userId,
+            userId: result.key?.referenceId,
             fallbackProviderModelPair,
             analysisTarget,
           };

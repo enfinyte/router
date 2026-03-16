@@ -1,8 +1,10 @@
-import { Array as Arr, Effect, pipe } from "effect";
-import { getPotentialModelsForIntentPair } from "../data_manager";
+import { Array as Arr, Effect } from "effect";
+
 import type { IntentPair } from "../types";
-import { NoProviderAvailableError } from "../types";
+
+import { getPotentialModelsForIntentPair } from "../data_manager";
 import * as Redis from "../redis/index";
+import { NoProviderAvailableError } from "../types";
 
 const getAllProvidersForModel = (modelNameSlug: string) =>
   Effect.gen(function* () {
@@ -56,7 +58,10 @@ export const resolveIntentPair = (pair: IntentPair, userProviders: string[]) =>
       return pairs;
     }
 
-    const availableProviders = pipe(potentialModels, getAllProvidersForPotentialModels, Arr.dedupe);
+    const availableProviders = yield* Effect.map(
+      getAllProvidersForPotentialModels(potentialModels),
+      Arr.dedupe,
+    );
 
     yield* Effect.logWarning("No matching provider found for intent").pipe(
       Effect.annotateLogs({

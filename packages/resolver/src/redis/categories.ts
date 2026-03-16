@@ -1,10 +1,9 @@
 import { Effect, Schema } from "effect";
 import { Redis } from ".";
-import { OpenRouterMapSchema } from "../data_manager/schema/openrouter";
 import { TTL } from "./consts";
 
 const PREFIX = "enfinyte:categories";
-const modelsSchemaParser = Schema.parseJson(OpenRouterMapSchema);
+const modelsSchemaParser = Schema.parseJson(Schema.Array(Schema.String));
 
 const buildKey = (category: string, order: string) => `${PREFIX}:${category}:${order}`;
 

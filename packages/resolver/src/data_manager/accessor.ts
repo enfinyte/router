@@ -27,5 +27,3 @@ export const getPotentialModelsForIntentPair = (pair: IntentPair) =>
 
     return result;
   });
-
-export const getAvailableModels = Redis.getAllModelsGroupedByProvider;
