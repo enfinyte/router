@@ -4,7 +4,7 @@ import type { ProviderModelPair } from "resolver/src/types";
 interface RequestContextImpl {
   readonly userId: string;
   readonly userProviders: readonly string[];
-  readonly fallbackProviderModelPair: ProviderModelPair | undefined;
+  readonly fallbackProviderModelPair: ProviderModelPair;
   readonly analysisTarget: string | undefined;
 }
 

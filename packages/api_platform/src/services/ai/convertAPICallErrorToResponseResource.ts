@@ -34,7 +34,7 @@ export const convertAPICallErrorToResponseResource = ({
   Effect.succeed({
     id: crypto.randomUUID(),
     created_at: createdAt,
-    model: `${resolvedModelAndProvider.provider}:${resolvedModelAndProvider.model}`,
+    model: `${resolvedModelAndProvider.provider}/${resolvedModelAndProvider.model}`,
     completed_at: Date.now(),
     error: {
       code: String(result.statusCode ?? 500),
