@@ -1,0 +1,12 @@
+{
+  "name": "@enfinyte/config",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
