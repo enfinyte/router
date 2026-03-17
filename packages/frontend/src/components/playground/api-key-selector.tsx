@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { Input } from "@/components/ui/input";
+import { KeyRound, Eye, EyeOff } from "lucide-react";
+import { useState, useCallback, useMemo } from "react";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,8 +13,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { useListApiKeys } from "@/lib/api/api-keys";
-import { KeyRound, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ApiKeySelectorProps {
@@ -36,14 +37,17 @@ export function ApiKeySelector({ value, onChange }: ApiKeySelectorProps) {
     [value],
   );
 
-  const activeKeys = (keys ?? []).filter((k) => {
-    if (!k.enabled) return false;
-    if (k.expiresAt && new Date(k.expiresAt).getTime() < Date.now()) return false;
-    return true;
-  });
+  const activeKeys = useMemo(
+    () =>
+      (keys?.apiKeys ?? []).filter((k) => {
+        if (!k.enabled) return false;
+        if (k.expiresAt && new Date(k.expiresAt).getTime() < Date.now()) return false;
+        return true;
+      }),
+    [keys?.apiKeys],
+  );
 
   const handleSave = useCallback(() => {
-    // Strip non-ASCII characters that break HTTP headers
     const sanitized = inputValue.trim().replace(/[^\x20-\x7E]/g, "");
     onChange(sanitized);
     setDialogOpen(false);
@@ -61,11 +65,7 @@ export function ApiKeySelector({ value, onChange }: ApiKeySelectorProps) {
           )}
         >
           <KeyRound className="h-3 w-3" />
-          {value ? (
-            <code className="text-[11px]">{value.slice(0, 8)}...</code>
-          ) : (
-            "Set API Key"
-          )}
+          {value ? <code className="text-[11px]">{value.slice(0, 8)}...</code> : "Set API Key"}
         </Button>
       </DialogTrigger>
 
@@ -73,8 +73,7 @@ export function ApiKeySelector({ value, onChange }: ApiKeySelectorProps) {
         <DialogHeader>
           <DialogTitle>API Key</DialogTitle>
           <DialogDescription>
-            Enter your Enfinyte Router API key to authenticate playground
-            requests.
+            Enter your Enfinyte Router API key to authenticate playground requests.
           </DialogDescription>
         </DialogHeader>
 
@@ -84,9 +83,7 @@ export function ApiKeySelector({ value, onChange }: ApiKeySelectorProps) {
               <Input
                 type={showKey ? "text" : "password"}
                 value={inputValue}
-                onChange={(e) =>
-                  setInputValue(e.target.value.replace(/[^\x20-\x7E]/g, ""))
-                }
+                onChange={(e) => setInputValue(e.target.value.replace(/[^\x20-\x7E]/g, ""))}
                 placeholder="enf_..."
                 className="pr-10 text-xs font-mono h-9"
               />
@@ -95,20 +92,14 @@ export function ApiKeySelector({ value, onChange }: ApiKeySelectorProps) {
                 onClick={() => setShowKey(!showKey)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
-                {showKey ? (
-                  <EyeOff className="h-3.5 w-3.5" />
-                ) : (
-                  <Eye className="h-3.5 w-3.5" />
-                )}
+                {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
               </button>
             </div>
           </div>
 
           {activeKeys.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">
-                Your active keys (for reference):
-              </p>
+              <p className="text-xs text-muted-foreground">Your active keys (for reference):</p>
               <div className="space-y-1">
                 {activeKeys.map((key) => (
                   <div
