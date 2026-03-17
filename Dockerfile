@@ -49,13 +49,13 @@ COPY --from=build /app/packages/frontend/package.json packages/frontend/
 RUN bun install --frozen-lockfile --production
 
 COPY --from=build /app/tsconfig.json ./
-COPY --from=build /app/packages/api_platform packages/api_platform
-COPY --from=build /app/packages/backend packages/backend
-COPY --from=build /app/packages/common packages/common
-COPY --from=build /app/packages/config packages/config
-COPY --from=build /app/packages/resolver packages/resolver
-COPY --from=build /app/packages/vault packages/vault
-COPY --from=build /app/packages/ledger packages/ledger
+COPY --from=build /app/packages/api_platform/src packages/api_platform/src
+COPY --from=build /app/packages/backend/src packages/backend/src
+COPY --from=build /app/packages/common/src packages/common/src
+COPY --from=build /app/packages/config/src packages/config/src
+COPY --from=build /app/packages/resolver/src packages/resolver/src
+COPY --from=build /app/packages/vault/src packages/vault/src
+COPY --from=build /app/packages/ledger/src packages/ledger/src
 
 COPY --from=build /app/packages/frontend/.next/standalone packages/frontend/.next/standalone
 COPY --from=build /app/packages/frontend/.next/static packages/frontend/.next/standalone/packages/frontend/.next/static
