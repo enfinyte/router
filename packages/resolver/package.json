@@ -8,6 +8,7 @@
     "@ai-sdk/amazon-bedrock": "^4.0.55",
     "@effect/platform": "^0.94.2",
     "@effect/platform-bun": "^0.87.1",
+    "@enfinyte/config": "workspace:*",
     "ai": "^6.0.79",
     "common": "workspace:*",
     "openai": "^6.17.0"

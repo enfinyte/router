@@ -25,6 +25,7 @@
         "@ai-sdk/amazon-bedrock": "^4.0.48",
         "@ai-sdk/anthropic": "^3.0.38",
         "@ai-sdk/openai": "^3.0.25",
+        "@enfinyte/config": "workspace:*",
         "@tokenizer/http": "^0.9.2",
         "ai": "^6.0.69",
         "common": "workspace:*",
@@ -47,6 +48,7 @@
       "name": "backend",
       "dependencies": {
         "@better-auth/api-key": "^1.5.5",
+        "@enfinyte/config": "workspace:*",
         "@types/pg": "^8.16.0",
         "better-auth": "^1.4.18",
         "common": "workspace:*",
@@ -71,6 +73,15 @@
       "dependencies": {
         "openai": "^6.17.0",
       },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
+    "packages/config": {
+      "name": "@enfinyte/config",
       "devDependencies": {
         "@types/bun": "latest",
       },
@@ -134,6 +145,7 @@
     "packages/ledger": {
       "name": "ledger",
       "dependencies": {
+        "@enfinyte/config": "workspace:*",
         "pg": "^8.18.0",
       },
       "devDependencies": {
@@ -149,6 +161,7 @@
         "@ai-sdk/amazon-bedrock": "^4.0.55",
         "@effect/platform": "^0.94.2",
         "@effect/platform-bun": "^0.87.1",
+        "@enfinyte/config": "workspace:*",
         "ai": "^6.0.79",
         "common": "workspace:*",
         "openai": "^6.17.0",
@@ -163,6 +176,7 @@
     "packages/vault": {
       "name": "vault",
       "dependencies": {
+        "@enfinyte/config": "workspace:*",
         "node-vault": "^0.10.9",
       },
       "devDependencies": {
@@ -501,6 +515,8 @@
     "@emotion/utils": ["@emotion/utils@1.4.2", "", {}, "sha512-3vLclRofFziIa3J2wDh9jjbkUz9qk5Vi3IZ/FSTKViB0k+ef0fPV7dYrUIugbgupYDx7v9ud/SjrtEP8Y4xLoA=="],
 
     "@emotion/weak-memoize": ["@emotion/weak-memoize@0.4.0", "", {}, "sha512-snKqtPW01tN0ui7yu9rGv69aJXr/a/Ywvl11sUjNtEcRc+ng/mQriFL0wLXMef74iHa/EkftbDzU9F8iFbH+zg=="],
+
+    "@enfinyte/config": ["@enfinyte/config@workspace:packages/config"],
 
     "@esbuild/aix-ppc64": ["@esbuild/aix-ppc64@0.27.3", "", { "os": "aix", "cpu": "ppc64" }, "sha512-9fJMTNFTWZMh5qwrBItuziu834eOCUcEqymSH7pY+zoMVEZg3gcPuBNxH1EvfVYe9h0x/Ptw8KBzv7qxb7l8dg=="],
 

@@ -1,5 +1,6 @@
-import { Config, Context, Data, Effect, Layer } from "effect";
+import { Context, Data, Effect, Layer } from "effect";
 import { Pool, type PoolConfig } from "pg";
+import { LedgerConfig, LedgerConfigLive } from "@enfinyte/config";
 import type {
   DashboardOverview,
   ErrorRateMetric,
@@ -249,7 +250,7 @@ export const layer = (poolConfig: PoolConfig) => Layer.scoped(LedgerService, mak
 export const fromEnv = Layer.scoped(
   LedgerService,
   Effect.gen(function* () {
-    const connectionString = yield* Config.string("LEDGER_PG_CONNECTION_STRING");
-    return yield* make({ connectionString });
+    const { pgUrl } = yield* LedgerConfig;
+    return yield* make({ connectionString: pgUrl });
   }),
-);
+).pipe(Layer.provide(LedgerConfigLive));

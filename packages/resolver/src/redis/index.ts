@@ -1,5 +1,6 @@
-import { Config, Context, Data, Effect, Layer } from "effect";
+import { Context, Data, Effect, Layer } from "effect";
 import { RedisClient } from "bun";
+import { RedisConfig, RedisConfigLive } from "@enfinyte/config";
 
 export class RedisError extends Data.TaggedError("RedisError")<{
   cause?: unknown;
@@ -53,10 +54,10 @@ export const layer = (...options: ConstructorParameters<typeof RedisClient>) =>
 export const fromEnv = Layer.scoped(
   Redis,
   Effect.gen(function* () {
-    const url = yield* Config.string("REDIS_URL");
+    const { url } = yield* RedisConfig;
     return yield* make(url, { autoReconnect: true, enableAutoPipelining: true });
   }),
-);
+).pipe(Layer.provide(RedisConfigLive));
 
 export * from "./fetch_point";
 export * from "./model_to_providers";
