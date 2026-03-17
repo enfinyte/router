@@ -29,10 +29,6 @@ const ALL_REQUIRED_VARS = [
   "DATABASE_URL",
 ] as const;
 
-/**
- * Validates required env vars for a specific service.
- * Config.all collects ALL missing vars before failing (no short-circuit).
- */
 export const validateStartup = (
   service: ServiceName,
 ): Effect.Effect<void, ConfigError.ConfigError> =>
@@ -42,10 +38,6 @@ export const validateStartup = (
     );
   });
 
-/**
- * Validates ALL required env vars across ALL services including library-mandated ones.
- * Collects ALL missing vars before failing with a single aggregated error.
- */
 export const validateAllConfig: Effect.Effect<void, Error> = Effect.gen(function* () {
   const errors: string[] = [];
 
