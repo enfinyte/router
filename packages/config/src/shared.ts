@@ -17,11 +17,6 @@ export const RedisConfigLive = Layer.effect(
   }),
 );
 
-interface LoggerConfigImpl {
-  readonly logLevel: string;
-  readonly logFile: string;
-}
-
 export const makeLoggerConfig = (prefix: string, basename: string) =>
   Effect.gen(function* () {
     const logLevel = yield* Config.string(`${prefix}_LOG_LEVEL`).pipe(
