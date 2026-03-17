@@ -20,6 +20,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ENV NODE_ENV=production
+ENV DOCKER_BUILD=true
 RUN bun build --compile ./index.ts --outfile ./router
 
 ARG NEXT_PUBLIC_BETTERAUTH_BASE_URL
