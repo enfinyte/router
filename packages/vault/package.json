@@ -4,6 +4,7 @@
   "type": "module",
   "main": "src/index.ts",
   "dependencies": {
+    "@enfinyte/config": "workspace:*",
     "node-vault": "^0.10.9"
   },
   "devDependencies": {

@@ -1,43 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
-import {
-  useListApiKeys,
-  useCreateApiKey,
-  useUpdateApiKey,
-  useDeleteApiKey,
-} from "@/lib/api/api-keys";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { formatDistanceToNow, hoursToSeconds } from "date-fns";
 import {
   KeyRound,
   Plus,
@@ -51,7 +14,45 @@ import {
   PowerOff,
   AlertTriangle,
 } from "lucide-react";
-import { formatDistanceToNow, hoursToSeconds } from "date-fns";
+import { useState, useMemo, useCallback } from "react";
+import { toast } from "sonner";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  useListApiKeys,
+  useCreateApiKey,
+  useUpdateApiKey,
+  useDeleteApiKey,
+} from "@/lib/api/api-keys";
+import { cn } from "@/lib/utils";
 
 const EXPIRATION_OPTIONS = [
   { label: "Never", value: "never" },
@@ -102,7 +103,7 @@ const STATUS_LABELS: Record<KeyStatus, string> = {
 };
 
 export default function ApiKeysPage() {
-  const { data: keys, isLoading } = useListApiKeys();
+  const { data, isLoading } = useListApiKeys();
   const createApiKey = useCreateApiKey();
   const updateApiKey = useUpdateApiKey();
   const deleteApiKey = useDeleteApiKey();
@@ -120,11 +121,11 @@ export default function ApiKeysPage() {
   } | null>(null);
 
   const sortedKeys = useMemo(() => {
-    if (!keys) return [];
-    return [...keys].sort(
+    if (!data) return [];
+    return [...data.apiKeys].toSorted(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
-  }, [keys]);
+  }, [data]);
 
   const resetCreateDialog = useCallback(() => {
     setKeyName("");

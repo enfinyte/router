@@ -7,6 +7,7 @@ import { SecretRepositoryLive } from "./database/repositories/secret";
 import { AuthServiceLive } from "./services/auth";
 import { ApiKeyServiceLive } from "./services/apikey";
 import { SecretServiceLive } from "./services/secret";
+import { ResolverServiceLive } from "resolver";
 
 const AppConfigExposed = Layer.effect(AppConfig, AppConfig).pipe(Layer.provide(AppConfigLive));
 
@@ -15,6 +16,7 @@ export const AppLive = Layer.mergeAll(
   SecretServiceLive,
   AuthServiceLive,
   LedgerServiceLive,
+  ResolverServiceLive,
 ).pipe(
   Layer.provideMerge(AppConfigExposed),
   Layer.provide(SecretRepositoryLive),

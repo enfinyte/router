@@ -2,7 +2,7 @@ import { Effect, Data, Stream } from "effect";
 import type { CreateResponseBody, ResponseResource, StreamingEvent } from "common";
 import type { TextStreamPart } from "ai";
 import * as AIService from "../ai";
-import * as DatabaseService from "../database";
+import * as DatabaseService from "../database/postgres";
 import { convertAISdkStreamTextToStreamingEvents } from "../ai/convertAISdkStreamTextToStreamingEvents";
 import { encodeSSEEvent, encodeSSEDone, encodeSSEToUint8Array } from "../ai/sse";
 import {

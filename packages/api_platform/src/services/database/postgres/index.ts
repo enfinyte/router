@@ -1,7 +1,7 @@
 import { Effect, Context, Data, Layer } from "effect";
 import { Kysely, PostgresDialect } from "kysely";
 import pg from "pg";
-import { AppConfig } from "../config";
+import { AppConfig } from "../../config";
 import { type ApiPlatformDatabase } from "./tables";
 import {
   ensureDatabaseExists,

@@ -7,7 +7,7 @@ const ProviderSchema = Schema.Struct({
   }),
 });
 
-const ProvidersSchema = Schema.Record({
+export const ProvidersSchema = Schema.Record({
   key: Schema.String,
   value: ProviderSchema,
 });
