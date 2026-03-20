@@ -5,6 +5,7 @@
   "main": "src/index.ts",
   "dependencies": {
     "@better-auth/api-key": "^1.5.5",
+    "@enfinyte/config": "workspace:*",
     "@types/pg": "^8.16.0",
     "better-auth": "^1.4.18",
     "common": "workspace:*",

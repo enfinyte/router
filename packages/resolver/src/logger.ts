@@ -1,5 +1,6 @@
 import { appendFileSync, writeFileSync } from "node:fs";
-import { Config, Effect, HashMap, Layer, Logger, LogLevel } from "effect";
+import { Effect, HashMap, Layer, Logger, LogLevel } from "effect";
+import { ResolverConfig, ResolverConfigLive } from "@enfinyte/config";
 
 const LOG_LEVEL_MAP: Record<string, LogLevel.LogLevel> = {
   All: LogLevel.All,
@@ -31,15 +32,12 @@ const fileLogger = (filePath: string) =>
       message: String(message),
       ...(Object.keys(annots).length > 0 ? { annotations: annots } : {}),
     });
-    Effect.sync(() => appendFileSync(filePath, entry + "\n")).pipe(Effect.ignore, Effect.runSync);
+    Effect.sync(() => appendFileSync(filePath, `${entry}\n`)).pipe(Effect.ignore, Effect.runSync);
   });
 
 export const ResolverLoggerLive = Layer.unwrapEffect(
   Effect.gen(function* () {
-    const logLevelStr = yield* Config.string("RESOLVER_LOG_LEVEL").pipe(Config.withDefault("Info"));
-    const logFile = yield* Config.string("RESOLVER_LOG_FILE").pipe(
-      Config.withDefault("resolver.log"),
-    );
+    const { logLevel: logLevelStr, logFile } = yield* ResolverConfig;
 
     const level = LOG_LEVEL_MAP[logLevelStr] ?? LogLevel.Info;
 
@@ -50,4 +48,4 @@ export const ResolverLoggerLive = Layer.unwrapEffect(
 
     return Layer.mergeAll(Logger.add(file), Logger.minimumLogLevel(level));
   }),
-);
+).pipe(Layer.provide(ResolverConfigLive));
