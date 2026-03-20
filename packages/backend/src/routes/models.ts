@@ -1,10 +1,10 @@
 import { Effect } from "effect";
 import { Hono } from "hono";
+import { ResolverService } from "resolver";
 
 import { getAuthenticatedUser } from "../middleware/auth";
-import { SecretService } from "../services/secret";
 import { runHandler } from "../runtime";
-import { ResolverService } from "resolver";
+import { SecretService } from "../services/secret";
 
 export const modelsRoute = new Hono().basePath("/models");
 
@@ -42,6 +42,10 @@ modelsRoute.get("/", (c) =>
         UnauthorizedError: (err) => Effect.succeed(c.json({ error: err.message }, 401)),
         DatabaseServiceError: (err) =>
           Effect.logError("GET /v1/models failed (database)", { cause: err.cause }).pipe(
+            Effect.as(c.json({ error: "Failed to fetch models" }, 500)),
+          ),
+        DataFetchError: (err) =>
+          Effect.logError("GET /v1/models failed (dataFetch)", { cause: err.cause }).pipe(
             Effect.as(c.json({ error: "Failed to fetch models" }, 500)),
           ),
         RedisError: (err) =>

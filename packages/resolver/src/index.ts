@@ -1,7 +1,8 @@
-import { Context, Effect, Layer } from "effect";
-import { runDataFetch } from "./data_manager";
-import { resolveImpl } from "./resolver";
 import type { CreateResponseBody } from "common";
+import type { ParseError } from "effect/ParseResult";
+
+import { Context, Effect, Layer } from "effect";
+
 import type {
   DataFetchError,
   IntentParseError,
@@ -9,8 +10,10 @@ import type {
   ProviderModelParseError,
   ResolveError,
 } from "./types";
+
+import { runDataFetch } from "./data_manager";
 import * as Redis from "./redis/index";
-import type { ParseError } from "effect/ParseResult";
+import { resolveImpl } from "./resolver";
 
 export { ResolverLoggerLive } from "./logger";
 
@@ -21,7 +24,7 @@ export class ResolverService extends Context.Tag("ResolverService")<
   {
     getAvailableModels: () => Effect.Effect<
       Record<string, readonly string[]>,
-      ParseError | Redis.RedisError
+      ParseError | Redis.RedisError | DataFetchError
     >;
     resolve: (
       options: CreateResponseBody,
@@ -74,8 +77,12 @@ export const ResolverServiceLive = Layer.effect(
           return pairs;
         }).pipe(Effect.provideService(Redis.Redis, redis));
       },
-      getAvailableModels: () =>
-        Redis.getAllModelsGroupedByProvider().pipe(Effect.provideService(Redis.Redis, redis)),
+      getAvailableModels() {
+        return Effect.gen(function* () {
+          yield* runDataFetch();
+          return yield* Redis.getAllModelsGroupedByProvider();
+        }).pipe(Effect.provideService(Redis.Redis, redis));
+      },
     });
   }),
 ).pipe(Layer.provide(Redis.fromEnv));
