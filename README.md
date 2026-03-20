@@ -1,5 +1,7 @@
 # Router
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/enfinyte/router)
+
 An LLM routing platform that routes requests to the optimal LLM and provider, built on the [OpenResponses API](https://www.openresponses.org/) spec.
 
 This is a Bun monorepo implementing an LLM router API. It uses Effect-TS for typed functional programming, supports multiple AI providers (OpenAI, Anthropic, Amazon Bedrock), and includes a web dashboard with authentication.
