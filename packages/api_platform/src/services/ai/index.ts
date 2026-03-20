@@ -1,5 +1,5 @@
 import { Effect, Data, Either } from "effect";
-import type { CreateResponseBody, ResponseResource, ResolvedResponse, Providers } from "common";
+import type { CreateResponseBody, ResolvedResponse, Providers } from "common";
 import * as pmrService from "../pmr";
 import * as CredentialsService from "../credentials";
 import { buildLanguageModelFromResolvedModelAndProvider } from "./buildLanguageModelFromResolvedModelAndProvider";
@@ -14,52 +14,12 @@ import {
 } from "./responseFieldsToAISDKGenerateTextCallSettingsAdapters";
 import { convertAPICallErrorToResponseResource } from "./convertAPICallErrorToResponseResource";
 import { convertAISdkGenerateTextResultToResponseResource } from "./convertAISdkGenerateTextResultToResponseResource";
-import type { FileSystem } from "@effect/platform/FileSystem";
-import type { VaultService } from "vault";
-import { classificationCache } from "../classification-cache";
+import type { ProviderModelPair } from "resolver/src/types";
 
 export class AIServiceError extends Data.TaggedError("AIServiceError")<{
   cause?: unknown;
   message?: string;
 }> {}
-
-const HARDCODED_FALLBACK = {
-  model: "global.anthropic.claude-haiku-4-5-20251001-v1:0",
-  provider: "amazon-bedrock",
-} as const;
-
-const parseFallbackPair = (
-  pair: string | undefined,
-): { provider: string; model: string } | undefined => {
-  if (!pair) return undefined;
-  const slashIndex = pair.indexOf("/");
-  if (slashIndex === -1) return undefined;
-  const provider = pair.slice(0, slashIndex);
-  const model = pair.slice(slashIndex + 1);
-  if (!provider || !model) return undefined;
-  return { provider, model };
-};
-
-/**
- * Extracts system/developer prompt text from the request input.
- * Used as the cache key for "per_system_prompt" analysis target.
- */
-const extractSystemPromptText = (
-  input: CreateResponseBody["input"],
-  instructions: string | undefined,
-): string | null => {
-  if (Array.isArray(input)) {
-    const text = input
-      .filter((item) => item.role === "system" || item.role === "developer")
-      .map((item) => item.content.text)
-      .join(" ");
-    if (text) return text;
-  }
-
-  if (typeof instructions === "string" && instructions.length > 0) return instructions;
-
-  return null;
-};
 
 type StreamResult = ReturnType<typeof streamText>;
 
@@ -67,40 +27,64 @@ export const execute = (
   createResponseBody: CreateResponseBody,
   userId: string,
   userProviders: readonly string[],
-  fallbackProviderModelPair: string | undefined,
+  fallbackProviderModelPair: ProviderModelPair | undefined,
   analysisTarget: string | undefined,
 ) =>
-  pmrRoutine(
-    createResponseBody,
-    userId,
-    userProviders,
-    [],
-    fallbackProviderModelPair,
-    analysisTarget,
-  );
+  Effect.gen(function* () {
+    const requestedModel = createResponseBody.model;
+    if (!requestedModel) {
+      // XXX: THIS SHOULD BE HANDLED BY ROUTE VALIDATION, BUT JUST IN CASE TO SATISFY TYPESCRIPT
+      return yield* new AIServiceError({
+        message: "`model` field is required or should not be empty",
+      });
+    }
+    const resolvedModelAndProvidersResult = yield* Effect.either(
+      pmrService.resolve(createResponseBody, [...userProviders], analysisTarget),
+    );
+
+    if (Either.isLeft(resolvedModelAndProvidersResult)) {
+      if (fallbackProviderModelPair) {
+        return yield* callLanguageModel(userId, createResponseBody, fallbackProviderModelPair);
+      }
+      return yield* new AIServiceError({
+        message: "Model resolution failed and no fallback provider is configured",
+      });
+    }
+
+    const resolvedModelAndProviders = resolvedModelAndProvidersResult.right;
+
+    for (const resolvedModelAndProvider of resolvedModelAndProviders) {
+      const result = yield* Effect.either(
+        callLanguageModel(userId, createResponseBody, resolvedModelAndProvider),
+      );
+
+      if (Either.isRight(result)) {
+        const response = result.right;
+        if (response.error === null) {
+          return response;
+        }
+      }
+    }
+
+    if (fallbackProviderModelPair) {
+      console.log(" -------- -----------");
+      console.log(fallbackProviderModelPair);
+      console.log(" -------- -----------");
+      return yield* callLanguageModel(userId, createResponseBody, fallbackProviderModelPair);
+    }
+
+    return yield* new AIServiceError({
+      message: "`model` field is required or should not be empty",
+    });
+  });
 
 export const executeStream = (
   createResponseBody: CreateResponseBody,
   userId: string,
   userProviders: readonly string[],
-): Effect.Effect<
-  {
-    stream: AsyncIterable<TextStreamPart<ToolSet>>;
-    result: StreamResult;
-    resolvedModelAndProvider: ResolvedResponse;
-  },
-  AIServiceError,
-  FileSystem | VaultService
-> => pmrStreamRoutine(createResponseBody, userId, userProviders, []);
-
-const pmrRoutine = (
-  createResponseBody: CreateResponseBody,
-  userId: string,
-  userProviders: readonly string[],
-  excludedProviders: ResolvedResponse[],
-  fallbackProviderModelPair: string | undefined,
+  fallbackProviderModelPair: ProviderModelPair | undefined,
   analysisTarget: string | undefined,
-): Effect.Effect<ResponseResource, AIServiceError, FileSystem | VaultService> =>
+) =>
   Effect.gen(function* () {
     const requestedModel = createResponseBody.model;
     if (!requestedModel) {
@@ -110,58 +94,54 @@ const pmrRoutine = (
       });
     }
 
-    const isAutoRoute = typeof requestedModel === "string" && requestedModel.startsWith("auto");
-    const useSystemPromptCache = analysisTarget === "per_system_prompt" && isAutoRoute;
-    const systemPromptText = useSystemPromptCache
-      ? extractSystemPromptText(
-          createResponseBody.input,
-          createResponseBody.instructions ?? undefined,
-        )
-      : null;
+    const resolvedModelAndProvidersResult = yield* Effect.either(
+      pmrService.resolve(createResponseBody, [...userProviders], analysisTarget),
+    );
 
-    // Check classification cache for per_system_prompt mode
-    let cachedResult: ResolvedResponse | undefined;
-    if (useSystemPromptCache && systemPromptText) {
-      cachedResult = yield* Effect.promise(() => classificationCache.get(userId, systemPromptText));
-      if (cachedResult) {
-        yield* Effect.logInfo("Using cached classification for system prompt").pipe(
-          Effect.annotateLogs({
-            service: "AIService",
-            operation: "pmrRoutine",
-            cachedProvider: cachedResult.provider,
-            cachedModel: cachedResult.model,
-          }),
+    if (Either.isLeft(resolvedModelAndProvidersResult)) {
+      if (fallbackProviderModelPair) {
+        return yield* callLanguageModelStreaming(
+          userId,
+          createResponseBody,
+          fallbackProviderModelPair,
         );
+      }
+      return yield* new AIServiceError({
+        message: "Model resolution failed and no fallback provider is configured",
+      });
+    }
+
+    const resolvedModelAndProviders = resolvedModelAndProvidersResult.right;
+
+    for (const resolvedModelAndProvider of resolvedModelAndProviders) {
+      const result = yield* Effect.either(
+        callLanguageModelStreaming(userId, createResponseBody, resolvedModelAndProvider),
+      );
+
+      if (Either.isRight(result)) {
+        return result.right;
       }
     }
 
-    const resolvedModelResult = cachedResult
-      ? Either.right(cachedResult)
-      : yield* pmrService
-          .resolve(createResponseBody, [...userProviders], excludedProviders, analysisTarget)
-          .pipe(Effect.either);
-
-    const isLastAttempt = Either.isLeft(resolvedModelResult);
-
-    const resolvedModelAndProvider = isLastAttempt
-      ? (parseFallbackPair(fallbackProviderModelPair) ?? HARDCODED_FALLBACK)
-      : resolvedModelResult.right;
-
-    // Cache the classification result for per_system_prompt mode
-    if (useSystemPromptCache && systemPromptText && !isLastAttempt && !cachedResult) {
-      yield* Effect.promise(() =>
-        classificationCache.set(userId, systemPromptText, resolvedModelAndProvider),
-      );
-      yield* Effect.logDebug("Cached classification result for system prompt").pipe(
-        Effect.annotateLogs({
-          service: "AIService",
-          operation: "pmrRoutine",
-          cachedProvider: resolvedModelAndProvider.provider,
-          cachedModel: resolvedModelAndProvider.model,
-        }),
+    if (fallbackProviderModelPair) {
+      return yield* callLanguageModelStreaming(
+        userId,
+        createResponseBody,
+        fallbackProviderModelPair,
       );
     }
 
+    return yield* new AIServiceError({
+      message: "`model` field is required or should not be empty",
+    });
+  });
+
+const callLanguageModel = (
+  userId: string,
+  createResponseBody: CreateResponseBody,
+  resolvedModelAndProvider: ResolvedResponse,
+) =>
+  Effect.gen(function* () {
     const credentials = yield* CredentialsService.getCredentials(
       userId,
       resolvedModelAndProvider.provider as Providers,
@@ -239,17 +219,6 @@ const pmrRoutine = (
     );
 
     if (Either.isLeft(result)) {
-      if (!isLastAttempt) {
-        return yield* pmrRoutine(
-          createResponseBody,
-          userId,
-          userProviders,
-          [...excludedProviders, resolvedModelAndProvider],
-          fallbackProviderModelPair,
-          analysisTarget,
-        );
-      }
-
       const errorValue = result.left;
 
       if (errorValue instanceof AIServiceError) {
@@ -272,40 +241,12 @@ const pmrRoutine = (
     });
   });
 
-const pmrStreamRoutine = (
-  createResponseBody: CreateResponseBody,
+const callLanguageModelStreaming = (
   userId: string,
-  userProviders: readonly string[],
-  excludedProviders: ResolvedResponse[],
-): Effect.Effect<
-  {
-    stream: AsyncIterable<TextStreamPart<ToolSet>>;
-    result: StreamResult;
-    resolvedModelAndProvider: ResolvedResponse;
-  },
-  AIServiceError,
-  FileSystem | VaultService
-> =>
+  createResponseBody: CreateResponseBody,
+  resolvedModelAndProvider: ResolvedResponse,
+) =>
   Effect.gen(function* () {
-    const requestedModel = createResponseBody.model;
-    if (!requestedModel) {
-      // XXX: THIS SHOULD BE HANDLED BY ROUTE VALIDATION, BUT JUST IN CASE TO SATISFY TYPESCRIPT
-      return yield* new AIServiceError({
-        message: "`model` field is required or should not be empty",
-      });
-    }
-
-    const resolvedModelResult = yield* pmrService
-      .resolve(createResponseBody, [...userProviders], excludedProviders)
-      .pipe(Effect.either);
-
-    const isLastAttempt = Either.isLeft(resolvedModelResult);
-
-    const resolvedModelAndProvider = isLastAttempt
-      ? // NOTE: grab this from onboarding
-        { model: "global.anthropic.claude-haiku-4-5-20251001-v1:0", provider: "amazon-bedrock" }
-      : resolvedModelResult.right;
-
     const credentials = yield* CredentialsService.getCredentials(
       userId,
       resolvedModelAndProvider.provider as Providers,
@@ -387,13 +328,6 @@ const pmrStreamRoutine = (
     );
 
     if (Either.isLeft(streamResult)) {
-      if (!isLastAttempt) {
-        return yield* pmrStreamRoutine(createResponseBody, userId, userProviders, [
-          ...excludedProviders,
-          resolvedModelAndProvider,
-        ]);
-      }
-
       const errorValue = streamResult.left;
 
       if (errorValue instanceof AIServiceError) {
@@ -421,26 +355,12 @@ const pmrStreamRoutine = (
     );
 
     if (Either.isLeft(firstChunkResult)) {
-      if (!isLastAttempt) {
-        return yield* pmrStreamRoutine(createResponseBody, userId, userProviders, [
-          ...excludedProviders,
-          resolvedModelAndProvider,
-        ]);
-      }
-
       return yield* firstChunkResult.left;
     }
 
     const firstChunk = firstChunkResult.right;
 
     if (!firstChunk.done && firstChunk.value.type === "error") {
-      if (!isLastAttempt) {
-        return yield* pmrStreamRoutine(createResponseBody, userId, userProviders, [
-          ...excludedProviders,
-          resolvedModelAndProvider,
-        ]);
-      }
-
       return yield* new AIServiceError({
         cause: firstChunk.value,
         message: "Error while reading first stream chunk",
@@ -451,13 +371,9 @@ const pmrStreamRoutine = (
       if (!firstChunk.done) {
         yield firstChunk.value;
       }
-      while (true) {
-        const nextChunk = await streamIterator.next();
-        if (nextChunk.done) {
-          break;
-        }
-        yield nextChunk.value;
-      }
+      yield* {
+        [Symbol.asyncIterator]: () => streamIterator,
+      };
     }
 
     return {

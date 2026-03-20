@@ -1,15 +1,10 @@
-import { Effect, Data } from "effect";
+import { Effect } from "effect";
 import { Hono } from "hono";
 
 import { getAuthenticatedUser } from "../middleware/auth";
 import { SecretService } from "../services/secret";
-import { getAvailableModels } from "resolver";
 import { runHandler } from "../runtime";
-
-class ModelsDataError extends Data.TaggedError("ModelsDataError")<{
-  cause?: unknown;
-  message?: string;
-}> {}
+import { ResolverService } from "resolver";
 
 export const modelsRoute = new Hono().basePath("/models");
 
@@ -24,14 +19,8 @@ modelsRoute.get("/", (c) =>
         .filter(([, info]) => info.enabled)
         .map(([id]) => id);
 
-      const allModels = yield* Effect.tryPromise({
-        try: () => getAvailableModels(),
-        catch: (error) =>
-          new ModelsDataError({
-            cause: error,
-            message: error instanceof Error ? error.message : "Failed to load models data",
-          }),
-      });
+      const resolverService = yield* ResolverService;
+      const allModels = yield* resolverService.getAvailableModels();
 
       const providerParam = c.req.query("provider");
 
@@ -39,7 +28,7 @@ modelsRoute.get("/", (c) =>
         ? enabledProviders.filter((p) => p === providerParam)
         : enabledProviders;
 
-      const models: Record<string, string[]> = {};
+      const models: Record<string, readonly string[]> = {};
       for (const provider of targetProviders) {
         const providerModels = allModels[provider];
         if (providerModels) {
@@ -55,9 +44,13 @@ modelsRoute.get("/", (c) =>
           Effect.logError("GET /v1/models failed (database)", { cause: err.cause }).pipe(
             Effect.as(c.json({ error: "Failed to fetch models" }, 500)),
           ),
-        ModelsDataError: (err) =>
-          Effect.logError("GET /v1/models failed (models data)", { cause: err.cause }).pipe(
-            Effect.as(c.json({ error: err.message ?? "Models data not available" }, 503)),
+        RedisError: (err) =>
+          Effect.logError("GET /v1/models failed (redis)", { cause: err.cause }).pipe(
+            Effect.as(c.json({ error: "Failed to fetch models" }, 500)),
+          ),
+        ParseError: (err) =>
+          Effect.logError("GET /v1/models failed (parse)", { cause: err }).pipe(
+            Effect.as(c.json({ error: "Failed to parse models data" }, 500)),
           ),
       }),
     ),

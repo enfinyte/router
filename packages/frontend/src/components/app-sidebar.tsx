@@ -5,6 +5,7 @@ import {
   IconBrandGithub,
   IconDashboard,
   IconKey,
+  IconMessageChatbot,
   IconPlug,
   IconSettings,
 } from "@tabler/icons-react";
@@ -30,6 +31,11 @@ const data = {
       title: "Dashboard",
       url: "/",
       icon: IconDashboard,
+    },
+    {
+      title: "Playground",
+      url: "/playground",
+      icon: IconMessageChatbot,
     },
     {
       title: "Connections",

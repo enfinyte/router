@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
 import { KeyRound, Copy, Check, Loader2, Eye, EyeOff, Plus } from "lucide-react";
-import { OnboardingHeader, OnboardingFooter } from "@/components/Onboarding";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useRouter } from "next/navigation";
+import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
+
+import { OnboardingHeader, OnboardingFooter } from "@/components/Onboarding";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useCreateApiKey, useListApiKeys } from "@/lib/api/api-keys";
 import { authClient } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 type KeyStatus = "active" | "disabled" | "expired";
@@ -39,7 +40,7 @@ interface CreateApiKeyStepProps {
 export function CreateApiKeyStep({ onBack }: CreateApiKeyStepProps) {
   const router = useRouter();
   const { data: keys, isLoading: isLoadingKeys } = useListApiKeys();
-  const hasKeys = keys && keys.length > 0;
+  const hasKeys = keys && keys.apiKeys.length > 0;
 
   const [isCreating, setIsCreating] = useState(false);
   const [keyName, setKeyName] = useState("My First Key");
@@ -50,11 +51,11 @@ export function CreateApiKeyStep({ onBack }: CreateApiKeyStepProps) {
 
   useEffect(() => {
     if (hasKeys) {
-      setKeyName(`API Key ${keys.length + 1}`);
+      setKeyName(`API Key ${keys.apiKeys.length + 1}`);
     } else {
       setKeyName("My First Key");
     }
-  }, [hasKeys, keys?.length]);
+  }, [hasKeys, keys?.apiKeys.length]);
 
   const handleGenerate = useCallback(async () => {
     if (!keyName.trim()) {
@@ -138,7 +139,7 @@ export function CreateApiKeyStep({ onBack }: CreateApiKeyStepProps) {
               </Button>
             </div>
             <div className="divide-y divide-border">
-              {keys.map((key) => {
+              {keys.apiKeys.map((key) => {
                 const status = getKeyStatus(key);
                 return (
                   <div key={key.id} className="flex items-center justify-between px-4 py-3">

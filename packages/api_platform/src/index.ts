@@ -3,8 +3,9 @@ import { BunContext, BunHttpServer, BunRuntime } from "@effect/platform-bun";
 import { Effect, flow, Layer } from "effect";
 import { router } from "./routes/index";
 import { AppConfig, AppConfigLive } from "./services/config";
-import { DatabaseServiceLive } from "./services/database/";
+import { DatabaseServiceLive } from "./services/database/postgres";
 import { VaultServiceLive } from "vault";
+import { ResolverServiceLive } from "resolver";
 
 export const app = router.pipe(
   HttpServer.serve(
@@ -26,6 +27,7 @@ const AllServices = Layer.mergeAll(
   DatabaseLayer,
   AppConfigLive,
   VaultServiceLive,
+  ResolverServiceLive,
   BunContext.layer,
 );
 const AllServicesAndHttpServer = Layer.mergeAll(AllServices, HttpServerLayer);

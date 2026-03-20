@@ -1,30 +1,29 @@
-import { Array as Arr, Effect, Option, pipe } from "effect";
-import { getModelMap, getOpenRouterDataByPair } from "../data_manager";
+import { Array as Arr, Effect } from "effect";
+
 import type { IntentPair } from "../types";
+
+import { getPotentialModelsForIntentPair } from "../data_manager";
+import * as Redis from "../redis/index";
 import { NoProviderAvailableError } from "../types";
-import type { ResolvedResponse } from "common";
 
-const findMatchingMapping = (
-  modelMap: Record<string, ReadonlyArray<ResolvedResponse>>,
-  slug: string,
-  userProviderSet: ReadonlySet<string>,
-  excludedResponsesSet: ReadonlySet<string>,
-): Option.Option<ResolvedResponse> => {
-  return pipe(
-    modelMap[slug] ?? [],
-    Arr.findFirst(
-      (mapping) =>
-        !excludedResponsesSet.has(`${mapping.provider}:${mapping.model}`) &&
-        userProviderSet.has(mapping.provider),
-    ),
-  );
-};
+const getAllProvidersForModel = (modelNameSlug: string) =>
+  Effect.gen(function* () {
+    return yield* Redis.getProvidersForModel(modelNameSlug);
+  });
 
-export const resolveIntentPair = (
-  pair: IntentPair,
-  userProviders: string[],
-  excludedResponses: ResolvedResponse[],
-) =>
+const findMatchingMapping = (modelNameSlug: string, userProviderSet: ReadonlySet<string>) =>
+  Effect.gen(function* () {
+    const providersForModel = yield* getAllProvidersForModel(modelNameSlug);
+    return providersForModel.filter(({ provider }) => userProviderSet.has(provider));
+  });
+
+const getAllProvidersForPotentialModels = (modelNameSlugs: readonly string[]) =>
+  Effect.gen(function* () {
+    const providerArrays = yield* Effect.all(modelNameSlugs.map(getAllProvidersForModel));
+    return providerArrays.flat().map(({ provider }) => provider);
+  });
+
+export const resolveIntentPair = (pair: IntentPair, userProviders: string[]) =>
   Effect.gen(function* () {
     yield* Effect.logDebug("Resolving intent pair").pipe(
       Effect.annotateLogs({
@@ -33,42 +32,34 @@ export const resolveIntentPair = (
         intent: pair.intent,
         intentPolicy: pair.intentPolicy,
         providerCount: userProviders.length,
-        excludedCount: excludedResponses.length,
       }),
     );
 
-    const openRouterData = yield* getOpenRouterDataByPair(pair);
+    const potentialModels = yield* getPotentialModelsForIntentPair(pair);
     const userProviderSet = new Set(userProviders);
-    const excludedResponsesSet = new Set(excludedResponses.map((r) => `${r.provider}:${r.model}`));
-    const modelMap = yield* getModelMap;
 
-    const match = pipe(
-      openRouterData,
-      Arr.findFirst((slug) =>
-        Option.isSome(findMatchingMapping(modelMap, slug, userProviderSet, excludedResponsesSet)),
+    const pairs = yield* Effect.map(
+      Effect.all(
+        potentialModels.map((modelNameSlug) => findMatchingMapping(modelNameSlug, userProviderSet)),
       ),
-      Option.flatMap((slug) =>
-        findMatchingMapping(modelMap, slug, userProviderSet, excludedResponsesSet),
-      ),
+      (results) => results.flat(),
     );
 
-    if (Option.isSome(match)) {
+    if (pairs.length > 0) {
       yield* Effect.logInfo("Intent resolved to provider/model").pipe(
         Effect.annotateLogs({
           service: "Resolver",
           operation: "resolveIntentPair",
           intent: pair.intent,
           intentPolicy: pair.intentPolicy,
-          provider: match.value.provider,
-          model: match.value.model,
+          pairs: pairs,
         }),
       );
-      return match.value;
+      return pairs;
     }
 
-    const availableProviders = pipe(
-      openRouterData,
-      Arr.flatMap((s): string[] => (modelMap[s] ?? []).map((m) => m.provider)),
+    const availableProviders = yield* Effect.map(
+      getAllProvidersForPotentialModels(potentialModels),
       Arr.dedupe,
     );
 
@@ -80,12 +71,12 @@ export const resolveIntentPair = (
         intentPolicy: pair.intentPolicy,
         userProviders: userProviders.join(","),
         availableProviders: availableProviders.join(","),
-        candidateCount: openRouterData.length,
+        candidateCount: potentialModels.length,
       }),
     );
 
     return yield* new NoProviderAvailableError({
       reason: "NoProviderConfigured",
-      message: `None of the top ${openRouterData.length} models have a provider you have configured. Configure at least one of: ${availableProviders.join(", ")}`,
+      message: `None of the top ${potentialModels.length} models have a provider you have configured. Configure at least one of: ${availableProviders.join(", ")}`,
     });
   });

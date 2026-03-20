@@ -3,6 +3,7 @@ import { Data, Effect, Layer } from "effect";
 import { BadRequest, Unauthorized } from "@effect/platform/HttpApiError";
 import { AppConfig } from "./services/config";
 import { RequestContext } from "./services/request-context";
+import { parseProviderModelImpl } from "resolver/src/parser";
 
 export const withProperContentTypeValidation = () =>
   HttpMiddleware.make((app) =>
@@ -73,7 +74,9 @@ export const withAuthorizationValidation = () =>
 
       const userId = verifyResult.userId;
       const userProviders = verifyResult.providers ?? [];
-      const fallbackProviderModelPair = verifyResult.fallbackProviderModelPair;
+      const fallbackProviderModelPair = yield* parseProviderModelImpl(
+        verifyResult.fallbackProviderModelPair!,
+      );
       const analysisTarget = verifyResult.analysisTarget;
 
       return yield* Effect.provide(

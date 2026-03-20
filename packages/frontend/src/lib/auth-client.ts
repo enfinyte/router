@@ -1,5 +1,6 @@
 import { createAuthClient } from "better-auth/react";
-import { apiKeyClient, inferAdditionalFields } from "better-auth/client/plugins";
+import { inferAdditionalFields } from "better-auth/client/plugins";
+import { apiKeyClient } from "@better-auth/api-key/client";
 
 if (!process.env.NEXT_PUBLIC_BETTERAUTH_BASE_URL)
   throw new Error(

@@ -1,21 +1,29 @@
-import { Effect, Clock, Duration, Schema } from "effect";
-import { FileSystem } from "@effect/platform/FileSystem";
+import { Effect, Duration, Schema } from "effect";
 import { DataFetchError } from "../types";
-import { LAST_FETCH_PATH, MODELS_DEV_DATA_PATH, MODELS_MAP_DATA_PATH } from "./const";
 import { ORDERS, CATEGORIES } from "../types";
 import { SUPPORTED_PROVIDERS } from "common";
 import { ProviderModelMapSchema } from "./schema/modelsdev";
 import { OpenRouterMapSchema } from "./schema/openrouter";
 import { generateModelMap } from "./model_map";
+import * as Redis from "../redis/index";
 
 const OPENROUTER_BASE = "https://openrouter.ai/api/frontend/models";
 const MODELS_DEV_BASE = "https://models.dev/api.json";
 
 const DATA_TTL = Duration.hours(12);
 
+const normalizeOpenRouterCategory = (providedCategory: string): string => {
+  switch (providedCategory) {
+    case "seo":
+      return "marketing/seo";
+    default:
+      return providedCategory;
+  }
+};
+
 const openrouterCategoryUrl = (category: string, order: string) => {
-  const cat = category === "seo" ? "marketing/seo" : category;
-  return `${OPENROUTER_BASE}/find?categories=${cat}&order=${order}`;
+  const normalizedCategory = normalizeOpenRouterCategory(category);
+  return `${OPENROUTER_BASE}/find?categories=${normalizedCategory}&order=${order}`;
 };
 
 const fetchJson = (url: string) =>
@@ -68,93 +76,76 @@ const fetchJson = (url: string) =>
     );
   });
 
-const fetchAndAction = (url: string, action: (json: any) => Effect.Effect<unknown, any, any>) =>
-  Effect.gen(function* () {
-    const json = yield* fetchJson(url);
+function fetchAndAction<A, R, E2, Req2>(
+  url: string,
+  action: (json: A) => Effect.Effect<R, E2, Req2>,
+): Effect.Effect<R, DataFetchError | E2, Req2> {
+  return Effect.gen(function* () {
+    const json = (yield* fetchJson(url)) as A;
     return yield* action(json);
   });
+}
 
-const makePaths = (path: string) =>
+const openRouterAction = (category: string, order: string) => (json: string[]) =>
   Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const exists = yield* fs.exists(path);
-    if (exists) return;
-
-    yield* Effect.logInfo("Creating data directory structure").pipe(
-      Effect.annotateLogs({ service: "DataManager", operation: "makePaths", path }),
+    const parsed = yield* Schema.decodeUnknown(OpenRouterMapSchema)(json).pipe(
+      Effect.tapError((err) =>
+        Effect.logError("OpenRouter schema decode failed").pipe(
+          Effect.annotateLogs({
+            service: "DataManager",
+            operation: "populate",
+            key: `${category}:${order}`,
+            cause: String(err),
+          }),
+        ),
+      ),
     );
 
-    yield* fs.makeDirectory(path);
-    yield* Effect.forEach(CATEGORIES, (category) => fs.makeDirectory(`${path}/${category}`));
-
-    yield* Effect.logDebug("Data directory structure created").pipe(
-      Effect.annotateLogs({
-        service: "DataManager",
-        operation: "makePaths",
-        path,
-        categoryCount: CATEGORIES.length,
-      }),
-    );
+    yield* Redis.setModelsForCategoryAndOrder(category, order, parsed);
+    return parsed;
   });
 
-const populate = (path: string) =>
+const modelsDevAction = () => (json: Record<string, string[]>) =>
+  Effect.gen(function* () {
+    const parsed = yield* Schema.decodeUnknown(ProviderModelMapSchema)(json).pipe(
+      Effect.tapError((err) =>
+        Effect.logError("models.dev schema decode failed").pipe(
+          Effect.annotateLogs({
+            service: "DataManager",
+            operation: "populate",
+            key: `models.dev`,
+            cause: String(err),
+          }),
+        ),
+      ),
+    );
+
+    const supported = SUPPORTED_PROVIDERS.reduce(
+      (acc, provider: string) => {
+        acc[provider] = [...(parsed[provider] ?? [])];
+        return acc;
+      },
+      {} as Record<string, string[]>,
+    );
+
+    yield* Redis.bulkSetModelsForProvider(supported);
+    return supported;
+  });
+
+const populate = () =>
   Effect.gen(function* () {
     yield* Effect.logInfo("Populating data cache").pipe(
       Effect.annotateLogs({ service: "DataManager", operation: "populate" }),
     );
 
-    const openRouterAction = (path: string) => (json: any) =>
-      Effect.gen(function* () {
-        const parsed = yield* Schema.decodeUnknown(OpenRouterMapSchema)(json).pipe(
-          Effect.tapError((err) =>
-            Effect.logError("OpenRouter schema decode failed").pipe(
-              Effect.annotateLogs({
-                service: "DataManager",
-                operation: "populate",
-                path,
-                cause: String(err),
-              }),
-            ),
-          ),
-        );
-        const fs = yield* FileSystem;
-        yield* fs.writeFileString(path, JSON.stringify(parsed, null, 2));
-        return parsed;
-      });
-
     const categoryFetches = CATEGORIES.flatMap((category) =>
       ORDERS.map((order) =>
-        fetchAndAction(
-          openrouterCategoryUrl(category, order),
-          openRouterAction(`${path}/${category}/${order}.json`),
-        ),
+        fetchAndAction(openrouterCategoryUrl(category, order), openRouterAction(category, order)),
       ),
     );
 
-    const modelsDevAction = (path: string) => (json: any) =>
-      Effect.gen(function* () {
-        const parsed = yield* Schema.decodeUnknown(ProviderModelMapSchema)(json).pipe(
-          Effect.tapError((err) =>
-            Effect.logError("models.dev schema decode failed").pipe(
-              Effect.annotateLogs({
-                service: "DataManager",
-                operation: "populate",
-                path,
-                cause: String(err),
-              }),
-            ),
-          ),
-        );
-        const supported = SUPPORTED_PROVIDERS.reduce((acc: object, provider: string) => {
-          return Object.assign(acc, { [provider]: parsed[provider] });
-        }, {});
-        const fs = yield* FileSystem;
-        yield* fs.writeFileString(path, JSON.stringify(supported, null, 2));
-        return supported;
-      });
-
     const totalFetches = 1 + categoryFetches.length;
-    yield* Effect.logDebug("Starting concurrent data fetches").pipe(
+    yield* Effect.logInfo("Starting concurrent data fetches").pipe(
       Effect.annotateLogs({
         service: "DataManager",
         operation: "populate",
@@ -165,7 +156,7 @@ const populate = (path: string) =>
     );
 
     const [modelsDev, ...openRouter] = yield* Effect.all(
-      [fetchAndAction(MODELS_DEV_BASE, modelsDevAction(MODELS_DEV_DATA_PATH)), ...categoryFetches],
+      [fetchAndAction(MODELS_DEV_BASE, modelsDevAction()), ...categoryFetches],
       {
         concurrency: "unbounded",
       },
@@ -180,6 +171,7 @@ const populate = (path: string) =>
       }),
     );
 
+    // TODO: do a runtime check to see if they match our expected schema, and log any discrepancies for debugging purposes
     const modelMap = generateModelMap(
       openRouter.flat() as string[],
       modelsDev as Readonly<Record<string, string[]>>,
@@ -194,50 +186,31 @@ const populate = (path: string) =>
       }),
     );
 
-    const fs = yield* FileSystem;
-    yield* fs.writeFileString(MODELS_MAP_DATA_PATH, JSON.stringify(modelMap, null, 2));
+    yield* Redis.bulkSetProvidersForModels(modelMap);
+    yield* Redis.markLastFetchPoint();
   });
 
-export const runDataFetch = (dataPath: string) =>
+export const runDataFetch = () =>
   Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    yield* makePaths(dataPath);
+    const lastFetchedAt = yield* Redis.getLastFetchPoint();
 
-    const ttlMillis = Duration.toMillis(DATA_TTL);
-    const now = yield* Clock.currentTimeMillis;
-
-    const lastFetchExists = yield* fs.exists(LAST_FETCH_PATH);
-
-    if (lastFetchExists) {
-      const lastFetch = yield* fs.readFile(LAST_FETCH_PATH).pipe(Effect.map((lf) => Number(lf)));
-      const isStale = now - lastFetch >= ttlMillis;
-      if (!isStale) {
-        const ageHours = Math.round((now - lastFetch) / 3_600_000 * 10) / 10;
-        yield* Effect.logDebug("Data cache is fresh, skipping fetch").pipe(
-          Effect.annotateLogs({
-            service: "DataManager",
-            operation: "runDataFetch",
-            ageHours,
-            ttlHours: Duration.toHours(DATA_TTL),
-          }),
-        );
-        return;
-      }
-      yield* Effect.logInfo("Data cache is stale, refreshing").pipe(
+    if (lastFetchedAt) {
+      yield* Effect.logDebug("Data cache is fresh, skipping fetch").pipe(
         Effect.annotateLogs({
           service: "DataManager",
           operation: "runDataFetch",
+          lastFetchedAt: new Date(lastFetchedAt).toISOString(),
           ttlHours: Duration.toHours(DATA_TTL),
         }),
       );
+      return;
     } else {
-      yield* Effect.logInfo("No data cache found, performing initial fetch").pipe(
-        Effect.annotateLogs({ service: "DataManager", operation: "runDataFetch" }),
-      );
+      yield* Effect.logInfo(
+        "Either Data cache is stale or No data cache found, performing fetch",
+      ).pipe(Effect.annotateLogs({ service: "DataManager", operation: "runDataFetch" }));
     }
 
-    yield* populate(dataPath);
-    yield* fs.writeFileString(LAST_FETCH_PATH, String(now));
+    yield* populate();
 
     yield* Effect.logInfo("Data cache refreshed").pipe(
       Effect.annotateLogs({ service: "DataManager", operation: "runDataFetch" }),

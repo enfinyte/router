@@ -10,9 +10,9 @@
 import pg from "pg";
 import seedConfig from "./seed.json";
 
-const CONNECTION_STRING = process.env.POSTGRES_CONNECTION_STRING;
+const CONNECTION_STRING = process.env.LEDGER_PG_URL;
 if (!CONNECTION_STRING) {
-  console.error("ERROR: POSTGRES_CONNECTION_STRING env var is required.");
+  console.error("ERROR: LEDGER_PG_URL env var is required.");
   process.exit(1);
 }
 
