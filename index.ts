@@ -1,9 +1,17 @@
 import chalk from "chalk";
 
+const isProd = process.env.NODE_ENV === "production";
+
 const services = [
-  { name: "api", cmd: ["bun", "run", "--hot", "packages/api_platform/src/index.ts"], color: chalk.blue },
-  { name: "backend", cmd: ["bun", "run", "--hot", "packages/backend/src/index.ts"], color: chalk.green },
-  { name: "frontend", cmd: ["bun", "run", "--cwd", "packages/frontend", "dev"], color: chalk.yellow },
+  { name: "api", cmd: ["bun", "run", ...(isProd ? [] : ["--hot"]), "packages/api_platform/src/index.ts"], color: chalk.blue },
+  { name: "backend", cmd: ["bun", "run", ...(isProd ? [] : ["--hot"]), "packages/backend/src/index.ts"], color: chalk.green },
+  {
+    name: "frontend",
+    cmd: isProd
+      ? ["bun", "packages/frontend/.next/standalone/packages/frontend/server.js"]
+      : ["bun", "run", "--cwd", "packages/frontend", "dev"],
+    color: chalk.yellow,
+  },
 ];
 
 const procs: Bun.Subprocess[] = [];
