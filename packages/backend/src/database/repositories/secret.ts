@@ -56,7 +56,7 @@ export const SecretRepositoryLive = Layer.effect(
               .executeTakeFirst(),
           )
           // SAFETY: set during onboarding
-          .pipe(Effect.map((row) => row?.fallbackProviderModelPair!)),
+          .pipe(Effect.map((row) => row!.fallbackProviderModelPair!)),
 
       getUserAnalysisTarget: (userId) =>
         db
@@ -68,7 +68,7 @@ export const SecretRepositoryLive = Layer.effect(
               .executeTakeFirst(),
           )
           // SAFETY: set during onboarding
-          .pipe(Effect.map((row) => row?.analysisTarget!)),
+          .pipe(Effect.map((row) => row!.analysisTarget!)),
 
       upsertProvider: (userId, provider) =>
         Effect.gen(function* () {

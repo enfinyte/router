@@ -23,12 +23,14 @@ export class AIServiceError extends Data.TaggedError("AIServiceError")<{
   message?: string;
 }> {}
 
+type StreamResult = ReturnType<typeof streamText>;
+
 export const execute = (
   createResponseBody: CreateResponseBody,
   userId: string,
   userProviders: readonly string[],
-  fallbackProviderModelPair: ProviderModelPair | undefined,
-  analysisTarget: string | undefined,
+  fallbackProviderModelPair: ProviderModelPair,
+  analysisTarget: string,
 ) =>
   Effect.gen(function* () {
     const requestedModel = createResponseBody.model;
@@ -79,8 +81,8 @@ export const executeStream = (
   createResponseBody: CreateResponseBody,
   userId: string,
   userProviders: readonly string[],
-  fallbackProviderModelPair: ProviderModelPair | undefined,
-  analysisTarget: string | undefined,
+  fallbackProviderModelPair: ProviderModelPair,
+  analysisTarget: string,
 ) =>
   Effect.gen(function* () {
     const requestedModel = createResponseBody.model;
@@ -364,8 +366,10 @@ const probeStream = (streamResult: StreamResult) =>
         buffered.push(chunk.value);
 
         if (chunk.value.type === "error") {
-          throw (chunk.value as { error?: unknown }).error ??
-            new Error("Stream produced an error event");
+          throw (
+            (chunk.value as { error?: unknown }).error ??
+            new Error("Stream produced an error event")
+          );
         }
 
         if (isProviderContent(chunk.value)) {
@@ -380,6 +384,5 @@ const probeStream = (streamResult: StreamResult) =>
         }
       })();
     },
-    catch: (error) =>
-      new AIServiceError({ cause: error, message: "Stream failed on first chunk" }),
+    catch: (error) => new AIServiceError({ cause: error, message: "Stream failed on first chunk" }),
   });
