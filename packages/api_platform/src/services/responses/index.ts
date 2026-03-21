@@ -1,10 +1,9 @@
-import { Effect, Data, Stream } from "effect";
 import type { CreateResponseBody, ResponseResource, StreamingEvent } from "common";
-import type { TextStreamPart } from "ai";
+import type { ProviderModelPair } from "resolver/src/types";
+
+import { Effect, Data, Stream } from "effect";
+
 import * as AIService from "../ai";
-import * as DatabaseService from "../database/postgres";
-import { convertAISdkStreamTextToStreamingEvents } from "../ai/convertAISdkStreamTextToStreamingEvents";
-import { encodeSSEEvent, encodeSSEDone, encodeSSEToUint8Array } from "../ai/sse";
 import {
   DEFAULT_BACKGROUND,
   DEFAULT_FREQUENCY_PENALTY,
@@ -17,12 +16,14 @@ import {
   DEFAULT_TOP_P,
   DEFAULT_TRUNCATION,
 } from "../ai/consts";
+import { convertAISdkStreamTextToStreamingEvents } from "../ai/convertAISdkStreamTextToStreamingEvents";
 import {
   resolveTools,
   resolveToolChoice,
   resolveTextFormat,
 } from "../ai/createResponseBodyFieldsToResponseResourceFieldsResolvers";
-import type { ProviderModelPair } from "resolver/src/types";
+import { encodeSSEEvent, encodeSSEDone, encodeSSEToUint8Array } from "../ai/sse";
+import * as DatabaseService from "../database/postgres";
 
 export class ResponseServiceError extends Data.TaggedError("ResponseServiceError")<{
   cause?: unknown;
@@ -65,7 +66,7 @@ export const createStream = (
   analysisTarget: string | undefined,
 ) =>
   Effect.gen(function* () {
-    const { stream, result, resolvedModelAndProvider } = yield* AIService.executeStream(
+    const { result, resolvedModelAndProvider } = yield* AIService.executeStream(
       req,
       userId,
       userProviders,
@@ -113,9 +114,8 @@ export const createStream = (
     };
 
     const { events, getAccumulatedState } = convertAISdkStreamTextToStreamingEvents(
-      stream as AsyncIterable<TextStreamPart<Record<string, never>>>,
-      responseId,
-      2, // Start after lifecycle events (response.created=0, response.in_progress=1)
+      result.fullStream,
+      2,
     );
 
     let finalResponse: ResponseResource = skeletonResponse;
