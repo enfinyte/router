@@ -3,7 +3,6 @@ import type { CreateResponseBody, ResolvedResponse, Providers } from "common";
 import type { ProviderModelPair } from "resolver/src/types";
 
 import { APICallError, generateText, streamText } from "ai";
-import { error } from "console";
 import { Effect, Data, Either } from "effect";
 
 import * as CredentialsService from "../credentials";
@@ -23,8 +22,6 @@ export class AIServiceError extends Data.TaggedError("AIServiceError")<{
   cause?: unknown;
   message?: string;
 }> {}
-
-type StreamResult = ReturnType<typeof streamText>;
 
 export const execute = (
   createResponseBody: CreateResponseBody,
