@@ -1,10 +1,16 @@
-import { Effect, Data, Either } from "effect";
-import type { CreateResponseBody, ResolvedResponse, Providers } from "common";
-import * as pmrService from "../pmr";
-import * as CredentialsService from "../credentials";
-import { buildLanguageModelFromResolvedModelAndProvider } from "./buildLanguageModelFromResolvedModelAndProvider";
-import { APICallError, generateText, streamText } from "ai";
 import type { TextStreamPart, ToolSet } from "ai";
+import type { CreateResponseBody, ResolvedResponse, Providers } from "common";
+import type { ProviderModelPair } from "resolver/src/types";
+
+import { APICallError, generateText, streamText } from "ai";
+import { error } from "console";
+import { Effect, Data, Either } from "effect";
+
+import * as CredentialsService from "../credentials";
+import * as pmrService from "../pmr";
+import { buildLanguageModelFromResolvedModelAndProvider } from "./buildLanguageModelFromResolvedModelAndProvider";
+import { convertAISdkGenerateTextResultToResponseResource } from "./convertAISdkGenerateTextResultToResponseResource";
+import { convertAPICallErrorToResponseResource } from "./convertAPICallErrorToResponseResource";
 import {
   convertCreateResponseBodyInputFieldToCallSettingsMessages,
   convertCreateResponseBodyToolsToCallSettingsTools,
@@ -12,9 +18,6 @@ import {
   convertCreateResponseBodyTextFormatToCallSettingsOutput,
   convertCreateResponseBodyReasoningToProviderOptions,
 } from "./responseFieldsToAISDKGenerateTextCallSettingsAdapters";
-import { convertAPICallErrorToResponseResource } from "./convertAPICallErrorToResponseResource";
-import { convertAISdkGenerateTextResultToResponseResource } from "./convertAISdkGenerateTextResultToResponseResource";
-import type { ProviderModelPair } from "resolver/src/types";
 
 export class AIServiceError extends Data.TaggedError("AIServiceError")<{
   cause?: unknown;
@@ -67,9 +70,6 @@ export const execute = (
     }
 
     if (fallbackProviderModelPair) {
-      console.log(" -------- -----------");
-      console.log(fallbackProviderModelPair);
-      console.log(" -------- -----------");
       return yield* callLanguageModel(userId, createResponseBody, fallbackProviderModelPair);
     }
 
@@ -119,7 +119,10 @@ export const executeStream = (
       );
 
       if (Either.isRight(result)) {
+        // const response = result.right;
+        // if (response.result === null) {
         return result.right;
+        // }
       }
     }
 
@@ -305,17 +308,21 @@ const callLanguageModelStreaming = (
     };
 
     const streamResult = yield* Effect.either(
-      Effect.tryPromise<StreamResult, AIServiceError | APICallError>({
-        try: (abortSignal) =>
-          Promise.resolve(
-            streamText({
-              ...generateTextOptions,
-              abortSignal,
-              ...(tools ? { tools } : {}),
-              ...(toolChoice ? { toolChoice } : {}),
-              ...(providerOptions ? { providerOptions } : {}),
-            }),
-          ),
+      Effect.tryPromise({
+        try: async (abortSignal) => {
+          const stream = streamText({
+            ...generateTextOptions,
+            abortSignal,
+            ...(tools ? { tools } : {}),
+            ...(toolChoice ? { toolChoice } : {}),
+            ...(providerOptions ? { providerOptions } : {}),
+          });
+
+          // FIXME: very hack-y; find a diff way to error
+          await stream.text;
+
+          return Promise.resolve(stream);
+        },
         catch(error) {
           if (error instanceof APICallError) return error;
           if (error instanceof AIServiceError) return error;
