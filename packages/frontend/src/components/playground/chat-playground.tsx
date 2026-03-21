@@ -1,25 +1,28 @@
 "use client";
 
+import { RotateCcw, PanelRightOpen, PanelRightClose } from "lucide-react";
 import { useState, useCallback, useRef } from "react";
+import { toast } from "sonner";
+import { useLocalStorage } from "usehooks-ts";
+
 import { Button } from "@/components/ui/button";
-import { MessageList } from "./message-list";
-import { MessageInput } from "./message-input";
-import { ModelSelector } from "./model-selector";
-import { ApiKeySelector } from "./api-key-selector";
-import { SettingsPanel } from "./settings-panel";
 import {
   sendStreamingMessage,
   type PlaygroundMessage,
   type PlaygroundSettings,
 } from "@/lib/api/playground";
-import { RotateCcw, PanelRightOpen, PanelRightClose } from "lucide-react";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+import { ApiKeySelector } from "./api-key-selector";
+import { MessageInput } from "./message-input";
+import { MessageList } from "./message-list";
+import { ModelSelector } from "./model-selector";
+import { SettingsPanel } from "./settings-panel";
 
 export function ChatPlayground() {
   const [messages, setMessages] = useState<PlaygroundMessage[]>([]);
-  const [model, setModel] = useState("auto/auto");
-  const [apiKey, setApiKey] = useState("");
+  const [model, setModel] = useLocalStorage("enfinyte-playground-model", "auto/auto");
+  const [apiKey, setApiKey] = useLocalStorage("enfinyte-playground-api-key", "");
   const [isStreaming, setIsStreaming] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<PlaygroundSettings>({});
@@ -77,9 +80,7 @@ export function ChatPlayground() {
           onTextDelta: (delta) => {
             setMessages((prev) =>
               prev.map((msg) =>
-                msg.id === assistantMessageId
-                  ? { ...msg, content: msg.content + delta }
-                  : msg,
+                msg.id === assistantMessageId ? { ...msg, content: msg.content + delta } : msg,
               ),
             );
           },
@@ -170,9 +171,7 @@ export function ChatPlayground() {
           onTextDelta: (delta) => {
             setMessages((prev) =>
               prev.map((msg) =>
-                msg.id === newAssistantId
-                  ? { ...msg, content: msg.content + delta }
-                  : msg,
+                msg.id === newAssistantId ? { ...msg, content: msg.content + delta } : msg,
               ),
             );
           },
@@ -226,9 +225,7 @@ export function ChatPlayground() {
       abortControllerRef.current = null;
     }
     setMessages((prev) =>
-      prev.map((msg) =>
-        msg.isStreaming ? { ...msg, isStreaming: false } : msg,
-      ),
+      prev.map((msg) => (msg.isStreaming ? { ...msg, isStreaming: false } : msg)),
     );
     setIsStreaming(false);
   }, []);

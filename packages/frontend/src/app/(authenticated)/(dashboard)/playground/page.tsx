@@ -1,5 +1,3 @@
-"use client";
-
 import { ChatPlayground } from "@/components/playground/chat-playground";
 
 export default function PlaygroundPage() {
