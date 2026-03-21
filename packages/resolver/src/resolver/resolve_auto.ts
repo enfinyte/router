@@ -1,12 +1,14 @@
-import { Effect } from "effect";
-import { DataFetchError, INTENT_POLICIES, IntentPair, INTENTS } from "../types";
-import { Output, generateText } from "ai";
-import { bedrock } from "@ai-sdk/amazon-bedrock";
-import { ResolveError } from "../types";
-import { resolveIntentPair } from "./resolve_intent";
-import { z } from "zod";
 import type { CreateResponseBody } from "common";
+
+import { bedrock } from "@ai-sdk/amazon-bedrock";
+import { Output, generateText } from "ai";
+import { Effect } from "effect";
+import { z } from "zod";
+
+import { CATEGORIES, DataFetchError, IntentPair, ORDERS } from "../types";
+import { ResolveError } from "../types";
 import { SYSTEM_PROMPT_CAT, SYSTEM_PROMPT_POL } from "./prompts";
+import { resolveIntentPair } from "./resolve_intent";
 
 const RETRY_POLICY = { times: 5 };
 const LLM_MODEL = "moonshotai.kimi-k2.5";
@@ -19,7 +21,7 @@ const getCategory = (prompt: string) =>
         system: SYSTEM_PROMPT_CAT,
         output: Output.object({
           schema: z.object({
-            category: z.enum(INTENTS),
+            category: z.enum(CATEGORIES),
           }),
         }),
         messages: [
@@ -71,7 +73,7 @@ const getPolicy = (prompt: string) =>
         system: SYSTEM_PROMPT_POL,
         output: Output.object({
           schema: z.object({
-            policy: z.enum(INTENT_POLICIES),
+            policy: z.enum(ORDERS),
           }),
         }),
         messages: [

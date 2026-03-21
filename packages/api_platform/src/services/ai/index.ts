@@ -307,18 +307,25 @@ const callLanguageModelStreaming = (
     const streamResult = yield* Effect.either(
       Effect.tryPromise({
         try: async (abortSignal) => {
+          // FIXME: very hack-y; find a diff way to error
           const stream = streamText({
             ...generateTextOptions,
             abortSignal,
             ...(tools ? { tools } : {}),
             ...(toolChoice ? { toolChoice } : {}),
             ...(providerOptions ? { providerOptions } : {}),
+            maxOutputTokens: 1,
           });
-
-          // FIXME: very hack-y; find a diff way to error
           await stream.text;
 
-          return Promise.resolve(stream);
+          const stream2 = streamText({
+            ...generateTextOptions,
+            abortSignal,
+            ...(tools ? { tools } : {}),
+            ...(toolChoice ? { toolChoice } : {}),
+            ...(providerOptions ? { providerOptions } : {}),
+          });
+          return Promise.resolve(stream2);
         },
         catch(error) {
           if (error instanceof APICallError) return error;

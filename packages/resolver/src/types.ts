@@ -20,7 +20,7 @@ export type Intent = Schema.Schema.Type<typeof Intent>;
 export const INTENTS: ReadonlyArray<Intent> = Intent.literals;
 
 /** All intents except "auto", used for data fetching categories. */
-export const CATEGORIES: ReadonlyArray<Intent> = INTENTS.filter(
+export const CATEGORIES: ReadonlyArray<Exclude<Intent, "auto">> = INTENTS.filter(
   (i): i is Exclude<Intent, "auto"> => i !== "auto",
 );
 
@@ -38,7 +38,7 @@ export type IntentPolicy = Schema.Schema.Type<typeof IntentPolicy>;
 export const INTENT_POLICIES: ReadonlyArray<IntentPolicy> = IntentPolicy.literals;
 
 /** All intents except "auto", used for data fetching orders. */
-export const ORDERS: ReadonlyArray<IntentPolicy> = INTENT_POLICIES.filter(
+export const ORDERS: ReadonlyArray<Exclude<IntentPolicy, "auto">> = INTENT_POLICIES.filter(
   (i): i is Exclude<IntentPolicy, "auto"> => i !== "auto",
 );
 
