@@ -1,4 +1,3 @@
-import type { TextStreamPart } from "ai";
 import type { CreateResponseBody, ResponseResource, StreamingEvent } from "common";
 import type { ProviderModelPair } from "resolver/src/types";
 
@@ -67,7 +66,7 @@ export const createStream = (
   analysisTarget: string,
 ) =>
   Effect.gen(function* () {
-    const { stream, result, resolvedModelAndProvider } = yield* AIService.executeStream(
+    const { result, resolvedModelAndProvider } = yield* AIService.executeStream(
       req,
       userId,
       userProviders,
@@ -115,9 +114,8 @@ export const createStream = (
     };
 
     const { events, getAccumulatedState } = convertAISdkStreamTextToStreamingEvents(
-      stream as AsyncIterable<TextStreamPart<Record<string, never>>>,
-      responseId,
-      2, // Start after lifecycle events (response.created=0, response.in_progress=1)
+      result.fullStream,
+      2,
     );
 
     let finalResponse: ResponseResource = skeletonResponse;
