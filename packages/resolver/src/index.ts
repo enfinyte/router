@@ -29,7 +29,7 @@ export class ResolverService extends Context.Tag("ResolverService")<
     resolve: (
       options: CreateResponseBody,
       userProviders: string[],
-      analysisTarget: string | undefined,
+      analysisTarget: string,
     ) => Effect.Effect<
       {
         readonly model: string;

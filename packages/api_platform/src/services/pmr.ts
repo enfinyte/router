@@ -1,6 +1,7 @@
+import type { CreateResponseBody } from "common";
+
 import { Effect, Data } from "effect";
 import { ResolverService } from "resolver";
-import type { CreateResponseBody } from "common";
 
 export class PMRError extends Data.TaggedError("PMRError")<{
   cause?: unknown;
@@ -10,7 +11,7 @@ export class PMRError extends Data.TaggedError("PMRError")<{
 export const resolve = (
   createResponseBody: CreateResponseBody,
   userProviders: string[],
-  analysisTarget: string | undefined = undefined,
+  analysisTarget: string,
 ) =>
   Effect.gen(function* () {
     const resolverService = yield* ResolverService;

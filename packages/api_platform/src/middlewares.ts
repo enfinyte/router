@@ -1,9 +1,11 @@
+import type { ProviderModelPair } from "resolver";
+
 import { HttpMiddleware, HttpServerRequest } from "@effect/platform";
-import { Data, Effect, Layer } from "effect";
 import { BadRequest, Unauthorized } from "@effect/platform/HttpApiError";
+import { Data, Effect, Layer } from "effect";
+
 import { AppConfig } from "./services/config";
 import { RequestContext } from "./services/request-context";
-import { parseProviderModelImpl } from "resolver/src/parser";
 
 export const withProperContentTypeValidation = () =>
   HttpMiddleware.make((app) =>
@@ -24,10 +26,11 @@ class ApiKeyVerificationError extends Data.TaggedError("ApiKeyVerificationError"
 
 interface VerifyResponse {
   valid: boolean;
-  userId: string;
+  userId?: string;
   providers?: string[];
-  fallbackProviderModelPair?: string;
+  fallbackProviderModelPair?: ProviderModelPair;
   analysisTarget?: string;
+  error?: string;
 }
 
 const verifyApiKey = (backendUrl: string, apiKey: string) =>
@@ -72,12 +75,10 @@ export const withAuthorizationValidation = () =>
       if (!verifyResult.valid || !verifyResult.userId)
         return yield* Effect.fail(new Unauthorized());
 
-      const userId = verifyResult.userId;
-      const userProviders = verifyResult.providers ?? [];
-      const fallbackProviderModelPair = yield* parseProviderModelImpl(
-        verifyResult.fallbackProviderModelPair!,
-      );
-      const analysisTarget = verifyResult.analysisTarget;
+      const userId = verifyResult.userId!;
+      const userProviders = verifyResult.providers!;
+      const fallbackProviderModelPair = verifyResult.fallbackProviderModelPair!;
+      const analysisTarget = verifyResult.analysisTarget!;
 
       return yield* Effect.provide(
         app,

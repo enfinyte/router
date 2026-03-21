@@ -1,10 +1,10 @@
-import { Effect, Data, Stream } from "effect";
-import type { CreateResponseBody, ResponseResource, StreamingEvent } from "common";
 import type { TextStreamPart } from "ai";
+import type { CreateResponseBody, ResponseResource, StreamingEvent } from "common";
+import type { ProviderModelPair } from "resolver/src/types";
+
+import { Effect, Data, Stream } from "effect";
+
 import * as AIService from "../ai";
-import * as DatabaseService from "../database/postgres";
-import { convertAISdkStreamTextToStreamingEvents } from "../ai/convertAISdkStreamTextToStreamingEvents";
-import { encodeSSEEvent, encodeSSEDone, encodeSSEToUint8Array } from "../ai/sse";
 import {
   DEFAULT_BACKGROUND,
   DEFAULT_FREQUENCY_PENALTY,
@@ -17,12 +17,14 @@ import {
   DEFAULT_TOP_P,
   DEFAULT_TRUNCATION,
 } from "../ai/consts";
+import { convertAISdkStreamTextToStreamingEvents } from "../ai/convertAISdkStreamTextToStreamingEvents";
 import {
   resolveTools,
   resolveToolChoice,
   resolveTextFormat,
 } from "../ai/createResponseBodyFieldsToResponseResourceFieldsResolvers";
-import type { ProviderModelPair } from "resolver/src/types";
+import { encodeSSEEvent, encodeSSEDone, encodeSSEToUint8Array } from "../ai/sse";
+import * as DatabaseService from "../database/postgres";
 
 export class ResponseServiceError extends Data.TaggedError("ResponseServiceError")<{
   cause?: unknown;
@@ -33,8 +35,8 @@ export const create = (
   req: CreateResponseBody,
   userId: string,
   userProviders: readonly string[],
-  fallbackProviderModelPair: ProviderModelPair | undefined,
-  analysisTarget: string | undefined,
+  fallbackProviderModelPair: ProviderModelPair,
+  analysisTarget: string,
 ) =>
   Effect.gen(function* () {
     const responseResource = yield* AIService.execute(
@@ -61,8 +63,8 @@ export const createStream = (
   req: CreateResponseBody,
   userId: string,
   userProviders: readonly string[],
-  fallbackProviderModelPair: ProviderModelPair | undefined,
-  analysisTarget: string | undefined,
+  fallbackProviderModelPair: ProviderModelPair,
+  analysisTarget: string,
 ) =>
   Effect.gen(function* () {
     const { stream, result, resolvedModelAndProvider } = yield* AIService.executeStream(

@@ -194,7 +194,7 @@ const resolveWith = (prompt: string, pair: IntentPair, userProviders: string[]) 
  */
 const extractAnalysisText = (
   options: CreateResponseBody,
-  analysisTarget: string | undefined,
+  analysisTarget: string,
 ): { text: string; source: string } | null => {
   if (analysisTarget === "per_system_prompt") {
     // System prompt mode: look for system/developer messages first, then instructions
@@ -224,11 +224,7 @@ const extractAnalysisText = (
 };
 
 export const resolveAuto =
-  (
-    options: CreateResponseBody,
-    userProviders: string[],
-    analysisTarget: string | undefined = undefined,
-  ) =>
+  (options: CreateResponseBody, userProviders: string[], analysisTarget: string) =>
   (pair: IntentPair) =>
     Effect.gen(function* () {
       const extracted = extractAnalysisText(options, analysisTarget);
@@ -256,7 +252,7 @@ export const resolveAuto =
             service: "Resolver",
             operation: "resolveAuto",
             inputType: typeof options.input,
-            analysisTarget: analysisTarget ?? "per_prompt",
+            analysisTarget: analysisTarget,
           }),
         );
 
