@@ -1,10 +1,15 @@
-import { Effect, Data, Either } from "effect";
 import type { CreateResponseBody, ResolvedResponse, Providers } from "common";
-import * as pmrService from "../pmr";
-import * as CredentialsService from "../credentials";
-import { buildLanguageModelFromResolvedModelAndProvider } from "./buildLanguageModelFromResolvedModelAndProvider";
+import type { ProviderModelPair } from "resolver/src/types";
+
+import { AISDKError, type TextStreamPart, type ToolSet } from "ai";
 import { APICallError, generateText, streamText } from "ai";
-import type { TextStreamPart, ToolSet } from "ai";
+import { Effect, Data, Either } from "effect";
+
+import * as CredentialsService from "../credentials";
+import * as pmrService from "../pmr";
+import { buildLanguageModelFromResolvedModelAndProvider } from "./buildLanguageModelFromResolvedModelAndProvider";
+import { convertAISdkGenerateTextResultToResponseResource } from "./convertAISdkGenerateTextResultToResponseResource";
+import { convertAPICallErrorToResponseResource } from "./convertAPICallErrorToResponseResource";
 import {
   convertCreateResponseBodyInputFieldToCallSettingsMessages,
   convertCreateResponseBodyToolsToCallSettingsTools,
@@ -12,9 +17,6 @@ import {
   convertCreateResponseBodyTextFormatToCallSettingsOutput,
   convertCreateResponseBodyReasoningToProviderOptions,
 } from "./responseFieldsToAISDKGenerateTextCallSettingsAdapters";
-import { convertAPICallErrorToResponseResource } from "./convertAPICallErrorToResponseResource";
-import { convertAISdkGenerateTextResultToResponseResource } from "./convertAISdkGenerateTextResultToResponseResource";
-import type { ProviderModelPair } from "resolver/src/types";
 
 export class AIServiceError extends Data.TaggedError("AIServiceError")<{
   cause?: unknown;
@@ -115,7 +117,17 @@ export const executeStream = (
 
     for (const resolvedModelAndProvider of resolvedModelAndProviders) {
       const result = yield* Effect.either(
-        callLanguageModelStreaming(userId, createResponseBody, resolvedModelAndProvider),
+        Effect.gen(function* () {
+          const callResult = yield* callLanguageModelStreaming(
+            userId,
+            createResponseBody,
+            resolvedModelAndProvider,
+          );
+
+          const probedFullStream = yield* probeStream(callResult.result);
+
+          return { ...callResult, result: { ...callResult.result, fullStream: probedFullStream } };
+        }),
       );
 
       if (Either.isRight(result)) {
@@ -304,81 +316,72 @@ const callLanguageModelStreaming = (
       }),
     };
 
-    const streamResult = yield* Effect.either(
-      Effect.tryPromise<StreamResult, AIServiceError | APICallError>({
-        try: (abortSignal) =>
-          Promise.resolve(
-            streamText({
-              ...generateTextOptions,
-              abortSignal,
-              ...(tools ? { tools } : {}),
-              ...(toolChoice ? { toolChoice } : {}),
-              ...(providerOptions ? { providerOptions } : {}),
-            }),
-          ),
-        catch(error) {
-          if (error instanceof APICallError) return error;
-          if (error instanceof AIServiceError) return error;
-          return new AIServiceError({
-            cause: error,
-            message: "Error while calling streamText",
-          });
-        },
-      }),
-    );
-
-    if (Either.isLeft(streamResult)) {
-      const errorValue = streamResult.left;
-
-      if (errorValue instanceof AIServiceError) {
-        return yield* errorValue;
-      }
-
-      return yield* new AIServiceError({
-        cause: errorValue,
-        message: "Error while calling streamText",
-      });
-    }
-
-    const streamIterator = streamResult.right.fullStream[Symbol.asyncIterator]();
-    const firstChunkResult = yield* Effect.either(
-      Effect.tryPromise<IteratorResult<TextStreamPart<ToolSet>>, AIServiceError>({
-        try: () => streamIterator.next(),
-        catch(error) {
-          if (error instanceof AIServiceError) return error;
-          return new AIServiceError({
-            cause: error,
-            message: "Error while reading first stream chunk",
-          });
-        },
-      }),
-    );
-
-    if (Either.isLeft(firstChunkResult)) {
-      return yield* firstChunkResult.left;
-    }
-
-    const firstChunk = firstChunkResult.right;
-
-    if (!firstChunk.done && firstChunk.value.type === "error") {
-      return yield* new AIServiceError({
-        cause: firstChunk.value,
-        message: "Error while reading first stream chunk",
-      });
-    }
-
-    async function* reconstitutedStream() {
-      if (!firstChunk.done) {
-        yield firstChunk.value;
-      }
-      yield* {
-        [Symbol.asyncIterator]: () => streamIterator,
-      };
-    }
+    const stream = yield* Effect.try({
+      try: () =>
+        streamText({
+          ...generateTextOptions,
+          ...(tools ? { tools } : {}),
+          ...(toolChoice ? { toolChoice } : {}),
+          ...(providerOptions ? { providerOptions } : {}),
+        }),
+      catch(error) {
+        if (error instanceof AISDKError) return error;
+        return new AIServiceError({
+          cause: error,
+          message: "Error while calling streamText",
+        });
+      },
+    });
 
     return {
-      stream: reconstitutedStream(),
-      result: streamResult.right,
+      result: stream,
       resolvedModelAndProvider,
     };
+  });
+
+const SDK_LIFECYCLE_EVENTS = new Set(["start", "finish"]);
+
+const isProviderContent = (part: TextStreamPart<ToolSet>) =>
+  !SDK_LIFECYCLE_EVENTS.has(part.type) && part.type !== "error";
+
+const rejectOnResponseError = (streamResult: StreamResult) =>
+  new Promise<never>((_, reject) => {
+    streamResult.response.then(() => {}, reject);
+  });
+
+const probeStream = (streamResult: StreamResult) =>
+  Effect.tryPromise({
+    try: async () => {
+      const responseErrorSignal = rejectOnResponseError(streamResult);
+      const iterator = streamResult.fullStream[Symbol.asyncIterator]();
+      const buffered: TextStreamPart<ToolSet>[] = [];
+
+      while (true) {
+        const chunk = await Promise.race([iterator.next(), responseErrorSignal]);
+
+        if (chunk.done) {
+          throw new Error("Stream completed without producing any content");
+        }
+
+        buffered.push(chunk.value);
+
+        if (chunk.value.type === "error") {
+          throw (chunk.value as { error?: unknown }).error ??
+            new Error("Stream produced an error event");
+        }
+
+        if (isProviderContent(chunk.value)) {
+          break;
+        }
+      }
+
+      return (async function* () {
+        yield* buffered;
+        for await (const part of { [Symbol.asyncIterator]: () => iterator }) {
+          yield part;
+        }
+      })();
+    },
+    catch: (error) =>
+      new AIServiceError({ cause: error, message: "Stream failed on first chunk" }),
   });
