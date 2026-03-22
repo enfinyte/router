@@ -148,7 +148,7 @@ export const createStream = (
     const completionStream = Stream.fromEffect(
       Effect.tryPromise({
         try: async () => {
-          const totalUsage = await result.totalUsage.catch(() => null);
+          const totalUsage = await Promise.resolve(result.totalUsage).catch(() => null);
           const state = getAccumulatedState();
 
           finalResponse = {
