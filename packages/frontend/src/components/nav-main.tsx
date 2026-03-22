@@ -7,6 +7,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import Link from "next/link";
 
@@ -19,24 +20,32 @@ export function NavMain({
     icon?: Icon;
   }[];
 }) {
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const closeSidebar = () => {
+    if (isMobile) setOpenMobile(false);
+  };
+
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
         <SidebarMenu>
           <SidebarMenuItem className="flex items-center gap-2">
-            <SidebarMenuButton
-              tooltip="Connect a New Provider"
-              className="cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear"
-            >
-              <IconPlus />
-              <span>Connect a New Provider</span>
-            </SidebarMenuButton>
+            <Link href="/connections" onClick={closeSidebar}>
+              <SidebarMenuButton
+                tooltip="Connect a New Provider"
+                className="cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear"
+              >
+                <IconPlus />
+                <span>Connect a New Provider</span>
+              </SidebarMenuButton>
+            </Link>
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
-              <Link href={item.url}>
+              <Link href={item.url} onClick={closeSidebar}>
                 <SidebarMenuButton tooltip={item.title} className="cursor-pointer">
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>

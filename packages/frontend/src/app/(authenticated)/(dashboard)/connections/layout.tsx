@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { SiteHeader } from "@/components/site-header";
 
 export const metadata: Metadata = {
-  title: "Connections | Enfinyte Router",
+  title: "Providers | Enfinyte Router",
   description:
-    "Configure and manage your AI provider connections for the Enfinyte Router.",
+    "Configure and manage your AI providers for the Enfinyte Router.",
 };
 
 export default function ConnectionsLayout({
@@ -14,7 +14,7 @@ export default function ConnectionsLayout({
 }>) {
   return (
     <>
-      <SiteHeader title="Connections" />
+      <SiteHeader title="Providers" />
       {children}
     </>
   );

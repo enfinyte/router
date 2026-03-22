@@ -13,9 +13,9 @@ export default function PlaygroundLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <>
+    <div className="flex flex-col h-screen max-h-[100dvh] md:max-h-[calc(100dvh-1rem)] overflow-hidden">
       <SiteHeader title="Playground" />
       {children}
-    </>
+    </div>
   );
 }

@@ -3,9 +3,10 @@
 import { RotateCcw, PanelRightOpen, PanelRightClose } from "lucide-react";
 import { useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import { useLocalStorage } from "usehooks-ts";
+import { useLocalStorage, useMediaQuery } from "usehooks-ts";
 
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   sendStreamingMessage,
   type PlaygroundMessage,
@@ -25,7 +26,8 @@ export function ChatPlayground() {
   const [apiKey, setApiKey] = useLocalStorage("enfinyte-playground-api-key", "");
   const [isStreaming, setIsStreaming] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState<PlaygroundSettings>({});
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const [settings, setSettings] = useLocalStorage<PlaygroundSettings>("enfinyte-playground-settings", {});
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastResponseIdRef = useRef<string | undefined>(undefined);
@@ -233,7 +235,7 @@ export function ChatPlayground() {
   return (
     <div className="flex flex-1 h-full overflow-hidden">
       <div className="flex flex-1 flex-col min-w-0">
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-border flex-wrap">
+        <div className="flex items-center gap-2 px-3 sm:px-4 py-2 border-b border-border bg-background flex-wrap shrink-0">
           <ModelSelector value={model} onChange={setModel} />
 
           <div className="h-5 w-px bg-border mx-1 hidden sm:block" />
@@ -277,10 +279,23 @@ export function ChatPlayground() {
         />
       </div>
 
-      {showSettings && (
-        <div className="w-[280px] shrink-0 hidden md:flex">
-          <SettingsPanel settings={settings} onChange={setSettings} />
+      {isDesktop ? (
+        <div
+          className={cn(
+            "shrink-0 overflow-hidden transition-[width] duration-200 ease-in-out",
+            showSettings ? "w-[280px]" : "w-0",
+          )}
+        >
+          <div className="w-[280px] shrink-0 h-full">
+            <SettingsPanel settings={settings} onChange={setSettings} />
+          </div>
         </div>
+      ) : (
+        <Sheet open={showSettings} onOpenChange={setShowSettings}>
+          <SheetContent side="right" className="w-[300px] p-0" showCloseButton={false}>
+            <SettingsPanel settings={settings} onChange={setSettings} />
+          </SheetContent>
+        </Sheet>
       )}
     </div>
   );

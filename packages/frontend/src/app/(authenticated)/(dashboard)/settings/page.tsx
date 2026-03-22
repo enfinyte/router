@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useGetUser } from "@/lib/api/user";
 import { useGetModels } from "@/lib/api/models";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Crosshair, Check, Pencil, ScanSearch } from "lucide-react";
+import { Loader2, Crosshair, Check, Pencil, ScanSearch, Search } from "lucide-react";
 import { PROVIDERS } from "@/lib/providers";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -27,14 +27,6 @@ const ANALYSIS_TARGET_OPTIONS = [
   },
 ] as const;
 
-interface ModelOption {
-  provider: string;
-  providerName: string;
-  providerIcon: React.ReactNode;
-  model: string;
-  value: string;
-}
-
 export default function SettingsPage() {
   const queryClient = useQueryClient();
 
@@ -45,40 +37,11 @@ export default function SettingsPage() {
   const [selectedFallback, setSelectedFallback] = useState<string | null>(null);
   const [isSavingFallback, setIsSavingFallback] = useState(false);
 
+  const [fallbackSearch, setFallbackSearch] = useState("");
+
   const [isEditingAnalysisTarget, setIsEditingAnalysisTarget] = useState(false);
   const [selectedAnalysisTarget, setSelectedAnalysisTarget] = useState<string | null>(null);
   const [isSavingAnalysisTarget, setIsSavingAnalysisTarget] = useState(false);
-
-  const fallbackModelOptions = useMemo<ModelOption[]>(() => {
-    if (!modelsData?.models) return [];
-    const options: ModelOption[] = [];
-    for (const [providerId, models] of Object.entries(modelsData.models)) {
-      const providerConfig = PROVIDERS.find((p) => p.id === providerId);
-      const providerName = providerConfig?.name ?? providerId;
-      const providerIcon = providerConfig?.icon ?? null;
-      for (const model of models) {
-        options.push({
-          provider: providerId,
-          providerName,
-          providerIcon,
-          model,
-          value: `${providerId}/${model}`,
-        });
-      }
-    }
-    return options;
-  }, [modelsData]);
-
-  const fallbackGroupedOptions = useMemo(() => {
-    const groups: Record<string, ModelOption[]> = {};
-    for (const option of fallbackModelOptions) {
-      if (!groups[option.provider]) {
-        groups[option.provider] = [];
-      }
-      groups[option.provider]!.push(option);
-    }
-    return groups;
-  }, [fallbackModelOptions]);
 
   const currentFallbackDisplay = useMemo(() => {
     const pair = user?.fallbackProviderModelPair;
@@ -90,6 +53,46 @@ export default function SettingsPage() {
     const provider = PROVIDERS.find((p) => p.id === providerId);
     return { provider: provider?.name ?? providerId, model, value: pair, icon: provider?.icon };
   }, [user?.fallbackProviderModelPair]);
+
+  const fallbackModelOptions = useMemo(() => {
+    if (!modelsData?.models) return [];
+    const options: { provider: string; providerName: string; providerIcon: React.ReactNode; model: string; value: string }[] = [];
+    for (const [providerId, models] of Object.entries(modelsData.models)) {
+      const providerConfig = PROVIDERS.find((p) => p.id === providerId);
+      for (const model of models) {
+        options.push({
+          provider: providerId,
+          providerName: providerConfig?.name ?? providerId,
+          providerIcon: providerConfig?.icon ?? null,
+          model,
+          value: `${providerId}/${model}`,
+        });
+      }
+    }
+    return options;
+  }, [modelsData]);
+
+  const filteredFallbackOptions = useMemo(() => {
+    if (!fallbackSearch.trim()) return fallbackModelOptions;
+    const q = fallbackSearch.toLowerCase();
+    return fallbackModelOptions.filter(
+      (o) =>
+        o.model.toLowerCase().includes(q) ||
+        o.providerName.toLowerCase().includes(q) ||
+        o.value.toLowerCase().includes(q),
+    );
+  }, [fallbackModelOptions, fallbackSearch]);
+
+  const fallbackGroupedOptions = useMemo(() => {
+    const groups: Record<string, typeof fallbackModelOptions> = {};
+    for (const option of filteredFallbackOptions) {
+      if (!groups[option.provider]) {
+        groups[option.provider] = [];
+      }
+      groups[option.provider]!.push(option);
+    }
+    return groups;
+  }, [filteredFallbackOptions]);
 
   const handleSaveFallback = useCallback(async () => {
     if (!selectedFallback) return;
@@ -132,7 +135,7 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6 w-full max-w-3xl mx-auto">
+      <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
         <div className="space-y-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -145,7 +148,7 @@ export default function SettingsPage() {
             </p>
           </div>
 
-          <div className="rounded-lg border border-border bg-card p-6">
+          <div className="rounded-lg border border-border bg-card p-4 sm:p-6">
             {isLoading ? (
               <div className="space-y-3">
                 <Skeleton className="h-5 w-32" />
@@ -183,6 +186,17 @@ export default function SettingsPage() {
               </div>
             ) : (
               <div className="flex flex-col gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={fallbackSearch}
+                    onChange={(e) => setFallbackSearch(e.target.value)}
+                    placeholder="Search models..."
+                    className="w-full rounded-lg border border-border bg-background pl-9 pr-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-ring/50 focus:ring-1 focus:ring-ring/20 transition-all"
+                  />
+                </div>
+
                 {Object.entries(fallbackGroupedOptions).map(([providerId, options]) => {
                   const first = options[0];
                   if (!first) return null;
@@ -200,7 +214,7 @@ export default function SettingsPage() {
                           ({options.length} models)
                         </span>
                       </div>
-                      <div className="divide-y divide-border max-h-[300px] overflow-y-auto">
+                      <div className="divide-y divide-border max-h-[200px] sm:max-h-[300px] overflow-y-auto">
                         {options.map((option) => {
                           const isSelected = selectedFallback === option.value;
                           return (
@@ -233,6 +247,14 @@ export default function SettingsPage() {
                   );
                 })}
 
+                {fallbackModelOptions.length > 0 && filteredFallbackOptions.length === 0 && (
+                  <div className="rounded-lg border border-border px-5 py-8 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No models match &ldquo;{fallbackSearch}&rdquo;
+                    </p>
+                  </div>
+                )}
+
                 {fallbackModelOptions.length === 0 && (
                   <p className="text-sm text-muted-foreground italic">
                     No connected providers available. Connect a provider first.
@@ -246,6 +268,7 @@ export default function SettingsPage() {
                     onClick={() => {
                       setIsEditingFallback(false);
                       setSelectedFallback(null);
+                      setFallbackSearch("");
                     }}
                     className="cursor-pointer"
                   >
@@ -279,14 +302,14 @@ export default function SettingsPage() {
             </p>
           </div>
 
-          <div className="rounded-lg border border-border bg-card p-6">
+          <div className="rounded-lg border border-border bg-card p-4 sm:p-6">
             {isLoading ? (
               <div className="space-y-3">
                 <Skeleton className="h-5 w-48" />
                 <Skeleton className="h-9 w-full" />
               </div>
             ) : !isEditingAnalysisTarget ? (
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-col gap-0.5">
                   <span className="text-sm font-medium">{currentAnalysisTarget.label}</span>
                   <span className="text-xs text-muted-foreground">
@@ -300,7 +323,7 @@ export default function SettingsPage() {
                     setSelectedAnalysisTarget(user?.analysisTarget ?? "per_prompt");
                     setIsEditingAnalysisTarget(true);
                   }}
-                  className="gap-1.5 cursor-pointer shrink-0 ml-4"
+                  className="gap-1.5 cursor-pointer shrink-0 self-start"
                 >
                   <Pencil className="h-3.5 w-3.5" />
                   Change

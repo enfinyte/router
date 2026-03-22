@@ -51,7 +51,7 @@ export function MessageInput({
   );
 
   return (
-    <div className="border-t border-border bg-background px-4 py-3">
+    <div className="border-t border-border bg-background px-3 sm:px-4 py-3">
       <div className="mx-auto max-w-3xl">
         <div
           className={cn(

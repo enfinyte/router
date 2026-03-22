@@ -38,7 +38,7 @@ const data = {
       icon: IconMessageChatbot,
     },
     {
-      title: "Connections",
+      title: "Providers",
       url: "/connections",
       icon: IconPlug,
     },

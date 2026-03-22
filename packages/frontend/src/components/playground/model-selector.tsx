@@ -175,7 +175,7 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
               variant="outline"
               role="combobox"
               aria-expanded={comboboxOpen}
-              className="w-[260px] h-8 justify-between text-xs font-normal cursor-pointer"
+              className="w-full sm:w-[260px] h-8 justify-between text-xs font-normal cursor-pointer"
             >
               <span className="truncate">
                 {selectedModel ? selectedModel.model : "Select a model..."}
@@ -183,7 +183,7 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
               <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[300px] p-0" align="start">
+          <PopoverContent className="w-[--radix-popover-trigger-width] sm:w-[300px] p-0" align="start">
             <Command>
               <CommandInput placeholder="Search models..." className="text-xs h-9" />
               <CommandList>
@@ -237,7 +237,7 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
             onChange(`auto/${p}`);
           }}
         >
-          <SelectTrigger className="w-[180px] h-8 text-xs">
+          <SelectTrigger className="w-full sm:w-[180px] h-8 text-xs">
             <SelectValue placeholder="Select policy" />
           </SelectTrigger>
           <SelectContent>
@@ -263,7 +263,7 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
               onChange(`${i}/${intentPolicy}`);
             }}
           >
-            <SelectTrigger className="w-[140px] h-8 text-xs">
+            <SelectTrigger className="w-full sm:w-[140px] h-8 text-xs">
               <SelectValue placeholder="Intent" />
             </SelectTrigger>
             <SelectContent>
@@ -282,7 +282,7 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
               onChange(`${intent}/${p}`);
             }}
           >
-            <SelectTrigger className="w-[160px] h-8 text-xs">
+            <SelectTrigger className="w-full sm:w-[160px] h-8 text-xs">
               <SelectValue placeholder="Policy" />
             </SelectTrigger>
             <SelectContent>

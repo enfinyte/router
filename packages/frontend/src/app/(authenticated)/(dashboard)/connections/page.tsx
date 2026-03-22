@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Eye, EyeOff, Loader2, Power, PowerOff } from "lucide-react";
+import { ChevronDown, ChevronUp, Eye, EyeOff, Loader2, Power, PowerOff, Search } from "lucide-react";
 import { PROVIDERS } from "@/lib/providers";
 import { useGetAllSecrets, useAddSecret, useToggleProvider } from "@/lib/api/secrets";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ export default function ConnectionsPage() {
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
   const [showSecrets, setShowSecrets] = useState<Record<string, Record<string, boolean>>>({});
   const [savingProviderId, setSavingProviderId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const credentials = useMemo(() => {
     const result: Record<string, Record<string, string>> = {};
@@ -112,16 +113,38 @@ export default function ConnectionsPage() {
     );
   };
 
+  const filteredProviders = useMemo(() => {
+    if (!search.trim()) return PROVIDERS;
+    const q = search.toLowerCase();
+    return PROVIDERS.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.description.toLowerCase().includes(q) ||
+        p.models.some((m) => m.toLowerCase().includes(q)),
+    );
+  }, [search]);
+
   return (
     <>
-      <div className="flex flex-1 flex-col">
-        <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold tracking-tight">Manage Providers</h2>
-            <p className="text-sm text-muted-foreground">
-              Configure and manage your AI provider connections. Toggle providers on or off to
-              control routing.
-            </p>
+      <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
+        <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6 overflow-y-auto overflow-x-hidden">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold tracking-tight">Manage Providers</h2>
+              <p className="text-sm text-muted-foreground">
+                Configure and manage your AI provider connections. Toggle providers on or off to
+                control routing.
+              </p>
+            </div>
+            <div className="relative w-full sm:w-64 shrink-0">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search providers..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-9 text-sm"
+              />
+            </div>
           </div>
 
           <div className="grid gap-4">
@@ -138,7 +161,16 @@ export default function ConnectionsPage() {
                     </div>
                   </div>
                 ))
-              : PROVIDERS.map((provider) => {
+              : filteredProviders.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-lg border border-border bg-card">
+                    <Search className="h-8 w-8 text-muted-foreground mb-3" />
+                    <h3 className="text-sm font-semibold">Provider not available</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Contact the devs to request support for this provider.
+                    </p>
+                  </div>
+                )
+              : filteredProviders.map((provider) => {
                   const secretData = secretsData?.providers?.[provider.id];
                   const isConfigured = !!secretData && secretData.fields?.length > 0;
                   const isEnabled = secretData?.enabled ?? false;
@@ -151,7 +183,7 @@ export default function ConnectionsPage() {
                     <div
                       key={provider.id}
                       className={cn(
-                        "group rounded-lg border border-border bg-card transition-all duration-200",
+                        "group rounded-lg border border-border bg-card transition-all duration-200 min-w-0",
                         isExpanded && "border-muted-foreground/30",
                         isConfigured && isEnabled && "border-primary/20",
                       )}
@@ -159,7 +191,7 @@ export default function ConnectionsPage() {
                       <button
                         type="button"
                         onClick={() => toggleCardExpansion(provider.id)}
-                        className="flex w-full cursor-pointer items-center gap-4 px-5 py-4 text-left focus:outline-none"
+                        className="flex w-full cursor-pointer items-center gap-3 sm:gap-4 px-3 sm:px-5 py-4 text-left focus:outline-none overflow-hidden"
                       >
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent text-foreground">
                           {provider.icon}
@@ -197,7 +229,7 @@ export default function ConnectionsPage() {
                           </p>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                           <div className="hidden sm:flex items-center gap-1">
                             {provider.models.slice(0, 3).map((model) => (
                               <span
@@ -256,7 +288,7 @@ export default function ConnectionsPage() {
                       </button>
 
                       {isExpanded && (
-                        <div className="border-t border-border px-5 pb-5 pt-4 animate-in slide-in-from-top-2 duration-200">
+                        <div className="border-t border-border px-3 sm:px-5 pb-5 pt-4 animate-in slide-in-from-top-2 duration-200">
                           {!isConfigured && (
                             <div className="mb-4 rounded-md bg-accent/50 p-3 text-xs text-muted-foreground">
                               Set up credentials to start routing through {provider.name}.
@@ -287,7 +319,7 @@ export default function ConnectionsPage() {
                                     onChange={(e) =>
                                       handleInputChange(provider.id, field.key, e.target.value)
                                     }
-                                    className="bg-background border-border pr-10 font-mono text-xs h-9 placeholder:font-sans"
+                                    className="bg-background border-border pr-10 font-mono text-xs h-9 placeholder:font-sans w-full min-w-0"
                                   />
                                   {field.type === "password" && (
                                     <button
