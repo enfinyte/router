@@ -4,7 +4,7 @@ import { useState } from "react";
 import { QueryProvider } from "./query-provider";
 import { ThemeProvider } from "next-themes";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "./ui/tooltip";
 
 export default function Providers({

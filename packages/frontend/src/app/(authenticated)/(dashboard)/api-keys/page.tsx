@@ -14,6 +14,7 @@ import {
   PowerOff,
   AlertTriangle,
 } from "lucide-react";
+import { Search } from "lucide-react";
 import { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 
@@ -119,13 +120,21 @@ export default function ApiKeysPage() {
     id: string;
     name: string | null;
   } | null>(null);
+  const [search, setSearch] = useState("");
 
   const sortedKeys = useMemo(() => {
     if (!data) return [];
-    return [...data.apiKeys].toSorted(
+    const sorted = [...data.apiKeys].toSorted(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
-  }, [data]);
+    if (!search.trim()) return sorted;
+    const q = search.toLowerCase();
+    return sorted.filter(
+      (k) =>
+        (k.name ?? "").toLowerCase().includes(q) ||
+        (k.start ?? k.prefix ?? "").toLowerCase().includes(q),
+    );
+  }, [data, search]);
 
   const resetCreateDialog = useCallback(() => {
     setKeyName("");
@@ -204,13 +213,24 @@ export default function ApiKeysPage() {
     <>
       <div className="flex flex-1 flex-col">
         <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div className="space-y-1">
               <h2 className="text-lg font-semibold tracking-tight">Manage API Keys</h2>
               <p className="text-sm text-muted-foreground">
                 Create and manage API keys to authenticate requests to the Enfinyte Router.
               </p>
             </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="relative w-full sm:w-56">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search keys..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 h-9 text-sm"
+                />
+              </div>
 
             <Dialog open={isCreateOpen} onOpenChange={handleCreateOpenChange}>
               <DialogTrigger asChild>
@@ -342,9 +362,10 @@ export default function ApiKeysPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
 
-          <div className="rounded-lg border border-border bg-card">
+          <div className="rounded-lg border border-border bg-card overflow-x-auto">
             {isLoading ? (
               <Table className="table-fixed">
                 <TableHeader>
@@ -411,16 +432,16 @@ export default function ApiKeysPage() {
                 </Button>
               </div>
             ) : (
-              <Table className="table-fixed">
+              <Table className="md:table-fixed">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="pl-4 w-[25%]">Name</TableHead>
-                    <TableHead className="w-[15%]">Key Preview</TableHead>
-                    <TableHead className="w-[10%]">Status</TableHead>
-                    <TableHead className="w-[14%]">Created</TableHead>
-                    <TableHead className="w-[14%]">Last Used</TableHead>
-                    <TableHead className="w-[10%]">Expires</TableHead>
-                    <TableHead className="text-right pr-4 w-[12%]">Actions</TableHead>
+                    <TableHead className="pl-4">Name</TableHead>
+                    <TableHead className="hidden sm:table-cell">Key Preview</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="hidden lg:table-cell">Created</TableHead>
+                    <TableHead className="hidden lg:table-cell">Last Used</TableHead>
+                    <TableHead className="hidden md:table-cell">Expires</TableHead>
+                    <TableHead className="text-right pr-4">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -433,10 +454,10 @@ export default function ApiKeysPage() {
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-accent text-foreground">
                               <KeyRound className="h-4 w-4" />
                             </div>
-                            <span className="text-sm">{apiKey.name ?? "Unnamed"}</span>
+                            <span className="text-sm truncate">{apiKey.name ?? "Unnamed"}</span>
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden sm:table-cell">
                           <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
                             {apiKey.start ?? apiKey.prefix ?? "\u2014"}...
                           </code>
@@ -452,13 +473,13 @@ export default function ApiKeysPage() {
                             {STATUS_LABELS[status]}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
+                        <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">
                           {formatRelative(apiKey.createdAt)}
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
+                        <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">
                           {formatRelative(apiKey.lastRequest)}
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
+                        <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
                           {formatExpiry(apiKey.expiresAt)}
                         </TableCell>
                         <TableCell className="text-right pr-4">

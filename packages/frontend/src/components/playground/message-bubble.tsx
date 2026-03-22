@@ -257,7 +257,7 @@ export function MessageBubble({ message, onRegenerate }: MessageBubbleProps) {
 
   if (isUser) {
     return (
-      <div className="flex justify-end gap-3 px-4 py-4">
+      <div className="flex justify-end gap-3 px-3 sm:px-4 py-4">
         <div className="flex flex-col items-end gap-1 max-w-[85%] min-w-0">
           <div className="rounded-2xl rounded-br-md bg-primary text-primary-foreground px-4 py-2.5 text-sm">
             <p className="whitespace-pre-wrap leading-relaxed">
@@ -270,7 +270,7 @@ export function MessageBubble({ message, onRegenerate }: MessageBubbleProps) {
   }
 
   return (
-    <div className="px-4 py-4">
+    <div className="px-3 sm:px-4 py-4">
       <div className="text-sm text-foreground leading-relaxed">
         <MarkdownContent content={message.content} />
         {message.isStreaming && (

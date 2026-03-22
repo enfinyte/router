@@ -36,7 +36,7 @@ export default function DashboardPage() {
                 <ToggleGroupItem value="7D">Last 7 days</ToggleGroupItem>
               </ToggleGroup>
               <Select value={interval} onValueChange={(value) => setInterval(value as AnalyticsInterval)}>
-                <SelectTrigger className="w-40 @[767px]/main:hidden" size="sm">
+                <SelectTrigger className="w-full sm:w-40 @[767px]/main:hidden" size="sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
