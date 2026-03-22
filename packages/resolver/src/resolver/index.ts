@@ -1,12 +1,15 @@
-import { Effect, Match, pipe } from "effect";
-import { parseImpl } from "../parser";
-import { ResolveError } from "../types";
-import type { IntentPair, ProviderModelPair } from "../types";
-import { resolveProviderModelPair } from "./resolve_provider_model";
-import { resolveIntentPair } from "./resolve_intent";
-import { resolveAuto } from "./resolve_auto";
-import { parseIntentImpl } from "../parser/parse_intent";
 import type { CreateResponseBody } from "common";
+
+import { Effect, Match, pipe } from "effect";
+
+import type { IntentPair, ProviderModelPair } from "../types";
+
+import { parseImpl } from "../parser";
+import { parseIntentImpl } from "../parser/parse_intent";
+import { ResolveError } from "../types";
+import { resolveAuto } from "./resolve_auto";
+import { resolveIntentPair } from "./resolve_intent";
+import { resolveProviderModelPair } from "./resolve_provider_model";
 
 const resolve = (userProviders: string[]) =>
   Match.type<IntentPair | ProviderModelPair>().pipe(
@@ -17,8 +20,9 @@ const resolve = (userProviders: string[]) =>
 
 export const resolveImpl = (
   options: Pick<CreateResponseBody, "model">,
+  userId: string,
   userProviders: string[],
-  analysisTarget: string | undefined = undefined,
+  analysisTarget: string,
 ) =>
   Effect.gen(function* () {
     if (typeof options.model !== "string") {
@@ -47,7 +51,7 @@ export const resolveImpl = (
       return yield* pipe(
         options.model,
         parseIntentImpl,
-        Effect.flatMap(resolveAuto(options, userProviders, analysisTarget)),
+        Effect.flatMap(resolveAuto(options, userId, userProviders, analysisTarget)),
       );
     }
 

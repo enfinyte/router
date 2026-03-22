@@ -1,10 +1,10 @@
 import { Effect } from "effect";
 import { Hono } from "hono";
 
-import { ApiKeyService } from "../services/apikey";
 import { getAuthenticatedUser, parseBody } from "../middleware/auth";
-import { ToggleEnabledBodySchema, VerifyApiKeyBodySchema } from "../schemas";
 import { runHandler } from "../runtime";
+import { ToggleEnabledBodySchema, VerifyApiKeyBodySchema } from "../schemas";
+import { ApiKeyService } from "../services/apikey";
 
 export const apikeyRoute = new Hono().basePath("/apikey");
 
@@ -119,15 +119,11 @@ apikeyRoute.post("/verify", (c) =>
         return c.json({ valid: false as const, error: result.error ?? "Invalid API key" });
       }
 
-      return c.json({
-        valid: true as const,
-        providers: result.providers,
-        userId: result.userId,
-        fallbackProviderModelPair: result.fallbackProviderModelPair,
-        analysisTarget: result.analysisTarget,
-      });
+      return c.json(result);
     }).pipe(
       Effect.catchTags({
+        ProviderModelParseError: (err) =>
+          Effect.succeed(c.json({ valid: false, error: err.message }, 400)),
         RequestValidationError: (err) =>
           Effect.succeed(c.json({ valid: false, error: err.message }, 400)),
         AuthApiError: (err) =>

@@ -11,8 +11,8 @@ interface UserSecrets {
 
 interface SecretRepositoryImpl {
   getUserSecrets: (userId: string) => Effect.Effect<UserSecrets, DatabaseServiceError>;
-  getUserFallback: (userId: string) => Effect.Effect<string | undefined, DatabaseServiceError>;
-  getUserAnalysisTarget: (userId: string) => Effect.Effect<string | undefined, DatabaseServiceError>;
+  getUserFallback: (userId: string) => Effect.Effect<string, DatabaseServiceError>;
+  getUserAnalysisTarget: (userId: string) => Effect.Effect<string, DatabaseServiceError>;
   upsertProvider: (userId: string, provider: string) => Effect.Effect<void, DatabaseServiceError>;
   enableProvider: (userId: string, provider: string) => Effect.Effect<void, DatabaseServiceError>;
   disableProvider: (userId: string, provider: string) => Effect.Effect<void, DatabaseServiceError>;
@@ -55,9 +55,8 @@ export const SecretRepositoryLive = Layer.effect(
               .select(["fallbackProviderModelPair"])
               .executeTakeFirst(),
           )
-          .pipe(
-            Effect.map((row) => row?.fallbackProviderModelPair ?? undefined),
-          ),
+          // SAFETY: set during onboarding
+          .pipe(Effect.map((row) => row!.fallbackProviderModelPair!)),
 
       getUserAnalysisTarget: (userId) =>
         db
@@ -68,9 +67,8 @@ export const SecretRepositoryLive = Layer.effect(
               .select(["analysisTarget"])
               .executeTakeFirst(),
           )
-          .pipe(
-            Effect.map((row) => row?.analysisTarget ?? undefined),
-          ),
+          // SAFETY: set during onboarding
+          .pipe(Effect.map((row) => row!.analysisTarget!)),
 
       upsertProvider: (userId, provider) =>
         Effect.gen(function* () {

@@ -1,10 +1,15 @@
-import { Context, Effect, Layer } from "effect";
+import type { ProviderModelPair } from "resolver";
 
-import { AuthService, AuthServiceLive } from "./auth";
+import { Context, Effect, Layer } from "effect";
+import { ProviderModelParseError } from "resolver";
+import { parseProviderModelImpl } from "resolver/src/parser";
+
 import type { AuthInstance } from "./auth";
-import { ApiKeyAlreadyExistsError, ApiKeyNotFoundError, AuthApiError } from "../errors";
+
 import { DatabaseServiceError } from "../database/client";
 import { SecretRepository, SecretRepositoryLive } from "../database/repositories/secret";
+import { ApiKeyAlreadyExistsError, ApiKeyNotFoundError, AuthApiError } from "../errors";
+import { AuthService, AuthServiceLive } from "./auth";
 
 export interface ApiKeyResponse {
   readonly id: string;
@@ -18,11 +23,11 @@ export interface ApiKeyResponse {
 
 export interface VerifyResult {
   readonly valid: boolean;
-  readonly providers?: string[] | undefined;
-  readonly userId?: string | undefined;
-  readonly fallbackProviderModelPair?: string | undefined;
-  readonly analysisTarget?: string | undefined;
-  readonly error?: string | undefined;
+  readonly providers?: string[];
+  readonly userId?: string;
+  readonly fallbackProviderModelPair?: ProviderModelPair;
+  readonly analysisTarget?: string;
+  readonly error?: string;
 }
 
 const toApiKeyResponse = (
@@ -68,7 +73,9 @@ interface ApiKeyServiceImpl {
 
   deleteAllKeys: (headers: Headers) => Effect.Effect<void, AuthApiError | ApiKeyNotFoundError>;
 
-  verifyKey: (key: string) => Effect.Effect<VerifyResult, AuthApiError | DatabaseServiceError>;
+  verifyKey: (
+    key: string,
+  ) => Effect.Effect<VerifyResult, AuthApiError | DatabaseServiceError | ProviderModelParseError>;
 }
 
 export class ApiKeyService extends Context.Tag("ApiKeyService")<
@@ -174,50 +181,34 @@ export const ApiKeyServiceLive = Layer.effect(
           }
 
           let providers: string[] = [];
-          let fallbackProviderModelPair: string | undefined;
-          let analysisTarget: string | undefined;
-          if (result.key?.referenceId) {
-            const userSecrets = yield* secrets
-              .getUserSecrets(result.key.referenceId)
-              .pipe(
-                Effect.catchTag("DatabaseServiceError", (err) =>
-                  Effect.logError("Failed to fetch user providers during verify").pipe(
-                    Effect.annotateLogs("cause", String(err.cause)),
-                    Effect.as({ providers: [] as string[], disabledProviders: [] as string[] }),
-                  ),
+
+          const userSecrets = yield* secrets
+            .getUserSecrets(result.key!.referenceId)
+            .pipe(
+              Effect.catchTag("DatabaseServiceError", (err) =>
+                Effect.logError("Failed to fetch user providers during verify").pipe(
+                  Effect.annotateLogs("cause", String(err.cause)),
+                  Effect.as({ providers: [] as string[], disabledProviders: [] as string[] }),
                 ),
-              );
-            providers = userSecrets.providers.filter(
-              (p) => !userSecrets.disabledProviders.includes(p),
+              ),
             );
+          providers = userSecrets.providers.filter(
+            (p) => !userSecrets.disabledProviders.includes(p),
+          );
 
-            fallbackProviderModelPair = yield* secrets
-              .getUserFallback(result.key.referenceId)
-              .pipe(
-                Effect.catchTag("DatabaseServiceError", (err) =>
-                  Effect.logError("Failed to fetch user fallback during verify").pipe(
-                    Effect.annotateLogs("cause", String(err.cause)),
-                    Effect.as(undefined),
-                  ),
-                ),
-              );
+          const fallbackProviderModelPairString = yield* secrets.getUserFallback(
+            result.key!.referenceId,
+          );
+          const fallbackProviderModelPair = yield* parseProviderModelImpl(
+            fallbackProviderModelPairString,
+          );
 
-            analysisTarget = yield* secrets
-              .getUserAnalysisTarget(result.key.referenceId)
-              .pipe(
-                Effect.catchTag("DatabaseServiceError", (err) =>
-                  Effect.logError("Failed to fetch user analysis target during verify").pipe(
-                    Effect.annotateLogs("cause", String(err.cause)),
-                    Effect.as(undefined),
-                  ),
-                ),
-              );
-          }
+          const analysisTarget = yield* secrets.getUserAnalysisTarget(result.key!.referenceId);
 
           return {
             valid: true as const,
             providers,
-            userId: result.key?.referenceId,
+            userId: result.key!.referenceId,
             fallbackProviderModelPair,
             analysisTarget,
           };

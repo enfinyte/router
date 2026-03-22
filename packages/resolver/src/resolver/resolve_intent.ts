@@ -52,7 +52,6 @@ export const resolveIntentPair = (pair: IntentPair, userProviders: string[]) =>
           operation: "resolveIntentPair",
           intent: pair.intent,
           intentPolicy: pair.intentPolicy,
-          pairs: pairs,
         }),
       );
       return pairs;

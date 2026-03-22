@@ -34,8 +34,8 @@ export const create = (
   req: CreateResponseBody,
   userId: string,
   userProviders: readonly string[],
-  fallbackProviderModelPair: ProviderModelPair | undefined,
-  analysisTarget: string | undefined,
+  fallbackProviderModelPair: ProviderModelPair,
+  analysisTarget: string,
 ) =>
   Effect.gen(function* () {
     const responseResource = yield* AIService.execute(
@@ -62,8 +62,8 @@ export const createStream = (
   req: CreateResponseBody,
   userId: string,
   userProviders: readonly string[],
-  fallbackProviderModelPair: ProviderModelPair | undefined,
-  analysisTarget: string | undefined,
+  fallbackProviderModelPair: ProviderModelPair,
+  analysisTarget: string,
 ) =>
   Effect.gen(function* () {
     const { result, resolvedModelAndProvider } = yield* AIService.executeStream(
@@ -148,7 +148,7 @@ export const createStream = (
     const completionStream = Stream.fromEffect(
       Effect.tryPromise({
         try: async () => {
-          const totalUsage = await result.totalUsage;
+          const totalUsage = await Promise.resolve(result.totalUsage).catch(() => null);
           const state = getAccumulatedState();
 
           finalResponse = {
@@ -157,15 +157,15 @@ export const createStream = (
             completed_at: Date.now(),
             output: state.outputItems,
             usage: {
-              input_tokens: totalUsage.inputTokens ?? 0,
-              output_tokens: totalUsage.outputTokens ?? 0,
+              input_tokens: totalUsage?.inputTokens ?? 0,
+              output_tokens: totalUsage?.outputTokens ?? 0,
               input_tokens_details: {
-                cached_tokens: totalUsage.inputTokenDetails.cacheWriteTokens ?? 0,
+                cached_tokens: totalUsage?.inputTokenDetails?.cacheWriteTokens ?? 0,
               },
               output_tokens_details: {
-                reasoning_tokens: totalUsage.outputTokenDetails.reasoningTokens ?? 0,
+                reasoning_tokens: totalUsage?.outputTokenDetails?.reasoningTokens ?? 0,
               },
-              total_tokens: totalUsage.totalTokens ?? 0,
+              total_tokens: totalUsage?.totalTokens ?? 0,
             },
           };
 

@@ -29,8 +29,8 @@ export const execute = (
   createResponseBody: CreateResponseBody,
   userId: string,
   userProviders: readonly string[],
-  fallbackProviderModelPair: ProviderModelPair | undefined,
-  analysisTarget: string | undefined,
+  fallbackProviderModelPair: ProviderModelPair,
+  analysisTarget: string,
 ) =>
   Effect.gen(function* () {
     const requestedModel = createResponseBody.model;
@@ -41,7 +41,7 @@ export const execute = (
       });
     }
     const resolvedModelAndProvidersResult = yield* Effect.either(
-      pmrService.resolve(createResponseBody, [...userProviders], analysisTarget),
+      pmrService.resolve(createResponseBody, userId, [...userProviders], analysisTarget),
     );
 
     if (Either.isLeft(resolvedModelAndProvidersResult)) {
@@ -69,9 +69,6 @@ export const execute = (
     }
 
     if (fallbackProviderModelPair) {
-      console.log(" -------- -----------");
-      console.log(fallbackProviderModelPair);
-      console.log(" -------- -----------");
       return yield* callLanguageModel(userId, createResponseBody, fallbackProviderModelPair);
     }
 
@@ -84,8 +81,8 @@ export const executeStream = (
   createResponseBody: CreateResponseBody,
   userId: string,
   userProviders: readonly string[],
-  fallbackProviderModelPair: ProviderModelPair | undefined,
-  analysisTarget: string | undefined,
+  fallbackProviderModelPair: ProviderModelPair,
+  analysisTarget: string,
 ) =>
   Effect.gen(function* () {
     const requestedModel = createResponseBody.model;
@@ -97,7 +94,7 @@ export const executeStream = (
     }
 
     const resolvedModelAndProvidersResult = yield* Effect.either(
-      pmrService.resolve(createResponseBody, [...userProviders], analysisTarget),
+      pmrService.resolve(createResponseBody, userId, [...userProviders], analysisTarget),
     );
 
     if (Either.isLeft(resolvedModelAndProvidersResult)) {
@@ -126,12 +123,19 @@ export const executeStream = (
 
           const probedFullStream = yield* probeStream(callResult.result);
 
-          return { ...callResult, result: { ...callResult.result, fullStream: probedFullStream } };
+          // Assign fullStream directly instead of spreading, because StreamTextResult
+          // exposes properties like totalUsage as prototype getters which are lost by spread.
+          Object.defineProperty(callResult.result, "fullStream", { value: probedFullStream });
+
+          return callResult;
         }),
       );
 
       if (Either.isRight(result)) {
+        // const response = result.right;
+        // if (response.result === null) {
         return result.right;
+        // }
       }
     }
 
@@ -366,8 +370,10 @@ const probeStream = (streamResult: StreamResult) =>
         buffered.push(chunk.value);
 
         if (chunk.value.type === "error") {
-          throw (chunk.value as { error?: unknown }).error ??
-            new Error("Stream produced an error event");
+          throw (
+            (chunk.value as { error?: unknown }).error ??
+            new Error("Stream produced an error event")
+          );
         }
 
         if (isProviderContent(chunk.value)) {
@@ -382,6 +388,5 @@ const probeStream = (streamResult: StreamResult) =>
         }
       })();
     },
-    catch: (error) =>
-      new AIServiceError({ cause: error, message: "Stream failed on first chunk" }),
+    catch: (error) => new AIServiceError({ cause: error, message: "Stream failed on first chunk" }),
   });

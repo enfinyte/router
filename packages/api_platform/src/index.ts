@@ -1,11 +1,12 @@
 import { HttpMiddleware, HttpServer } from "@effect/platform";
 import { BunContext, BunHttpServer, BunRuntime } from "@effect/platform-bun";
 import { Effect, flow, Layer } from "effect";
+import { ResolverServiceLive } from "resolver";
+import { VaultServiceLive } from "vault";
+
 import { router } from "./routes/index";
 import { AppConfig, AppConfigLive } from "./services/config";
 import { DatabaseServiceLive } from "./services/database/postgres";
-import { VaultServiceLive } from "vault";
-import { ResolverServiceLive } from "resolver";
 
 export const app = router.pipe(
   HttpServer.serve(

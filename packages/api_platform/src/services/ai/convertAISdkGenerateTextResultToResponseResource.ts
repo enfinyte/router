@@ -65,10 +65,10 @@ export const convertAISdkGenerateTextResultToResponseResource = ({
         input_tokens: result.totalUsage.inputTokens ?? 0,
         output_tokens: result.totalUsage.outputTokens ?? 0,
         input_tokens_details: {
-          cached_tokens: result.totalUsage.inputTokenDetails.cacheWriteTokens ?? 0,
+          cached_tokens: result.totalUsage.inputTokenDetails?.cacheWriteTokens ?? 0,
         },
         output_tokens_details: {
-          reasoning_tokens: result.totalUsage.outputTokenDetails.reasoningTokens ?? 0,
+          reasoning_tokens: result.totalUsage.outputTokenDetails?.reasoningTokens ?? 0,
         },
         total_tokens: result.totalUsage.totalTokens ?? 0,
       },
