@@ -123,7 +123,11 @@ export const executeStream = (
 
           const probedFullStream = yield* probeStream(callResult.result);
 
-          return { ...callResult, result: { ...callResult.result, fullStream: probedFullStream } };
+          // Assign fullStream directly instead of spreading, because StreamTextResult
+          // exposes properties like totalUsage as prototype getters which are lost by spread.
+          Object.defineProperty(callResult.result, "fullStream", { value: probedFullStream });
+
+          return callResult;
         }),
       );
 
