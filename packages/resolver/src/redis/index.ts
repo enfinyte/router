@@ -1,6 +1,6 @@
-import { Context, Data, Effect, Layer } from "effect";
-import { RedisClient } from "bun";
 import { RedisConfig, RedisConfigLive } from "@enfinyte/config";
+import { RedisClient } from "bun";
+import { Context, Data, Effect, Layer } from "effect";
 
 export class RedisError extends Data.TaggedError("RedisError")<{
   cause?: unknown;
@@ -63,3 +63,4 @@ export * from "./fetch_point";
 export * from "./model_to_providers";
 export * from "./categories";
 export * from "./provider_to_models";
+export * from "./classification";

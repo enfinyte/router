@@ -28,10 +28,11 @@ export class ResolverService extends Context.Tag("ResolverService")<
     >;
     resolve: (
       options: CreateResponseBody,
+      userdId: string,
       userProviders: string[],
       analysisTarget: string,
     ) => Effect.Effect<
-      {
+      readonly {
         readonly model: string;
         readonly provider: string;
       }[],
@@ -51,7 +52,7 @@ export const ResolverServiceLive = Layer.effect(
   Effect.gen(function* () {
     const redis = yield* Redis.Redis;
     return ResolverService.of({
-      resolve(options, userProviders, analysisTarget) {
+      resolve(options, userdId, userProviders, analysisTarget) {
         return Effect.gen(function* () {
           yield* Effect.logInfo("Resolve request received").pipe(
             Effect.annotateLogs({
@@ -64,13 +65,13 @@ export const ResolverServiceLive = Layer.effect(
           );
 
           yield* runDataFetch();
-          const pairs = yield* resolveImpl(options, userProviders, analysisTarget);
+          const pairs = yield* resolveImpl(options, userdId, userProviders, analysisTarget);
 
           yield* Effect.logInfo("Resolve completed").pipe(
             Effect.annotateLogs({
               service: "Resolver",
               operation: "resolve",
-              pairs: pairs,
+              pairs_length: pairs.length,
             }),
           );
 

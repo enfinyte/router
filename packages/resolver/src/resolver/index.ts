@@ -20,6 +20,7 @@ const resolve = (userProviders: string[]) =>
 
 export const resolveImpl = (
   options: Pick<CreateResponseBody, "model">,
+  userId: string,
   userProviders: string[],
   analysisTarget: string,
 ) =>
@@ -50,7 +51,7 @@ export const resolveImpl = (
       return yield* pipe(
         options.model,
         parseIntentImpl,
-        Effect.flatMap(resolveAuto(options, userProviders, analysisTarget)),
+        Effect.flatMap(resolveAuto(options, userId, userProviders, analysisTarget)),
       );
     }
 

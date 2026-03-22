@@ -5,6 +5,7 @@ import { Output, generateText } from "ai";
 import { Effect } from "effect";
 import { z } from "zod";
 
+import { getResolvedResponse, setResolvedResponse } from "../redis";
 import { CATEGORIES, DataFetchError, IntentPair, ORDERS } from "../types";
 import { ResolveError } from "../types";
 import { SYSTEM_PROMPT_CAT, SYSTEM_PROMPT_POL } from "./prompts";
@@ -121,7 +122,7 @@ const extractTextFromInput = (
   input: CreateResponseBody["input"],
   roles: Array<"user" | "system" | "developer">,
 ): string | null => {
-  if (typeof input === "string") {
+  if (roles.includes("user") && typeof input === "string") {
     return input;
   }
 
@@ -137,19 +138,45 @@ const extractTextFromInput = (
   return null;
 };
 
-const resolveWith = (prompt: string, pair: IntentPair, userProviders: string[]) =>
+const resolveWith = (
+  prompt: {
+    text: string;
+    source: string;
+  },
+  pair: IntentPair,
+  userId: string,
+  userProviders: string[],
+) =>
   Effect.gen(function* () {
+    console.log("---------------------");
+    console.log(prompt);
+    console.log("---------------------");
     yield* Effect.logInfo("Auto-classifying with LLM").pipe(
       Effect.annotateLogs({
         service: "Resolver",
         operation: "resolveWith",
-        promptLength: prompt.length,
+        promptLength: prompt.text.length,
         intentPolicy: pair.intentPolicy,
         retryPolicy: RETRY_POLICY.times,
       }),
     );
 
-    const category = yield* Effect.retry(getCategory(prompt), RETRY_POLICY);
+    if (prompt.source === "per_system_prompt") {
+      const cached = yield* getResolvedResponse(userId, prompt.text);
+
+      if (cached) {
+        yield* Effect.logInfo("Prompt cache hit").pipe(
+          Effect.annotateLogs({
+            service: "Resolver",
+            operation: "resolveWith",
+            message: "Serving cached data.",
+          }),
+        );
+        return cached;
+      }
+    }
+
+    const category = yield* Effect.retry(getCategory(prompt.text), RETRY_POLICY);
 
     yield* Effect.logInfo("Category classified").pipe(
       Effect.annotateLogs({
@@ -164,7 +191,7 @@ const resolveWith = (prompt: string, pair: IntentPair, userProviders: string[]) 
         Effect.annotateLogs({ service: "Resolver", operation: "resolveWith" }),
       );
 
-      const policy = yield* Effect.retry(getPolicy(prompt), RETRY_POLICY);
+      const policy = yield* Effect.retry(getPolicy(prompt.text), RETRY_POLICY);
 
       yield* Effect.logInfo("Policy classified").pipe(
         Effect.annotateLogs({
@@ -178,11 +205,40 @@ const resolveWith = (prompt: string, pair: IntentPair, userProviders: string[]) 
         intent: category,
         intentPolicy: policy,
       });
-      return yield* resolveIntentPair(intentPair, userProviders);
+
+      const resolvedResponse = yield* resolveIntentPair(intentPair, userProviders);
+
+      if (prompt.source === "per_system_prompt") {
+        yield* setResolvedResponse(userId, prompt.text, resolvedResponse);
+
+        yield* Effect.logInfo("Prompt cached.").pipe(
+          Effect.annotateLogs({
+            service: "Resolver",
+            operation: "resolveWith",
+            message: "Cache event.",
+          }),
+        );
+      }
+
+      return resolvedResponse;
     }
 
     const intentPair = new IntentPair({ intent: category, intentPolicy: pair.intentPolicy });
-    return yield* resolveIntentPair(intentPair, userProviders);
+    const resolvedResponse = yield* resolveIntentPair(intentPair, userProviders);
+
+    if (prompt.source === "per_system_prompt") {
+      yield* setResolvedResponse(userId, prompt.text, resolvedResponse);
+
+      yield* Effect.logInfo("Prompt cached.").pipe(
+        Effect.annotateLogs({
+          service: "Resolver",
+          operation: "resolveWith",
+          message: "Cache event.",
+        }),
+      );
+    }
+
+    return resolvedResponse;
   });
 
 /**
@@ -197,34 +253,24 @@ const extractAnalysisText = (
   analysisTarget: string,
 ): { text: string; source: string } | null => {
   if (analysisTarget === "per_system_prompt") {
-    // System prompt mode: look for system/developer messages first, then instructions
     const systemPrompt = extractTextFromInput(options.input, ["system", "developer"]);
-    if (systemPrompt) return { text: systemPrompt, source: "systemPrompt" };
+    if (systemPrompt) return { text: systemPrompt, source: "per_system_prompt" };
 
     if (typeof options.instructions === "string" && options.instructions.length > 0) {
-      return { text: options.instructions, source: "instructions" };
+      return { text: options.instructions, source: "per_system_prompt" };
     }
 
-    // No system prompt found — caller should use fallback model
     return null;
   }
 
-  // Default: per_prompt — prioritize user prompt, then instructions, then system prompt
   const userPrompt = extractTextFromInput(options.input, ["user"]);
-  if (userPrompt) return { text: userPrompt, source: "userPrompt" };
-
-  if (typeof options.instructions === "string" && options.instructions.length > 0) {
-    return { text: options.instructions, source: "instructions" };
-  }
-
-  const systemPrompt = extractTextFromInput(options.input, ["system", "developer"]);
-  if (systemPrompt) return { text: systemPrompt, source: "systemPrompt" };
+  if (userPrompt) return { text: userPrompt, source: "per_prompt" };
 
   return null;
 };
 
 export const resolveAuto =
-  (options: CreateResponseBody, userProviders: string[], analysisTarget: string) =>
+  (options: CreateResponseBody, userId: string, userProviders: string[], analysisTarget: string) =>
   (pair: IntentPair) =>
     Effect.gen(function* () {
       const extracted = extractAnalysisText(options, analysisTarget);
@@ -272,5 +318,5 @@ export const resolveAuto =
         }),
       );
 
-      return yield* resolveWith(extracted.text, pair, userProviders);
+      return yield* resolveWith(extracted, pair, userId, userProviders);
     });

@@ -41,7 +41,7 @@ export const execute = (
       });
     }
     const resolvedModelAndProvidersResult = yield* Effect.either(
-      pmrService.resolve(createResponseBody, [...userProviders], analysisTarget),
+      pmrService.resolve(createResponseBody, userId, [...userProviders], analysisTarget),
     );
 
     if (Either.isLeft(resolvedModelAndProvidersResult)) {
@@ -94,7 +94,7 @@ export const executeStream = (
     }
 
     const resolvedModelAndProvidersResult = yield* Effect.either(
-      pmrService.resolve(createResponseBody, [...userProviders], analysisTarget),
+      pmrService.resolve(createResponseBody, userId, [...userProviders], analysisTarget),
     );
 
     if (Either.isLeft(resolvedModelAndProvidersResult)) {
