@@ -1,11 +1,12 @@
+import { SUPPORTED_PROVIDERS } from "common";
 import { Effect, Duration, Schema } from "effect";
+
+import * as Redis from "../redis/index";
 import { DataFetchError } from "../types";
 import { ORDERS, CATEGORIES } from "../types";
-import { SUPPORTED_PROVIDERS } from "common";
-import { ProviderModelMapSchema } from "./schema/modelsdev";
-import { OpenRouterMapSchema } from "./schema/openrouter";
 import { generateModelMap } from "./model_map";
-import * as Redis from "../redis/index";
+import { ProviderModelMapSchema, ProviderModelToCostSchema } from "./schema/modelsdev";
+import { OpenRouterMapSchema } from "./schema/openrouter";
 
 const OPENROUTER_BASE = "https://openrouter.ai/api/frontend/models";
 const MODELS_DEV_BASE = "https://models.dev/api.json";
@@ -129,6 +130,35 @@ const modelsDevAction = () => (json: Record<string, string[]>) =>
     );
 
     yield* Redis.bulkSetModelsForProvider(supported);
+
+    const parsedCost = yield* Schema.decodeUnknown(ProviderModelToCostSchema)(json).pipe(
+      Effect.tapError((err) =>
+        Effect.logError("models.dev cost decode failed").pipe(
+          Effect.annotateLogs({
+            service: "DataManager",
+            operation: "populate",
+            key: `models.dev`,
+            cause: String(err),
+          }),
+        ),
+      ),
+    );
+
+    const supportedCost = SUPPORTED_PROVIDERS.reduce((acc, provider: string) => {
+      const costs = parsedCost[provider];
+      if (costs) {
+        for (const cost of costs) {
+          const { input, output, model } = cost;
+          // FIXME: type this later
+          // @ts-expect-error
+          acc[`${provider}/${model}`] = { input, output };
+        }
+      }
+      return acc;
+    }, {});
+
+    yield* Redis.bulkSetProviderModelCost(supportedCost);
+
     return supported;
   });
 

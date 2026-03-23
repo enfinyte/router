@@ -64,3 +64,4 @@ export * from "./model_to_providers";
 export * from "./categories";
 export * from "./provider_to_models";
 export * from "./classification";
+export * from "./model_cost.ts";

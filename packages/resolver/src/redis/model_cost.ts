@@ -1,0 +1,48 @@
+import { Effect, Schema } from "effect";
+
+import { Redis } from ".";
+import { TTL } from "./consts";
+
+const PREFIX = "enfinyte:model_to_cost:";
+
+const costSchemaParser = Schema.parseJson(
+  Schema.Struct({
+    input: Schema.Number,
+    output: Schema.Number,
+  }),
+);
+
+type Cost = typeof costSchemaParser.Type;
+
+export const getCostForModel = (canonicalProviderModelName: string) =>
+  Effect.gen(function* () {
+    const redis = yield* Redis;
+    const costStr = yield* redis.use((client) => client.get(PREFIX + canonicalProviderModelName));
+    if (!costStr) return [];
+    return yield* Schema.decodeUnknown(costSchemaParser)(costStr);
+  });
+
+export const setCostForModel = (canonicalProviderModelName: string, cost: Cost) =>
+  Effect.gen(function* () {
+    const redis = yield* Redis;
+    const stringifiedCost = yield* Schema.encode(costSchemaParser)(cost);
+    yield* redis.use((client) =>
+      client.set(PREFIX + canonicalProviderModelName, stringifiedCost, "PX", TTL),
+    );
+  });
+
+export const bulkSetProviderModelCost = (
+  entries: Record</*canonicalProviderModelName Name*/ string, Cost>,
+) =>
+  Effect.gen(function* () {
+    const setterEffects = Object.entries(entries).map(([canonicalProvdierModelName, cost]) =>
+      setCostForModel(canonicalProvdierModelName, cost),
+    );
+    yield* Effect.all(setterEffects, { concurrency: 5 });
+  });
+
+export const deleteProviderModelCost = (canonicalProviderModelName: string) =>
+  Effect.gen(function* () {
+    const redis = yield* Redis;
+    yield* redis.use((client) => client.del(PREFIX + canonicalProviderModelName));
+  });
