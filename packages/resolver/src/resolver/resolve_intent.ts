@@ -42,7 +42,8 @@ export const resolveIntentPair = (pair: IntentPair, userProviders: string[]) =>
       Effect.all(
         potentialModels.map((modelNameSlug) => findMatchingMapping(modelNameSlug, userProviderSet)),
       ),
-      (results) => results.flat(),
+      (results) =>
+        results.flat().map((p) => ({ ...p, category: pair.intent as string | null })),
     );
 
     if (pairs.length > 0) {

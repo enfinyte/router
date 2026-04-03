@@ -35,6 +35,7 @@ export class ResolverService extends Context.Tag("ResolverService")<
       readonly {
         readonly model: string;
         readonly provider: string;
+        readonly category: string | null;
       }[],
       | Redis.RedisError
       | ParseError
@@ -43,6 +44,12 @@ export class ResolverService extends Context.Tag("ResolverService")<
       | IntentParseError
       | NoProviderAvailableError
       | ProviderModelParseError
+    >;
+    getCostForModel: (
+      canonicalProviderModelName: string,
+    ) => Effect.Effect<
+      { input: number; output: number } | null,
+      ParseError | Redis.RedisError
     >;
   }
 >() {}
@@ -82,6 +89,13 @@ export const ResolverServiceLive = Layer.effect(
         return Effect.gen(function* () {
           yield* runDataFetch();
           return yield* Redis.getAllModelsGroupedByProvider();
+        }).pipe(Effect.provideService(Redis.Redis, redis));
+      },
+      getCostForModel(canonicalProviderModelName) {
+        return Effect.gen(function* () {
+          const cost = yield* Redis.getCostForModel(canonicalProviderModelName);
+          if (Array.isArray(cost) && cost.length === 0) return null;
+          return cost as { input: number; output: number };
         }).pipe(Effect.provideService(Redis.Redis, redis));
       },
     });

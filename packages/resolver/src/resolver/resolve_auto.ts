@@ -207,9 +207,10 @@ const resolveWith = (
       });
 
       const resolvedResponse = yield* resolveIntentPair(intentPair, userProviders);
+      const withCategory = resolvedResponse.map((p) => ({ ...p, category: category as string | null }));
 
       if (prompt.source === "per_system_prompt") {
-        yield* setResolvedResponse(userId, prompt.text, resolvedResponse);
+        yield* setResolvedResponse(userId, prompt.text, withCategory);
 
         yield* Effect.logInfo("Prompt cached.").pipe(
           Effect.annotateLogs({
@@ -220,14 +221,15 @@ const resolveWith = (
         );
       }
 
-      return resolvedResponse;
+      return withCategory;
     }
 
     const intentPair = new IntentPair({ intent: category, intentPolicy: pair.intentPolicy });
     const resolvedResponse = yield* resolveIntentPair(intentPair, userProviders);
+    const withCategory = resolvedResponse.map((p) => ({ ...p, category: category as string | null }));
 
     if (prompt.source === "per_system_prompt") {
-      yield* setResolvedResponse(userId, prompt.text, resolvedResponse);
+      yield* setResolvedResponse(userId, prompt.text, withCategory);
 
       yield* Effect.logInfo("Prompt cached.").pipe(
         Effect.annotateLogs({
@@ -238,7 +240,7 @@ const resolveWith = (
       );
     }
 
-    return resolvedResponse;
+    return withCategory;
   });
 
 /**

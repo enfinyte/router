@@ -1,9 +1,12 @@
-import type { CreateResponseBody, ResolvedResponse, Providers } from "common";
+import type { CreateResponseBody, ResolvedResponse, ResponseResource, Providers } from "common";
+import type { Transaction } from "ledger";
 import type { ProviderModelPair } from "resolver/src/types";
 
 import { AISDKError, type TextStreamPart, type ToolSet } from "ai";
 import { APICallError, generateText, streamText } from "ai";
 import { Effect, Data, Either } from "effect";
+import { LedgerService } from "ledger";
+import { ResolverService } from "resolver";
 
 import * as CredentialsService from "../credentials";
 import * as pmrService from "../pmr";
@@ -33,6 +36,8 @@ export const execute = (
   analysisTarget: string,
 ) =>
   Effect.gen(function* () {
+    const ledgerService = yield* LedgerService;
+    const resolverService = yield* ResolverService;
     const requestedModel = createResponseBody.model;
     if (!requestedModel) {
       // XXX: THIS SHOULD BE HANDLED BY ROUTE VALIDATION, BUT JUST IN CASE TO SATISFY TYPESCRIPT
@@ -46,22 +51,47 @@ export const execute = (
 
     if (Either.isLeft(resolvedModelAndProvidersResult)) {
       if (fallbackProviderModelPair) {
-        return yield* callLanguageModel(userId, createResponseBody, fallbackProviderModelPair);
+        return yield* callLanguageModel(userId, createResponseBody, {
+          ...fallbackProviderModelPair,
+          category: null,
+        });
       }
       return yield* new AIServiceError({
         message: "Model resolution failed and no fallback provider is configured",
       });
     }
 
-    const resolvedModelAndProviders = resolvedModelAndProvidersResult.right;
+    const { pairs: resolvedModelAndProviders, resolutionLatencyMs } =
+      resolvedModelAndProvidersResult.right;
 
     for (const resolvedModelAndProvider of resolvedModelAndProviders) {
+      const llmStartedAt = Date.now();
       const result = yield* Effect.either(
         callLanguageModel(userId, createResponseBody, resolvedModelAndProvider),
       );
+      const totalLatencyMs = Date.now() - llmStartedAt;
 
       if (Either.isRight(result)) {
         const response = result.right;
+        const cost = yield* resolverService
+          .getCostForModel(
+            `${resolvedModelAndProvider.provider}/${resolvedModelAndProvider.model}`,
+          )
+          .pipe(Effect.catchAll(() => Effect.succeed(null)));
+        yield* ledgerService
+          .insertTransaction(
+            buildTransaction(
+              resolvedModelAndProvider,
+              resolutionLatencyMs,
+              userId,
+              false,
+              response,
+              cost,
+              totalLatencyMs,
+              null,
+            ),
+          )
+          .pipe(Effect.ignore);
         if (response.error === null) {
           return response;
         }
@@ -69,7 +99,10 @@ export const execute = (
     }
 
     if (fallbackProviderModelPair) {
-      return yield* callLanguageModel(userId, createResponseBody, fallbackProviderModelPair);
+      return yield* callLanguageModel(userId, createResponseBody, {
+        ...fallbackProviderModelPair,
+        category: null,
+      });
     }
 
     return yield* new AIServiceError({
@@ -99,20 +132,24 @@ export const executeStream = (
 
     if (Either.isLeft(resolvedModelAndProvidersResult)) {
       if (fallbackProviderModelPair) {
-        return yield* callLanguageModelStreaming(
+        const fbStart = Date.now();
+        const callResult = yield* callLanguageModelStreaming(
           userId,
           createResponseBody,
-          fallbackProviderModelPair,
+          { ...fallbackProviderModelPair, category: null },
         );
+        return { ...callResult, resolutionLatencyMs: 0, llmStartedAt: fbStart, ttftMs: Date.now() - fbStart };
       }
       return yield* new AIServiceError({
         message: "Model resolution failed and no fallback provider is configured",
       });
     }
 
-    const resolvedModelAndProviders = resolvedModelAndProvidersResult.right;
+    const { pairs: resolvedModelAndProviders, resolutionLatencyMs } =
+      resolvedModelAndProvidersResult.right;
 
     for (const resolvedModelAndProvider of resolvedModelAndProviders) {
+      const llmStartedAt = Date.now();
       const result = yield* Effect.either(
         Effect.gen(function* () {
           const callResult = yield* callLanguageModelStreaming(
@@ -132,19 +169,19 @@ export const executeStream = (
       );
 
       if (Either.isRight(result)) {
-        // const response = result.right;
-        // if (response.result === null) {
-        return result.right;
-        // }
+        const ttftMs = Date.now() - llmStartedAt;
+        return { ...result.right, resolutionLatencyMs, llmStartedAt, ttftMs };
       }
     }
 
     if (fallbackProviderModelPair) {
-      return yield* callLanguageModelStreaming(
+      const fbStart = Date.now();
+      const callResult = yield* callLanguageModelStreaming(
         userId,
         createResponseBody,
-        fallbackProviderModelPair,
+        { ...fallbackProviderModelPair, category: null },
       );
+      return { ...callResult, resolutionLatencyMs: 0, llmStartedAt: fbStart, ttftMs: Date.now() - fbStart };
     }
 
     return yield* new AIServiceError({
@@ -390,3 +427,45 @@ const probeStream = (streamResult: StreamResult) =>
     },
     catch: (error) => new AIServiceError({ cause: error, message: "Stream failed on first chunk" }),
   });
+
+const buildTransaction = (
+  resolvedModelAndProvider: ResolvedResponse,
+  resolutionLatencyMs: number,
+  userId: string,
+  isStreaming: boolean,
+  response: ResponseResource | null,
+  cost: { input: number; output: number } | null,
+  totalLatencyMs: number | null,
+  ttftMs: number | null,
+): Transaction => {
+  const usage = response?.usage ?? null;
+  const inputTokens = usage?.input_tokens ?? null;
+  const outputTokens = usage?.output_tokens ?? null;
+  const reasoningTokens = usage?.output_tokens_details?.reasoning_tokens ?? null;
+
+  const httpStatusCode = response?.error
+    ? parseInt(response.error.code, 10) || null
+    : response ? 200 : null;
+  const errorType = response?.error?.message ?? null;
+
+  return {
+    timestamp: new Date(),
+    request_id: crypto.randomUUID(),
+    provider: resolvedModelAndProvider.provider,
+    model: resolvedModelAndProvider.model,
+    category: resolvedModelAndProvider.category,
+    resolution_latency_ms: resolutionLatencyMs,
+    ttft_ms: ttftMs,
+    total_latency_ms: totalLatencyMs,
+    input_tokens: inputTokens,
+    reasoning_tokens: reasoningTokens,
+    output_tokens: outputTokens,
+    input_cost_usd: inputTokens != null && cost ? inputTokens * cost.input : null,
+    reasoning_cost_usd: reasoningTokens != null && cost ? reasoningTokens * cost.input : null,
+    output_cost_usd: outputTokens != null && cost ? outputTokens * cost.output : null,
+    http_status_code: httpStatusCode,
+    error_type: errorType,
+    is_streaming: isStreaming,
+    user_id: userId,
+  };
+};

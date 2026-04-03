@@ -1,7 +1,10 @@
 import type { CreateResponseBody, ResponseResource, StreamingEvent } from "common";
+import type { Transaction } from "ledger";
 import type { ProviderModelPair } from "resolver/src/types";
 
 import { Effect, Data, Stream } from "effect";
+import { LedgerService } from "ledger";
+import { ResolverService } from "resolver";
 
 import * as AIService from "../ai";
 import {
@@ -66,13 +69,16 @@ export const createStream = (
   analysisTarget: string,
 ) =>
   Effect.gen(function* () {
-    const { result, resolvedModelAndProvider } = yield* AIService.executeStream(
-      req,
-      userId,
-      userProviders,
-      fallbackProviderModelPair,
-      analysisTarget,
-    );
+    const ledgerService = yield* LedgerService;
+    const resolverService = yield* ResolverService;
+    const { result, resolvedModelAndProvider, resolutionLatencyMs, llmStartedAt, ttftMs } =
+      yield* AIService.executeStream(
+        req,
+        userId,
+        userProviders,
+        fallbackProviderModelPair,
+        analysisTarget,
+      );
 
     const responseId = crypto.randomUUID();
     const createdAt = Date.now();
@@ -216,6 +222,25 @@ export const createStream = (
           if (req.store !== false) {
             yield* persistResponseResourceInDatabase(finalResponse);
           }
+          const cost = yield* resolverService
+            .getCostForModel(
+              `${resolvedModelAndProvider.provider}/${resolvedModelAndProvider.model}`,
+            )
+            .pipe(Effect.catchAll(() => Effect.succeed(null)));
+          const totalLatencyMs = Date.now() - llmStartedAt;
+          yield* ledgerService
+            .insertTransaction(
+              buildStreamTransaction(
+                resolvedModelAndProvider,
+                resolutionLatencyMs,
+                userId,
+                finalResponse,
+                cost,
+                totalLatencyMs,
+                ttftMs,
+              ),
+            )
+            .pipe(Effect.ignore);
         }).pipe(Effect.ignore),
       ),
     );
@@ -230,6 +255,44 @@ export const createStream = (
 
 const persistResponseResourceInDatabase = (resource: ResponseResource) =>
   DatabaseService.createResponsesResource(resource);
+
+const buildStreamTransaction = (
+  resolvedModelAndProvider: { provider: string; model: string; category: string | null },
+  resolutionLatencyMs: number,
+  userId: string,
+  response: ResponseResource,
+  cost: { input: number; output: number } | null,
+  totalLatencyMs: number,
+  ttftMs: number,
+): Transaction => {
+  const usage = response.usage;
+  const inputTokens = usage?.input_tokens ?? null;
+  const outputTokens = usage?.output_tokens ?? null;
+  const reasoningTokens = usage?.output_tokens_details?.reasoning_tokens ?? null;
+
+  return {
+    timestamp: new Date(),
+    request_id: crypto.randomUUID(),
+    provider: resolvedModelAndProvider.provider,
+    model: resolvedModelAndProvider.model,
+    category: resolvedModelAndProvider.category,
+    resolution_latency_ms: resolutionLatencyMs,
+    ttft_ms: ttftMs,
+    total_latency_ms: totalLatencyMs,
+    input_tokens: inputTokens,
+    reasoning_tokens: reasoningTokens,
+    output_tokens: outputTokens,
+    input_cost_usd: inputTokens != null && cost ? inputTokens * cost.input : null,
+    reasoning_cost_usd: reasoningTokens != null && cost ? reasoningTokens * cost.input : null,
+    output_cost_usd: outputTokens != null && cost ? outputTokens * cost.output : null,
+    http_status_code: response.error
+      ? parseInt(response.error.code, 10) || null
+      : 200,
+    error_type: response.error?.message ?? null,
+    is_streaming: true,
+    user_id: userId,
+  };
+};
 
 export const getResponseResourceByIdFromDatabase = (responseId: string) =>
   DatabaseService.getResponsesResourceById(responseId);

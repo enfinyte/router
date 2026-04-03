@@ -16,7 +16,8 @@ export const resolve = (
 ) =>
   Effect.gen(function* () {
     const resolverService = yield* ResolverService;
-    return yield* resolverService
+    const startTime = Date.now();
+    const pairs = yield* resolverService
       .resolve(createResponseBody, userId, userProviders, analysisTarget)
       .pipe(
         Effect.mapError(
@@ -27,4 +28,6 @@ export const resolve = (
             }),
         ),
       );
+    const resolutionLatencyMs = Date.now() - startTime;
+    return { pairs, resolutionLatencyMs };
   });
