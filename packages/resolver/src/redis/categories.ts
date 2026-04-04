@@ -1,11 +1,11 @@
 import { Effect, Schema } from "effect";
 import { Redis } from ".";
-import { TTL } from "./consts";
+import { TTL, REDIS_PREFIX } from "./consts";
 
-const PREFIX = "enfinyte:categories";
 const modelsSchemaParser = Schema.parseJson(Schema.Array(Schema.String));
 
-const buildKey = (category: string, order: string) => `${PREFIX}:${category}:${order}`;
+const buildKey = (category: string, order: string) =>
+  `${REDIS_PREFIX.categories}:${category}:${order}`;
 
 export const getModelsForCategoryAndOrder = (category: string, order: string) =>
   Effect.gen(function* () {

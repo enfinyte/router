@@ -1,6 +1,5 @@
 import type { CreateResponseBody, ResolvedResponse, ResponseResource, Providers } from "common";
 import type { Transaction } from "ledger";
-import type { ProviderModelPair } from "resolver/src/types";
 
 import { AISDKError, type TextStreamPart, type ToolSet } from "ai";
 import { APICallError, generateText, streamText } from "ai";
@@ -8,18 +7,20 @@ import { Effect, Data, Either } from "effect";
 import { LedgerService } from "ledger";
 import { ResolverService } from "resolver";
 
+import type { RequestParams } from "../request-context";
+
 import * as CredentialsService from "../credentials";
 import * as pmrService from "../pmr";
-import { buildLanguageModelFromResolvedModelAndProvider } from "./buildLanguageModelFromResolvedModelAndProvider";
-import { convertAISdkGenerateTextResultToResponseResource } from "./convertAISdkGenerateTextResultToResponseResource";
-import { convertAPICallErrorToResponseResource } from "./convertAPICallErrorToResponseResource";
+import { buildLanguageModel } from "./model-factory";
+import { resultToResponseResource } from "./result-to-resource";
+import { errorToResponseResource } from "./error-to-resource";
 import {
-  convertCreateResponseBodyInputFieldToCallSettingsMessages,
-  convertCreateResponseBodyToolsToCallSettingsTools,
-  convertCreateResponseBodyToolChoiceToCallSettingsToolChoice,
-  convertCreateResponseBodyTextFormatToCallSettingsOutput,
-  convertCreateResponseBodyReasoningToProviderOptions,
-} from "./responseFieldsToAISDKGenerateTextCallSettingsAdapters";
+  inputToMessages,
+  toolsToCallSettings,
+  toolChoiceToCallSettings,
+  textFormatToOutput,
+  reasoningToProviderOptions,
+} from "./adapters";
 
 export class AIServiceError extends Data.TaggedError("AIServiceError")<{
   cause?: unknown;
@@ -28,168 +29,7 @@ export class AIServiceError extends Data.TaggedError("AIServiceError")<{
 
 type StreamResult = ReturnType<typeof streamText>;
 
-export const execute = (
-  createResponseBody: CreateResponseBody,
-  userId: string,
-  userProviders: readonly string[],
-  fallbackProviderModelPair: ProviderModelPair,
-  analysisTarget: string,
-) =>
-  Effect.gen(function* () {
-    const ledgerService = yield* LedgerService;
-    const resolverService = yield* ResolverService;
-    const requestedModel = createResponseBody.model;
-    if (!requestedModel) {
-      // XXX: THIS SHOULD BE HANDLED BY ROUTE VALIDATION, BUT JUST IN CASE TO SATISFY TYPESCRIPT
-      return yield* new AIServiceError({
-        message: "`model` field is required or should not be empty",
-      });
-    }
-    const resolvedModelAndProvidersResult = yield* Effect.either(
-      pmrService.resolve(createResponseBody, userId, [...userProviders], analysisTarget),
-    );
-
-    if (Either.isLeft(resolvedModelAndProvidersResult)) {
-      if (fallbackProviderModelPair) {
-        return yield* callLanguageModel(userId, createResponseBody, {
-          ...fallbackProviderModelPair,
-          category: null,
-        });
-      }
-      return yield* new AIServiceError({
-        message: "Model resolution failed and no fallback provider is configured",
-      });
-    }
-
-    const { pairs: resolvedModelAndProviders, resolutionLatencyMs } =
-      resolvedModelAndProvidersResult.right;
-
-    for (const resolvedModelAndProvider of resolvedModelAndProviders) {
-      const llmStartedAt = Date.now();
-      const result = yield* Effect.either(
-        callLanguageModel(userId, createResponseBody, resolvedModelAndProvider),
-      );
-      const totalLatencyMs = Date.now() - llmStartedAt;
-
-      if (Either.isRight(result)) {
-        const response = result.right;
-        const cost = yield* resolverService
-          .getCostForModel(
-            `${resolvedModelAndProvider.provider}/${resolvedModelAndProvider.model}`,
-          )
-          .pipe(Effect.catchAll(() => Effect.succeed(null)));
-        yield* ledgerService
-          .insertTransaction(
-            buildTransaction(
-              resolvedModelAndProvider,
-              resolutionLatencyMs,
-              userId,
-              false,
-              response,
-              cost,
-              totalLatencyMs,
-              null,
-            ),
-          )
-          .pipe(Effect.ignore);
-        if (response.error === null) {
-          return response;
-        }
-      }
-    }
-
-    if (fallbackProviderModelPair) {
-      return yield* callLanguageModel(userId, createResponseBody, {
-        ...fallbackProviderModelPair,
-        category: null,
-      });
-    }
-
-    return yield* new AIServiceError({
-      message: "`model` field is required or should not be empty",
-    });
-  });
-
-export const executeStream = (
-  createResponseBody: CreateResponseBody,
-  userId: string,
-  userProviders: readonly string[],
-  fallbackProviderModelPair: ProviderModelPair,
-  analysisTarget: string,
-) =>
-  Effect.gen(function* () {
-    const requestedModel = createResponseBody.model;
-    if (!requestedModel) {
-      // XXX: THIS SHOULD BE HANDLED BY ROUTE VALIDATION, BUT JUST IN CASE TO SATISFY TYPESCRIPT
-      return yield* new AIServiceError({
-        message: "`model` field is required or should not be empty",
-      });
-    }
-
-    const resolvedModelAndProvidersResult = yield* Effect.either(
-      pmrService.resolve(createResponseBody, userId, [...userProviders], analysisTarget),
-    );
-
-    if (Either.isLeft(resolvedModelAndProvidersResult)) {
-      if (fallbackProviderModelPair) {
-        const fbStart = Date.now();
-        const callResult = yield* callLanguageModelStreaming(
-          userId,
-          createResponseBody,
-          { ...fallbackProviderModelPair, category: null },
-        );
-        return { ...callResult, resolutionLatencyMs: 0, llmStartedAt: fbStart, ttftMs: Date.now() - fbStart };
-      }
-      return yield* new AIServiceError({
-        message: "Model resolution failed and no fallback provider is configured",
-      });
-    }
-
-    const { pairs: resolvedModelAndProviders, resolutionLatencyMs } =
-      resolvedModelAndProvidersResult.right;
-
-    for (const resolvedModelAndProvider of resolvedModelAndProviders) {
-      const llmStartedAt = Date.now();
-      const result = yield* Effect.either(
-        Effect.gen(function* () {
-          const callResult = yield* callLanguageModelStreaming(
-            userId,
-            createResponseBody,
-            resolvedModelAndProvider,
-          );
-
-          const probedFullStream = yield* probeStream(callResult.result);
-
-          // Assign fullStream directly instead of spreading, because StreamTextResult
-          // exposes properties like totalUsage as prototype getters which are lost by spread.
-          Object.defineProperty(callResult.result, "fullStream", { value: probedFullStream });
-
-          return callResult;
-        }),
-      );
-
-      if (Either.isRight(result)) {
-        const ttftMs = Date.now() - llmStartedAt;
-        return { ...result.right, resolutionLatencyMs, llmStartedAt, ttftMs };
-      }
-    }
-
-    if (fallbackProviderModelPair) {
-      const fbStart = Date.now();
-      const callResult = yield* callLanguageModelStreaming(
-        userId,
-        createResponseBody,
-        { ...fallbackProviderModelPair, category: null },
-      );
-      return { ...callResult, resolutionLatencyMs: 0, llmStartedAt: fbStart, ttftMs: Date.now() - fbStart };
-    }
-
-    return yield* new AIServiceError({
-      message: "`model` field is required or should not be empty",
-    });
-  });
-
-const callLanguageModel = (
+const prepareCallOptions = (
   userId: string,
   createResponseBody: CreateResponseBody,
   resolvedModelAndProvider: ResolvedResponse,
@@ -204,37 +44,28 @@ const callLanguageModel = (
       ),
     );
 
-    const languageModel = yield* buildLanguageModelFromResolvedModelAndProvider(
-      resolvedModelAndProvider,
-      credentials,
-    );
+    const languageModel = yield* buildLanguageModel(resolvedModelAndProvider, credentials);
 
-    const messages =
-      yield* convertCreateResponseBodyInputFieldToCallSettingsMessages(createResponseBody);
+    const messages = yield* inputToMessages(createResponseBody);
 
-    const tools = convertCreateResponseBodyToolsToCallSettingsTools(
+    const tools = toolsToCallSettings(
       createResponseBody.tools,
       createResponseBody.tool_choice,
     );
 
-    const toolChoice = convertCreateResponseBodyToolChoiceToCallSettingsToolChoice(
-      createResponseBody.tool_choice,
-    );
+    const toolChoice = toolChoiceToCallSettings(createResponseBody.tool_choice);
 
-    const outputFormat = convertCreateResponseBodyTextFormatToCallSettingsOutput(
-      createResponseBody.text,
-    );
+    const outputFormat = textFormatToOutput(createResponseBody.text);
 
     const hasStructuredOutput = createResponseBody.text?.format?.type === "json_schema";
 
-    const providerOptions = convertCreateResponseBodyReasoningToProviderOptions(
+    const providerOptions = reasoningToProviderOptions(
       createResponseBody.reasoning,
       resolvedModelAndProvider.model,
       hasStructuredOutput,
     );
 
-    // NOTE: parallel_tool_calls, max_tool_calls, prompt_cache_key, truncation, top_logProbs
-    const generateTextOptions = {
+    const baseOptions = {
       model: languageModel,
       messages,
       ...(createResponseBody.max_output_tokens && {
@@ -250,11 +81,176 @@ const callLanguageModel = (
       }),
     };
 
+    return { baseOptions, tools, toolChoice, outputFormat, providerOptions };
+  });
+
+const resolveProviders = (
+  createResponseBody: CreateResponseBody,
+  params: RequestParams,
+) =>
+  Effect.gen(function* () {
+    const resolvedResult = yield* Effect.either(
+      pmrService.resolve(
+        createResponseBody,
+        params.userId,
+        [...params.userProviders],
+        params.analysisTarget,
+      ),
+    );
+
+    if (Either.isLeft(resolvedResult)) {
+      if (params.fallbackProviderModelPair) {
+        return {
+          pairs: [
+            {
+              ...params.fallbackProviderModelPair,
+              category: null as string | null,
+            },
+          ] as ResolvedResponse[],
+          resolutionLatencyMs: 0,
+        };
+      }
+      return yield* new AIServiceError({
+        message: "Model resolution failed and no fallback provider is configured",
+      });
+    }
+
+    return resolvedResult.right;
+  });
+
+const tryProviders = <T, E, R>(
+  providers: readonly ResolvedResponse[],
+  fn: (provider: ResolvedResponse) => Effect.Effect<T, E, R>,
+  fallback: ResolvedResponse | null,
+): Effect.Effect<T, AIServiceError | E, R> =>
+  Effect.gen(function* () {
+    for (const provider of providers) {
+      const result = yield* Effect.either(fn(provider));
+      if (Either.isRight(result)) return result.right;
+    }
+
+    if (fallback) {
+      return yield* fn(fallback);
+    }
+
+    return yield* new AIServiceError({
+      message: "All providers failed and no fallback is available",
+    });
+  });
+
+export const execute = (body: CreateResponseBody, params: RequestParams) =>
+  Effect.gen(function* () {
+    const ledgerService = yield* LedgerService;
+    const resolverService = yield* ResolverService;
+
+    if (!body.model) {
+      return yield* new AIServiceError({
+        message: "`model` field is required or should not be empty",
+      });
+    }
+
+    const { pairs, resolutionLatencyMs } = yield* resolveProviders(body, params);
+
+    const fallback = params.fallbackProviderModelPair
+      ? { ...params.fallbackProviderModelPair, category: null as string | null }
+      : null;
+
+    return yield* tryProviders(
+      pairs,
+      (resolvedModelAndProvider) =>
+        Effect.gen(function* () {
+          const llmStartedAt = Date.now();
+          const response = yield* callLanguageModel(params.userId, body, resolvedModelAndProvider);
+          const totalLatencyMs = Date.now() - llmStartedAt;
+
+          const cost = yield* resolverService
+            .getCostForModel(
+              `${resolvedModelAndProvider.provider}/${resolvedModelAndProvider.model}`,
+            )
+            .pipe(Effect.catchAll(() => Effect.succeed(null)));
+
+          yield* ledgerService
+            .insertTransaction(
+              buildTransaction({
+                resolvedModelAndProvider,
+                resolutionLatencyMs,
+                userId: params.userId,
+                isStreaming: false,
+                response,
+                cost,
+                totalLatencyMs,
+                ttftMs: null,
+              }),
+            )
+            .pipe(Effect.ignore);
+
+          if (response.error !== null) {
+            return yield* new AIServiceError({
+              message: response.error.message,
+            });
+          }
+
+          return response;
+        }),
+      fallback,
+    );
+  });
+
+export const executeStream = (body: CreateResponseBody, params: RequestParams) =>
+  Effect.gen(function* () {
+    if (!body.model) {
+      return yield* new AIServiceError({
+        message: "`model` field is required or should not be empty",
+      });
+    }
+
+    const { pairs, resolutionLatencyMs } = yield* resolveProviders(body, params);
+
+    const fallback = params.fallbackProviderModelPair
+      ? { ...params.fallbackProviderModelPair, category: null as string | null }
+      : null;
+
+    return yield* tryProviders(
+      pairs,
+      (resolvedModelAndProvider) =>
+        Effect.gen(function* () {
+          const llmStartedAt = Date.now();
+          const callResult = yield* callLanguageModelStreaming(
+            params.userId,
+            body,
+            resolvedModelAndProvider,
+          );
+
+          const probedFullStream = yield* probeStream(callResult.result);
+
+          Object.defineProperty(callResult.result, "fullStream", { value: probedFullStream });
+
+          const ttftMs = Date.now() - llmStartedAt;
+          return { ...callResult, resolutionLatencyMs, llmStartedAt, ttftMs };
+        }),
+      fallback
+        ? {
+            ...fallback,
+            category: null as string | null,
+          }
+        : null,
+    );
+  });
+
+const callLanguageModel = (
+  userId: string,
+  createResponseBody: CreateResponseBody,
+  resolvedModelAndProvider: ResolvedResponse,
+) =>
+  Effect.gen(function* () {
+    const { baseOptions, tools, toolChoice, outputFormat, providerOptions } =
+      yield* prepareCallOptions(userId, createResponseBody, resolvedModelAndProvider);
+
     const result = yield* Effect.either(
       Effect.tryPromise({
         try: (abortSignal) =>
           generateText({
-            ...generateTextOptions,
+            ...baseOptions,
             abortSignal,
             ...(tools ? { tools } : {}),
             ...(toolChoice ? { toolChoice } : {}),
@@ -278,7 +274,7 @@ const callLanguageModel = (
         return yield* errorValue;
       }
 
-      return yield* convertAPICallErrorToResponseResource({
+      return yield* errorToResponseResource({
         result: errorValue,
         createResponseBody,
         createdAt: Date.now(),
@@ -286,7 +282,7 @@ const callLanguageModel = (
       });
     }
 
-    return yield* convertAISdkGenerateTextResultToResponseResource({
+    return yield* resultToResponseResource({
       result: result.right,
       createResponseBody,
       createdAt: Date.now(),
@@ -300,67 +296,13 @@ const callLanguageModelStreaming = (
   resolvedModelAndProvider: ResolvedResponse,
 ) =>
   Effect.gen(function* () {
-    const credentials = yield* CredentialsService.getCredentials(
-      userId,
-      resolvedModelAndProvider.provider as Providers,
-    ).pipe(
-      Effect.catchTag("CredentialsError", (err) =>
-        Effect.fail(new AIServiceError({ cause: err, message: err.message })),
-      ),
-    );
-
-    const languageModel = yield* buildLanguageModelFromResolvedModelAndProvider(
-      resolvedModelAndProvider,
-      credentials,
-    );
-
-    const messages =
-      yield* convertCreateResponseBodyInputFieldToCallSettingsMessages(createResponseBody);
-
-    const tools = convertCreateResponseBodyToolsToCallSettingsTools(
-      createResponseBody.tools,
-      createResponseBody.tool_choice,
-    );
-
-    const toolChoice = convertCreateResponseBodyToolChoiceToCallSettingsToolChoice(
-      createResponseBody.tool_choice,
-    );
-
-    const outputFormat = convertCreateResponseBodyTextFormatToCallSettingsOutput(
-      createResponseBody.text,
-    );
-
-    const hasStructuredOutput = createResponseBody.text?.format?.type === "json_schema";
-
-    const providerOptions = convertCreateResponseBodyReasoningToProviderOptions(
-      createResponseBody.reasoning,
-      resolvedModelAndProvider.model,
-      hasStructuredOutput,
-    );
-
-    void outputFormat;
-
-    // NOTE: parallel_tool_calls, max_tool_calls, prompt_cache_key, truncation, top_logProbs
-    const generateTextOptions = {
-      model: languageModel,
-      messages,
-      ...(createResponseBody.max_output_tokens && {
-        maxOutputTokens: createResponseBody.max_output_tokens,
-      }),
-      ...(createResponseBody.top_p && { topP: createResponseBody.top_p }),
-      ...(createResponseBody.temperature && { temperature: createResponseBody.temperature }),
-      ...(createResponseBody.presence_penalty && {
-        presencePenalty: createResponseBody.presence_penalty,
-      }),
-      ...(createResponseBody.frequency_penalty && {
-        frequencyPenalty: createResponseBody.frequency_penalty,
-      }),
-    };
+    const { baseOptions, tools, toolChoice, providerOptions } =
+      yield* prepareCallOptions(userId, createResponseBody, resolvedModelAndProvider);
 
     const stream = yield* Effect.try({
       try: () =>
         streamText({
-          ...generateTextOptions,
+          ...baseOptions,
           ...(tools ? { tools } : {}),
           ...(toolChoice ? { toolChoice } : {}),
           ...(providerOptions ? { providerOptions } : {}),
@@ -428,16 +370,27 @@ const probeStream = (streamResult: StreamResult) =>
     catch: (error) => new AIServiceError({ cause: error, message: "Stream failed on first chunk" }),
   });
 
-const buildTransaction = (
-  resolvedModelAndProvider: ResolvedResponse,
-  resolutionLatencyMs: number,
-  userId: string,
-  isStreaming: boolean,
-  response: ResponseResource | null,
-  cost: { input: number; output: number } | null,
-  totalLatencyMs: number | null,
-  ttftMs: number | null,
-): Transaction => {
+export const buildTransaction = (opts: {
+  resolvedModelAndProvider: ResolvedResponse;
+  resolutionLatencyMs: number;
+  userId: string;
+  isStreaming: boolean;
+  response: ResponseResource | null;
+  cost: { input: number; output: number } | null;
+  totalLatencyMs: number | null;
+  ttftMs: number | null;
+}): Transaction => {
+  const {
+    resolvedModelAndProvider,
+    resolutionLatencyMs,
+    userId,
+    isStreaming,
+    response,
+    cost,
+    totalLatencyMs,
+    ttftMs,
+  } = opts;
+
   const usage = response?.usage ?? null;
   const inputTokens = usage?.input_tokens ?? null;
   const outputTokens = usage?.output_tokens ?? null;

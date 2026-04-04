@@ -6,23 +6,6 @@ import { getPotentialModelsForIntentPair } from "../data_manager";
 import * as Redis from "../redis/index";
 import { NoProviderAvailableError } from "../types";
 
-const getAllProvidersForModel = (modelNameSlug: string) =>
-  Effect.gen(function* () {
-    return yield* Redis.getProvidersForModel(modelNameSlug);
-  });
-
-const findMatchingMapping = (modelNameSlug: string, userProviderSet: ReadonlySet<string>) =>
-  Effect.gen(function* () {
-    const providersForModel = yield* getAllProvidersForModel(modelNameSlug);
-    return providersForModel.filter(({ provider }) => userProviderSet.has(provider));
-  });
-
-const getAllProvidersForPotentialModels = (modelNameSlugs: readonly string[]) =>
-  Effect.gen(function* () {
-    const providerArrays = yield* Effect.all(modelNameSlugs.map(getAllProvidersForModel));
-    return providerArrays.flat().map(({ provider }) => provider);
-  });
-
 export const resolveIntentPair = (pair: IntentPair, userProviders: string[]) =>
   Effect.gen(function* () {
     yield* Effect.logDebug("Resolving intent pair").pipe(
@@ -40,7 +23,13 @@ export const resolveIntentPair = (pair: IntentPair, userProviders: string[]) =>
 
     const pairs = yield* Effect.map(
       Effect.all(
-        potentialModels.map((modelNameSlug) => findMatchingMapping(modelNameSlug, userProviderSet)),
+        potentialModels.map((modelNameSlug) =>
+          Redis.getProvidersForModel(modelNameSlug).pipe(
+            Effect.map((providers) =>
+              providers.filter(({ provider }) => userProviderSet.has(provider)),
+            ),
+          ),
+        ),
       ),
       (results) =>
         results.flat().map((p) => ({ ...p, category: pair.intent as string | null })),
@@ -59,8 +48,8 @@ export const resolveIntentPair = (pair: IntentPair, userProviders: string[]) =>
     }
 
     const availableProviders = yield* Effect.map(
-      getAllProvidersForPotentialModels(potentialModels),
-      Arr.dedupe,
+      Effect.all(potentialModels.map((m) => Redis.getProvidersForModel(m))),
+      (results) => Arr.dedupe(results.flat().map(({ provider }) => provider)),
     );
 
     yield* Effect.logWarning("No matching provider found for intent").pipe(

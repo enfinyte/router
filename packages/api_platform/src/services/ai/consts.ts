@@ -11,7 +11,3 @@ export const DEFAULT_STORE: ResponseResource["store"] = true;
 export const DEFAULT_BACKGROUND: ResponseResource["background"] = false;
 export const DEFAULT_SERVICE_TIER: ResponseResource["service_tier"] = "default";
 
-export const MOCK_INPUT_TOKENS = 1000;
-export const MOCK_OUTPUT_TOKENS = 100;
-export const MOCK_REASONING_TOKENS = 0;
-export const MOCK_CACHED_TOKENS = 0;

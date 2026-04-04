@@ -1,9 +1,8 @@
 import { Effect, Schema } from "effect";
 
 import { Redis } from ".";
-import { TTL } from "./consts";
+import { TTL, REDIS_PREFIX } from "./consts";
 
-const PREFIX = "enfinyte:model_to_providers:";
 const providersSchemaParser = Schema.parseJson(
   Schema.Array(
     Schema.Struct({
@@ -18,7 +17,9 @@ type providers = typeof providersSchemaParser.Type;
 export const getProvidersForModel = (canonicalModelName: string) =>
   Effect.gen(function* () {
     const redis = yield* Redis;
-    const providersStr = yield* redis.use((client) => client.get(PREFIX + canonicalModelName));
+    const providersStr = yield* redis.use((client) =>
+      client.get(REDIS_PREFIX.modelToProviders + canonicalModelName),
+    );
     if (!providersStr) return [];
     return yield* Schema.decodeUnknown(providersSchemaParser)(providersStr);
   });
@@ -28,7 +29,12 @@ export const setProvidersForModel = (canonicalModelName: string, providers: prov
     const redis = yield* Redis;
     const stringifiedProviders = yield* Schema.encode(providersSchemaParser)(providers);
     yield* redis.use((client) =>
-      client.set(PREFIX + canonicalModelName, stringifiedProviders, "PX", TTL),
+      client.set(
+        REDIS_PREFIX.modelToProviders + canonicalModelName,
+        stringifiedProviders,
+        "PX",
+        TTL,
+      ),
     );
   });
 
@@ -45,5 +51,5 @@ export const bulkSetProvidersForModels = (
 export const deleteModel = (canonicalModelName: string) =>
   Effect.gen(function* () {
     const redis = yield* Redis;
-    yield* redis.use((client) => client.del(PREFIX + canonicalModelName));
+    yield* redis.use((client) => client.del(REDIS_PREFIX.modelToProviders + canonicalModelName));
   });

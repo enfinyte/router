@@ -3,7 +3,11 @@ import chalk from "chalk";
 const isProd = process.env.NODE_ENV === "production";
 
 const services = [
-  // { name: "api", cmd: ["bun", "run", ...(isProd ? [] : ["--hot"]), "packages/api_platform/src/index.ts"], color: chalk.blue },
+  {
+    name: "api",
+    cmd: ["bun", "run", ...(isProd ? [] : ["--hot"]), "packages/api_platform/src/index.ts"],
+    color: chalk.blue,
+  },
   {
     name: "backend",
     cmd: ["bun", "run", ...(isProd ? [] : ["--hot"]), "packages/backend/src/index.ts"],

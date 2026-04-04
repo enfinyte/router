@@ -1,4 +1,4 @@
-import type { ProviderModelPair } from "resolver";
+import type { VerifyApiKeyResult } from "common";
 
 import { Context, Effect, Layer } from "effect";
 import { ProviderModelParseError } from "resolver";
@@ -19,15 +19,6 @@ export interface ApiKeyResponse {
   readonly enabled: boolean;
   readonly createdAt: Date;
   readonly value?: string;
-}
-
-export interface VerifyResult {
-  readonly valid: boolean;
-  readonly providers?: string[];
-  readonly userId?: string;
-  readonly fallbackProviderModelPair?: ProviderModelPair;
-  readonly analysisTarget?: string;
-  readonly error?: string;
 }
 
 const toApiKeyResponse = (
@@ -56,6 +47,42 @@ const tryAuth = <A>(f: () => Promise<A>, message: string) =>
     catch: (cause) => new AuthApiError({ cause, message }),
   });
 
+const assembleUserContext = (
+  secrets: {
+    getUserSecrets: (userId: string) => Effect.Effect<
+      { providers: string[]; disabledProviders: string[] },
+      DatabaseServiceError
+    >;
+    getUserFallback: (userId: string) => Effect.Effect<string, DatabaseServiceError>;
+    getUserAnalysisTarget: (userId: string) => Effect.Effect<string, DatabaseServiceError>;
+  },
+  userId: string,
+) =>
+  Effect.gen(function* () {
+    const userSecrets = yield* secrets
+      .getUserSecrets(userId)
+      .pipe(
+        Effect.catchTag("DatabaseServiceError", (err) =>
+          Effect.logError("Failed to fetch user providers during verify").pipe(
+            Effect.annotateLogs("cause", String(err.cause)),
+            Effect.as({ providers: [] as string[], disabledProviders: [] as string[] }),
+          ),
+        ),
+      );
+    const providers = userSecrets.providers.filter(
+      (p) => !userSecrets.disabledProviders.includes(p),
+    );
+
+    const fallbackProviderModelPairString = yield* secrets.getUserFallback(userId);
+    const fallbackProviderModelPair = yield* parseProviderModelImpl(
+      fallbackProviderModelPairString,
+    );
+
+    const analysisTarget = yield* secrets.getUserAnalysisTarget(userId);
+
+    return { providers, fallbackProviderModelPair, analysisTarget };
+  });
+
 interface ApiKeyServiceImpl {
   getKey: (headers: Headers) => Effect.Effect<ApiKeyResponse | null, AuthApiError>;
 
@@ -75,7 +102,7 @@ interface ApiKeyServiceImpl {
 
   verifyKey: (
     key: string,
-  ) => Effect.Effect<VerifyResult, AuthApiError | DatabaseServiceError | ProviderModelParseError>;
+  ) => Effect.Effect<VerifyApiKeyResult, AuthApiError | DatabaseServiceError | ProviderModelParseError>;
 }
 
 export class ApiKeyService extends Context.Tag("ApiKeyService")<
@@ -180,35 +207,14 @@ export const ApiKeyServiceLive = Layer.effect(
             };
           }
 
-          let providers: string[] = [];
-
-          const userSecrets = yield* secrets
-            .getUserSecrets(result.key!.referenceId)
-            .pipe(
-              Effect.catchTag("DatabaseServiceError", (err) =>
-                Effect.logError("Failed to fetch user providers during verify").pipe(
-                  Effect.annotateLogs("cause", String(err.cause)),
-                  Effect.as({ providers: [] as string[], disabledProviders: [] as string[] }),
-                ),
-              ),
-            );
-          providers = userSecrets.providers.filter(
-            (p) => !userSecrets.disabledProviders.includes(p),
-          );
-
-          const fallbackProviderModelPairString = yield* secrets.getUserFallback(
-            result.key!.referenceId,
-          );
-          const fallbackProviderModelPair = yield* parseProviderModelImpl(
-            fallbackProviderModelPairString,
-          );
-
-          const analysisTarget = yield* secrets.getUserAnalysisTarget(result.key!.referenceId);
+          const userId = result.key!.referenceId;
+          const { providers, fallbackProviderModelPair, analysisTarget } =
+            yield* assembleUserContext(secrets, userId);
 
           return {
             valid: true as const,
             providers,
-            userId: result.key!.referenceId,
+            userId,
             fallbackProviderModelPair,
             analysisTarget,
           };

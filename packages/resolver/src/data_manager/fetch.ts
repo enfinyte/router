@@ -144,18 +144,15 @@ const modelsDevAction = () => (json: Record<string, string[]>) =>
       ),
     );
 
-    const supportedCost = SUPPORTED_PROVIDERS.reduce((acc, provider: string) => {
+    const supportedCost: Record<string, { input: number; output: number }> = {};
+    for (const provider of SUPPORTED_PROVIDERS) {
       const costs = parsedCost[provider];
       if (costs) {
         for (const cost of costs) {
-          const { input, output, model } = cost;
-          // FIXME: type this later
-          // @ts-expect-error
-          acc[`${provider}/${model}`] = { input, output };
+          supportedCost[`${provider}/${cost.model}`] = { input: cost.input, output: cost.output };
         }
       }
-      return acc;
-    }, {});
+    }
 
     yield* Redis.bulkSetProviderModelCost(supportedCost);
 
@@ -201,7 +198,6 @@ const populate = () =>
       }),
     );
 
-    // TODO: do a runtime check to see if they match our expected schema, and log any discrepancies for debugging purposes
     const modelMap = generateModelMap(
       openRouter.flat() as string[],
       modelsDev as Readonly<Record<string, string[]>>,

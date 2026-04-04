@@ -1,6 +1,7 @@
 import { Effect, Data } from "effect";
 import { VaultService } from "vault";
 import { type ProviderCredentials, Providers } from "common";
+import { getProviderEntry } from "./provider-registry";
 
 export class CredentialsError extends Data.TaggedError("CredentialsError")<{
   cause?: unknown;
@@ -23,26 +24,5 @@ export const getCredentials = <T extends Providers>(
       ),
     );
 
-    switch (provider) {
-      case Providers.AmazonBedrock:
-        return {
-          accessKeyId: secrets["accessKeyId"] ?? "",
-          secretAccessKey: secrets["secretAccessKey"] ?? "",
-          region: secrets["region"] ?? "",
-        } satisfies ProviderCredentials<Providers.AmazonBedrock> as ProviderCredentials<T>;
-      case Providers.OpenAI:
-        return {
-          apiKey: secrets["apiKey"] ?? "",
-        } satisfies ProviderCredentials<Providers.OpenAI> as ProviderCredentials<T>;
-      case Providers.Anthropic:
-        return {
-          apiKey: secrets["apiKey"] ?? "",
-        } satisfies ProviderCredentials<Providers.Anthropic> as ProviderCredentials<T>;
-      default: {
-        const _exhaustiveCheck: never = provider satisfies never;
-        return yield* Effect.fail(
-          new CredentialsError({ message: `Unsupported provider: ${provider}` }),
-        );
-      }
-    }
+    return getProviderEntry(provider).extractCredentials(secrets);
   });

@@ -14,108 +14,66 @@ import { resolveIntentPair } from "./resolve_intent";
 const RETRY_POLICY = { times: 5 };
 const LLM_MODEL = "moonshotai.kimi-k2.5";
 
-const getCategory = (prompt: string) =>
+const classifyWithLLM = (
+  prompt: string,
+  systemPrompt: string,
+  schema: z.ZodType,
+  fieldName: string,
+  operationName: string,
+) =>
   Effect.tryPromise({
     try: () =>
       generateText({
         model: bedrock(LLM_MODEL),
-        system: SYSTEM_PROMPT_CAT,
-        output: Output.object({
-          schema: z.object({
-            category: z.enum(CATEGORIES),
-          }),
-        }),
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: prompt,
-              },
-            ],
-          },
-        ],
-      }).then((res) => res.output.category),
+        system: systemPrompt,
+        output: Output.object({ schema }),
+        messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
+      }).then((res) => (res.output as Record<string, string>)[fieldName]!),
     catch: (error) =>
       new DataFetchError({
         reason: "APICallFailed",
-        message: "Failed to classify intent category",
+        message: `Failed to classify ${operationName}`,
         cause: error,
       }),
   }).pipe(
     Effect.tapError((err) =>
-      Effect.logError("LLM category classification failed").pipe(
+      Effect.logError(`LLM ${operationName} classification failed`).pipe(
         Effect.annotateLogs({
           service: "Resolver",
-          operation: "getCategory",
+          operation: operationName,
           llmModel: LLM_MODEL,
           cause: err.cause instanceof Error ? err.cause.message : String(err.cause),
         }),
       ),
     ),
-    Effect.tap((category) =>
-      Effect.logDebug("LLM category classified").pipe(
+    Effect.tap((result) =>
+      Effect.logDebug(`LLM ${operationName} classified`).pipe(
         Effect.annotateLogs({
           service: "Resolver",
-          operation: "getCategory",
+          operation: operationName,
           llmModel: LLM_MODEL,
-          category,
+          result,
         }),
       ),
     ),
   );
 
+const getCategory = (prompt: string) =>
+  classifyWithLLM(
+    prompt,
+    SYSTEM_PROMPT_CAT,
+    z.object({ category: z.enum(CATEGORIES) }),
+    "category",
+    "getCategory",
+  );
+
 const getPolicy = (prompt: string) =>
-  Effect.tryPromise({
-    try: () =>
-      generateText({
-        model: bedrock(LLM_MODEL),
-        system: SYSTEM_PROMPT_POL,
-        output: Output.object({
-          schema: z.object({
-            policy: z.enum(ORDERS),
-          }),
-        }),
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: prompt,
-              },
-            ],
-          },
-        ],
-      }).then((res) => res.output.policy),
-    catch: (error) =>
-      new DataFetchError({
-        reason: "APICallFailed",
-        message: "Failed to classify intent policy",
-        cause: error,
-      }),
-  }).pipe(
-    Effect.tapError((err) =>
-      Effect.logError("LLM policy classification failed").pipe(
-        Effect.annotateLogs({
-          service: "Resolver",
-          operation: "getPolicy",
-          llmModel: LLM_MODEL,
-          cause: err.cause instanceof Error ? err.cause.message : String(err.cause),
-        }),
-      ),
-    ),
-    Effect.tap((policy) =>
-      Effect.logDebug("LLM policy classified").pipe(
-        Effect.annotateLogs({
-          service: "Resolver",
-          operation: "getPolicy",
-          llmModel: LLM_MODEL,
-          policy,
-        }),
-      ),
-    ),
+  classifyWithLLM(
+    prompt,
+    SYSTEM_PROMPT_POL,
+    z.object({ policy: z.enum(ORDERS) }),
+    "policy",
+    "getPolicy",
   );
 
 const extractTextFromInput = (
@@ -148,9 +106,6 @@ const resolveWith = (
   userProviders: string[],
 ) =>
   Effect.gen(function* () {
-    console.log("---------------------");
-    console.log(prompt);
-    console.log("---------------------");
     yield* Effect.logInfo("Auto-classifying with LLM").pipe(
       Effect.annotateLogs({
         service: "Resolver",
@@ -186,13 +141,12 @@ const resolveWith = (
       }),
     );
 
+    const policy =
+      pair.intentPolicy === "auto"
+        ? yield* Effect.retry(getPolicy(prompt.text), RETRY_POLICY)
+        : pair.intentPolicy;
+
     if (pair.intentPolicy === "auto") {
-      yield* Effect.logDebug("Policy is auto, classifying via LLM").pipe(
-        Effect.annotateLogs({ service: "Resolver", operation: "resolveWith" }),
-      );
-
-      const policy = yield* Effect.retry(getPolicy(prompt.text), RETRY_POLICY);
-
       yield* Effect.logInfo("Policy classified").pipe(
         Effect.annotateLogs({
           service: "Resolver",
@@ -200,31 +154,13 @@ const resolveWith = (
           policy,
         }),
       );
-
-      const intentPair = new IntentPair({
-        intent: category,
-        intentPolicy: policy,
-      });
-
-      const resolvedResponse = yield* resolveIntentPair(intentPair, userProviders);
-      const withCategory = resolvedResponse.map((p) => ({ ...p, category: category as string | null }));
-
-      if (prompt.source === "per_system_prompt") {
-        yield* setResolvedResponse(userId, prompt.text, withCategory);
-
-        yield* Effect.logInfo("Prompt cached.").pipe(
-          Effect.annotateLogs({
-            service: "Resolver",
-            operation: "resolveWith",
-            message: "Cache event.",
-          }),
-        );
-      }
-
-      return withCategory;
     }
 
-    const intentPair = new IntentPair({ intent: category, intentPolicy: pair.intentPolicy });
+    const intentPair = new IntentPair({
+      intent: category as IntentPair["intent"],
+      intentPolicy: policy as IntentPair["intentPolicy"],
+    });
+
     const resolvedResponse = yield* resolveIntentPair(intentPair, userProviders);
     const withCategory = resolvedResponse.map((p) => ({ ...p, category: category as string | null }));
 

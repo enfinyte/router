@@ -1,8 +1,8 @@
-import type { ProviderModelPair } from "resolver/src/types";
+import type { ProviderModelPair } from "common";
 
 import { Context } from "effect";
 
-interface RequestContextImpl {
+export interface RequestParams {
   readonly userId: string;
   readonly userProviders: readonly string[];
   readonly fallbackProviderModelPair: ProviderModelPair;
@@ -11,5 +11,5 @@ interface RequestContextImpl {
 
 export class RequestContext extends Context.Tag("RequestContext")<
   RequestContext,
-  RequestContextImpl
+  RequestParams
 >() {}
