@@ -9,7 +9,6 @@ import type { RequestParams } from "../request-context";
 import * as AIService from "../ai";
 import { buildTransaction } from "../ai";
 import { streamToEvents } from "../ai/stream-events";
-import { resolveTools, resolveToolChoice, resolveTextFormat } from "../ai/field-resolvers";
 import { buildBaseResponse } from "../ai/response-defaults";
 import { encodeSSEEvent, encodeSSEDone, encodeSSEToUint8Array } from "../ai/sse";
 import * as DatabaseService from "../database/postgres";
