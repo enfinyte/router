@@ -103,18 +103,11 @@ export const responsesRouter = HttpRouter.empty.pipe(
     Effect.gen(function* () {
       const createResponseBody = yield* HttpServerRequest.schemaBodyJson(CreateResponseBodySchema);
       yield* validateCreateResponseBody(createResponseBody);
-      const { userId, userProviders, fallbackProviderModelPair, analysisTarget } =
-        yield* RequestContext;
+      const params = yield* RequestContext;
 
       if (createResponseBody.stream === true) {
         const db = yield* DatabaseService;
-        const sseStream = yield* ResponsesService.createStream(
-          createResponseBody,
-          userId,
-          userProviders,
-          fallbackProviderModelPair,
-          analysisTarget,
-        );
+        const sseStream = yield* ResponsesService.createStream(createResponseBody, params);
         return HttpServerResponse.stream(
           sseStream.pipe(Stream.provideService(DatabaseService, db)),
           {
@@ -128,19 +121,13 @@ export const responsesRouter = HttpRouter.empty.pipe(
         );
       }
 
-      const responsesObject = yield* ResponsesService.create(
-        createResponseBody,
-        userId,
-        userProviders,
-        fallbackProviderModelPair,
-        analysisTarget,
-      );
+      const responsesObject = yield* ResponsesService.create(createResponseBody, params);
       return yield* HttpServerResponse.json(responsesObject);
     }).pipe(
       Effect.catchTags({
-        RequestValidationError: (err) =>
+        RequestValidationError: (err: RequestValidationError) =>
           HttpServerResponse.json({ error: { message: err.message } }, { status: 400 }),
-        ResponseServiceError: (err) =>
+        ResponseServiceError: (err: ResponsesService.ResponseServiceError) =>
           HttpServerResponse.json(
             { error: { message: err.message ?? "Internal Server Error" } },
             { status: 500, headers: { "x-enfinyte-error": `${err.name}: ${err}` } },

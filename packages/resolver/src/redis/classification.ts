@@ -4,11 +4,10 @@ import { hoursToMilliseconds } from "date-fns";
 import { Effect, Schema } from "effect";
 
 import { Redis } from "./index";
+import { REDIS_PREFIX } from "./consts";
 
 const MAX_ENTRIES_PER_USER = 100;
 const TTL_MS = hoursToMilliseconds(1);
-
-const KEY_PREFIX = "classification_cache";
 
 const resolvedResponseSchema = Schema.parseJson(Schema.Array(ResolvedResponseSchema));
 
@@ -76,9 +75,9 @@ const hashText = (text: string): string => {
 };
 
 const buildEntryKey = (userId: string, hashedString: string): string => {
-  return `${KEY_PREFIX}:${userId}:${hashedString}`;
+  return `${REDIS_PREFIX.classificationCache}:${userId}:${hashedString}`;
 };
 
 const buildIndexKey = (userId: string): string => {
-  return `${KEY_PREFIX}:${userId}:index`;
+  return `${REDIS_PREFIX.classificationCache}:${userId}:index`;
 };

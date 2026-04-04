@@ -1,4 +1,4 @@
-import type { ParsedModelId } from "./parse_model_id.ts";
+import type { ParsedModelId } from "./parse_model_id";
 
 export function modelsMatch(a: ParsedModelId, b: ParsedModelId): boolean {
   return (

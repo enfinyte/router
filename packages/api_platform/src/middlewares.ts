@@ -1,4 +1,4 @@
-import type { ProviderModelPair } from "resolver";
+import type { VerifyApiKeyResult } from "common";
 
 import { HttpMiddleware, HttpServerRequest } from "@effect/platform";
 import { BadRequest, Unauthorized } from "@effect/platform/HttpApiError";
@@ -24,15 +24,6 @@ class ApiKeyVerificationError extends Data.TaggedError("ApiKeyVerificationError"
   message?: string;
 }> {}
 
-interface VerifyResponse {
-  valid: boolean;
-  userId?: string;
-  providers?: string[];
-  fallbackProviderModelPair?: ProviderModelPair;
-  analysisTarget?: string;
-  error?: string;
-}
-
 const verifyApiKey = (backendUrl: string, apiKey: string) =>
   Effect.tryPromise({
     try: async () => {
@@ -44,7 +35,7 @@ const verifyApiKey = (backendUrl: string, apiKey: string) =>
       if (!response.ok) {
         throw new Error(`Backend returned ${response.status}`);
       }
-      return (await response.json()) as VerifyResponse;
+      return (await response.json()) as VerifyApiKeyResult;
     },
     catch: (error) =>
       new ApiKeyVerificationError({

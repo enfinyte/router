@@ -1,11 +1,12 @@
+import { SUPPORTED_PROVIDERS } from "common";
 import { Effect, Duration, Schema } from "effect";
+
+import * as Redis from "../redis/index";
 import { DataFetchError } from "../types";
 import { ORDERS, CATEGORIES } from "../types";
-import { SUPPORTED_PROVIDERS } from "common";
-import { ProviderModelMapSchema } from "./schema/modelsdev";
-import { OpenRouterMapSchema } from "./schema/openrouter";
 import { generateModelMap } from "./model_map";
-import * as Redis from "../redis/index";
+import { ProviderModelMapSchema, ProviderModelToCostSchema } from "./schema/modelsdev";
+import { OpenRouterMapSchema } from "./schema/openrouter";
 
 const OPENROUTER_BASE = "https://openrouter.ai/api/frontend/models";
 const MODELS_DEV_BASE = "https://models.dev/api.json";
@@ -129,6 +130,32 @@ const modelsDevAction = () => (json: Record<string, string[]>) =>
     );
 
     yield* Redis.bulkSetModelsForProvider(supported);
+
+    const parsedCost = yield* Schema.decodeUnknown(ProviderModelToCostSchema)(json).pipe(
+      Effect.tapError((err) =>
+        Effect.logError("models.dev cost decode failed").pipe(
+          Effect.annotateLogs({
+            service: "DataManager",
+            operation: "populate",
+            key: `models.dev`,
+            cause: String(err),
+          }),
+        ),
+      ),
+    );
+
+    const supportedCost: Record<string, { input: number; output: number }> = {};
+    for (const provider of SUPPORTED_PROVIDERS) {
+      const costs = parsedCost[provider];
+      if (costs) {
+        for (const cost of costs) {
+          supportedCost[`${provider}/${cost.model}`] = { input: cost.input, output: cost.output };
+        }
+      }
+    }
+
+    yield* Redis.bulkSetProviderModelCost(supportedCost);
+
     return supported;
   });
 
@@ -171,7 +198,6 @@ const populate = () =>
       }),
     );
 
-    // TODO: do a runtime check to see if they match our expected schema, and log any discrepancies for debugging purposes
     const modelMap = generateModelMap(
       openRouter.flat() as string[],
       modelsDev as Readonly<Record<string, string[]>>,

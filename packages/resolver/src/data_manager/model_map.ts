@@ -30,7 +30,7 @@ export function generateModelMap(
 
     for (const entry of parsedProviderModels) {
       if (modelsMatch(parsedSlug, entry.parsed)) {
-        matches.push({ provider: entry.provider, model: entry.model });
+        matches.push({ provider: entry.provider, model: entry.model, category: null });
       }
     }
 
