@@ -47,10 +47,7 @@ export class ResolverService extends Context.Tag("ResolverService")<
     >;
     getCostForModel: (
       canonicalProviderModelName: string,
-    ) => Effect.Effect<
-      { input: number; output: number } | null,
-      ParseError | Redis.RedisError
-    >;
+    ) => Effect.Effect<{ input: number; output: number } | null, ParseError | Redis.RedisError>;
   }
 >() {}
 
@@ -58,45 +55,29 @@ export const ResolverServiceLive = Layer.effect(
   ResolverService,
   Effect.gen(function* () {
     const redis = yield* Redis.Redis;
+
+    const withRedis = <A, E>(effect: Effect.Effect<A, E, Redis.Redis>) =>
+      effect.pipe(Effect.provideService(Redis.Redis, redis));
+
     return ResolverService.of({
       resolve(options, userdId, userProviders, analysisTarget) {
-        return Effect.gen(function* () {
-          yield* Effect.logInfo("Resolve request received").pipe(
-            Effect.annotateLogs({
-              service: "Resolver",
-              operation: "resolve",
-              model: typeof options.model === "string" ? options.model : typeof options.model,
-              providerCount: userProviders.length,
-              analysisTarget: analysisTarget ?? "per_prompt",
-            }),
-          );
-
-          yield* runDataFetch();
-          const pairs = yield* resolveImpl(options, userdId, userProviders, analysisTarget);
-
-          yield* Effect.logInfo("Resolve completed").pipe(
-            Effect.annotateLogs({
-              service: "Resolver",
-              operation: "resolve",
-              pairs_length: pairs.length,
-            }),
-          );
-
-          return pairs;
-        }).pipe(Effect.provideService(Redis.Redis, redis));
+        return withRedis(
+          Effect.gen(function* () {
+            yield* runDataFetch();
+            return yield* resolveImpl(options, userdId, userProviders, analysisTarget);
+          }),
+        );
       },
       getAvailableModels() {
-        return Effect.gen(function* () {
-          yield* runDataFetch();
-          return yield* Redis.getAllModelsGroupedByProvider();
-        }).pipe(Effect.provideService(Redis.Redis, redis));
+        return withRedis(
+          Effect.gen(function* () {
+            yield* runDataFetch();
+            return yield* Redis.getAllModelsGroupedByProvider();
+          }),
+        );
       },
       getCostForModel(canonicalProviderModelName) {
-        return Effect.gen(function* () {
-          const cost = yield* Redis.getCostForModel(canonicalProviderModelName);
-          if (Array.isArray(cost) && cost.length === 0) return null;
-          return cost as { input: number; output: number };
-        }).pipe(Effect.provideService(Redis.Redis, redis));
+        return withRedis(Redis.getCostForModel(canonicalProviderModelName));
       },
     });
   }),

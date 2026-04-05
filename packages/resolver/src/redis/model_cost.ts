@@ -18,7 +18,7 @@ export const getCostForModel = (canonicalProviderModelName: string) =>
     const costStr = yield* redis.use((client) =>
       client.get(REDIS_PREFIX.modelToCost + canonicalProviderModelName),
     );
-    if (!costStr) return [];
+    if (!costStr) return null;
     return yield* Schema.decodeUnknown(costSchemaParser)(costStr);
   });
 
@@ -40,8 +40,8 @@ export const bulkSetProviderModelCost = (
   entries: Record</*canonicalProviderModelName Name*/ string, Cost>,
 ) =>
   Effect.gen(function* () {
-    const setterEffects = Object.entries(entries).map(([canonicalProvdierModelName, cost]) =>
-      setCostForModel(canonicalProvdierModelName, cost),
+    const setterEffects = Object.entries(entries).map(([canonicalProviderModelName, cost]) =>
+      setCostForModel(canonicalProviderModelName, cost),
     );
     yield* Effect.all(setterEffects, { concurrency: 5 });
   });

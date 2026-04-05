@@ -1,29 +1,16 @@
 import { Effect } from "effect";
 import { type IntentPair } from "../types";
+import { dataManagerLog } from "../log";
 import * as Redis from "../redis/index";
 
 export const getPotentialModelsForIntentPair = (pair: IntentPair) =>
   Effect.gen(function* () {
-    yield* Effect.logDebug("Reading Categories data").pipe(
-      Effect.annotateLogs({
-        service: "DataManager",
-        operation: "getOpenRouterDataByPair",
-        intent: pair.intent,
-        intentPolicy: pair.intentPolicy,
-      }),
-    );
+    const l = dataManagerLog("getPotentialModels");
 
-    const result = yield* Redis.getModelsForCategoryAndOrder(pair.intent, pair.intentPolicy);
+    yield* l.debug("Reading category data", {
+      intent: pair.intent,
+      intentPolicy: pair.intentPolicy,
+    });
 
-    yield* Effect.logDebug("OpenRouter data loaded").pipe(
-      Effect.annotateLogs({
-        service: "DataManager",
-        operation: "getOpenRouterDataByPair",
-        intent: pair.intent,
-        intentPolicy: pair.intentPolicy,
-        slugCount: result.length,
-      }),
-    );
-
-    return result;
+    return yield* Redis.getModelsForCategoryAndOrder(pair.intent, pair.intentPolicy);
   });

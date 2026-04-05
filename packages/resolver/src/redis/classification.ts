@@ -41,6 +41,8 @@ export const setResolvedResponse = (
     const indexKey = buildIndexKey(userId);
 
     const now = yield* Effect.succeed(Date.now());
+    // NOTE: zcard + zrange is not atomic, so concurrent requests may over-evict by 1.
+    // This is acceptable — the cache is opportunistic and entries have their own TTL.
     const currentSize = yield* redis.use((client) => client.zcard(indexKey));
 
     if (currentSize >= MAX_ENTRIES_PER_USER) {

@@ -1,6 +1,6 @@
 import type { ResolvedResponse } from "common";
-import { parseModelId } from "../parser/parse_model_id.ts";
-import { modelsMatch } from "../parser/match_models.ts";
+import { parseModelId } from "../parser/parse_model_id";
+import { modelsMatch } from "../parser/match_models";
 
 export function generateModelMap(
   openRouterSlugs: readonly string[],
