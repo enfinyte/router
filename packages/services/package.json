@@ -1,0 +1,17 @@
+{
+  "name": "@enfinyte/services",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "resolver": "workspace:*",
+    "vault": "workspace:*",
+    "ledger": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

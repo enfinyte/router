@@ -1,11 +1,10 @@
 import type { CreateResponseBody, ResolvedResponse, ResponseResource, Providers } from "common";
-import type { Transaction } from "ledger";
+import type { Transaction } from "@enfinyte/services";
 
 import { AISDKError, type TextStreamPart, type ToolSet } from "ai";
 import { APICallError, generateText, streamText } from "ai";
 import { Effect, Data, Either } from "effect";
-import { LedgerService } from "ledger";
-import { ResolverService } from "resolver";
+import { LedgerService, ResolverService } from "@enfinyte/services";
 
 import type { RequestParams } from "../request-context";
 

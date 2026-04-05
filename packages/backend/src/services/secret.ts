@@ -1,5 +1,5 @@
 import { Context, Effect, Layer } from "effect";
-import { VaultService, VaultServiceLive } from "vault";
+import { VaultService, VaultServiceLive } from "@enfinyte/services";
 
 import { DatabaseServiceError } from "../database/client";
 import { SecretRepository, SecretRepositoryLive } from "../database/repositories/secret";

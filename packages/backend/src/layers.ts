@@ -1,5 +1,5 @@
 import { Layer } from "effect";
-import { fromEnv as LedgerServiceLive } from "ledger";
+import { LedgerServiceLive, ResolverServiceLive } from "@enfinyte/services";
 import { AppConfig, AppConfigLive } from "./config";
 import { DatabasePoolLive } from "./database/pool";
 import { DatabaseServiceLive } from "./database/client";
@@ -7,7 +7,6 @@ import { SecretRepositoryLive } from "./database/repositories/secret";
 import { AuthServiceLive } from "./services/auth";
 import { ApiKeyServiceLive } from "./services/apikey";
 import { SecretServiceLive } from "./services/secret";
-import { ResolverServiceLive } from "resolver";
 
 const AppConfigExposed = Layer.effect(AppConfig, AppConfig).pipe(Layer.provide(AppConfigLive));
 

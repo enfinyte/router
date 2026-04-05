@@ -1,7 +1,7 @@
 import type { VerifyApiKeyResult } from "common";
 
 import { Context, Effect, Layer } from "effect";
-import { ProviderModelParseError } from "resolver";
+import type { ProviderModelParseError } from "@enfinyte/services";
 import { parseProviderModelImpl } from "resolver/src/parser";
 
 import type { AuthInstance } from "./auth";

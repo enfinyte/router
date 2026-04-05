@@ -9,9 +9,7 @@ import type { Kysely } from "kysely";
 import { router } from "../..";
 import { AppConfig } from "../../../services/config";
 import { DatabaseService, DatabaseServiceError } from "../../../services/database/postgres";
-import { VaultService } from "vault";
-import { LedgerService } from "ledger";
-import { ResolverService } from "resolver";
+import { VaultService, LedgerService, ResolverService } from "@enfinyte/services";
 
 type StreamResult = ReturnType<typeof streamText>;
 
