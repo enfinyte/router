@@ -9,7 +9,7 @@ import type { Kysely } from "kysely";
 import { router } from "../..";
 import { AppConfig } from "../../../services/config";
 import { DatabaseService, DatabaseServiceError } from "../../../services/database/postgres";
-import { VaultService } from "vault";
+import { VaultService, LedgerService, ResolverService } from "@enfinyte/services";
 
 type StreamResult = ReturnType<typeof streamText>;
 
@@ -79,9 +79,14 @@ mock.module(aiModulePath, () => ({
     ),
   executeStream: (_body: CreateResponseBody) =>
     Effect.succeed({
-      stream: mockStream(),
-      result: mockStreamResult(),
+      result: {
+        ...mockStreamResult(),
+        fullStream: mockStream(),
+      },
       resolvedModelAndProvider: { provider: "openai", model: "gpt-4o-mini" },
+      resolutionLatencyMs: 0,
+      llmStartedAt: Date.now(),
+      ttftMs: 5,
     }),
 }));
 
@@ -218,11 +223,38 @@ const startApiServer = async (port: number, backendUrl: string) => {
     }),
   );
 
+  const LedgerServiceTest = Layer.succeed(
+    LedgerService,
+    LedgerService.of({
+      insertTransaction: (t) => Effect.succeed(t),
+      getOverview: () => Effect.succeed({
+        total_requests: 0, avg_latency_ms: 0, p50_latency_ms: 0,
+        p95_latency_ms: 0, p99_latency_ms: 0, avg_resolution_latency_ms: 0,
+        total_cost_usd: 0, error_rate: 0, total_errors: 0, total_rate_limits: 0,
+      }),
+      getTimeSeries: () => Effect.succeed([]),
+      getProviderModelLatency: () => Effect.succeed([]),
+      getDailyModelCost: () => Effect.succeed([]),
+      getErrorRate: () => Effect.succeed([]),
+    }),
+  );
+
+  const ResolverServiceTest = Layer.succeed(
+    ResolverService,
+    ResolverService.of({
+      getAvailableModels: () => Effect.succeed({}),
+      resolve: () => Effect.succeed([{ provider: "openai", model: "gpt-4o-mini", category: null }]),
+      getCostForModel: () => Effect.succeed(null),
+    }),
+  );
+
   const HttpServerLayer = BunHttpServer.layer({ port });
   const AllServices = Layer.mergeAll(
     AppConfigTest,
     DatabaseServiceTest,
     VaultServiceTest,
+    LedgerServiceTest,
+    ResolverServiceTest,
     BunContext.layer,
   );
   const AllServicesAndHttpServer = Layer.mergeAll(AllServices, HttpServerLayer);

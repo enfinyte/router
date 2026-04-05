@@ -1,6 +1,7 @@
 import { SUPPORTED_PROVIDERS } from "common";
 import { Effect, Duration, Schema } from "effect";
 
+import { dataManagerLog } from "../log";
 import * as Redis from "../redis/index";
 import { DataFetchError } from "../types";
 import { ORDERS, CATEGORIES } from "../types";
@@ -29,9 +30,8 @@ const openrouterCategoryUrl = (category: string, order: string) => {
 
 const fetchJson = (url: string) =>
   Effect.gen(function* () {
-    yield* Effect.logDebug("Fetching JSON").pipe(
-      Effect.annotateLogs({ service: "DataManager", operation: "fetchJson", url }),
-    );
+    const l = dataManagerLog("fetchJson");
+    yield* l.debug("Fetching", { url });
 
     const response = yield* Effect.tryPromise({
       try: () => fetch(url),
@@ -41,19 +41,7 @@ const fetchJson = (url: string) =>
           message: `API call to ${url} failed`,
           cause: error,
         }),
-    }).pipe(
-      Effect.tapError((err) =>
-        Effect.logError("API call failed").pipe(
-          Effect.annotateLogs({
-            service: "DataManager",
-            operation: "fetchJson",
-            url,
-            reason: err.reason,
-            cause: err.cause instanceof Error ? err.cause.message : String(err.cause),
-          }),
-        ),
-      ),
-    );
+    });
 
     return yield* Effect.tryPromise({
       try: () => response.json(),
@@ -63,42 +51,20 @@ const fetchJson = (url: string) =>
           message: `JSON parsing failed for response from ${url}`,
           cause: error,
         }),
-    }).pipe(
-      Effect.tapError((err) =>
-        Effect.logError("JSON parse failed").pipe(
-          Effect.annotateLogs({
-            service: "DataManager",
-            operation: "fetchJson",
-            url,
-            reason: err.reason,
-          }),
-        ),
-      ),
-    );
+    });
   });
 
-function fetchAndAction<A, R, E2, Req2>(
-  url: string,
-  action: (json: A) => Effect.Effect<R, E2, Req2>,
-): Effect.Effect<R, DataFetchError | E2, Req2> {
-  return Effect.gen(function* () {
-    const json = (yield* fetchJson(url)) as A;
-    return yield* action(json);
-  });
-}
-
-const openRouterAction = (category: string, order: string) => (json: string[]) =>
+const fetchOpenRouterCategory = (category: string, order: string) =>
   Effect.gen(function* () {
+    const json: unknown = yield* fetchJson(openrouterCategoryUrl(category, order));
+
     const parsed = yield* Schema.decodeUnknown(OpenRouterMapSchema)(json).pipe(
-      Effect.tapError((err) =>
-        Effect.logError("OpenRouter schema decode failed").pipe(
-          Effect.annotateLogs({
-            service: "DataManager",
-            operation: "populate",
-            key: `${category}:${order}`,
-            cause: String(err),
+      Effect.mapError(
+        () =>
+          new DataFetchError({
+            reason: "DataParseFailed",
+            message: `OpenRouter schema decode failed for ${category}:${order}`,
           }),
-        ),
       ),
     );
 
@@ -106,18 +72,15 @@ const openRouterAction = (category: string, order: string) => (json: string[]) =
     return parsed;
   });
 
-const modelsDevAction = () => (json: Record<string, string[]>) =>
+const processModelsDevModels = (json: unknown) =>
   Effect.gen(function* () {
     const parsed = yield* Schema.decodeUnknown(ProviderModelMapSchema)(json).pipe(
-      Effect.tapError((err) =>
-        Effect.logError("models.dev schema decode failed").pipe(
-          Effect.annotateLogs({
-            service: "DataManager",
-            operation: "populate",
-            key: `models.dev`,
-            cause: String(err),
+      Effect.mapError(
+        () =>
+          new DataFetchError({
+            reason: "DataParseFailed",
+            message: "models.dev model map schema decode failed",
           }),
-        ),
       ),
     );
 
@@ -130,17 +93,18 @@ const modelsDevAction = () => (json: Record<string, string[]>) =>
     );
 
     yield* Redis.bulkSetModelsForProvider(supported);
+    return supported;
+  });
 
+const processModelsDevCosts = (json: unknown) =>
+  Effect.gen(function* () {
     const parsedCost = yield* Schema.decodeUnknown(ProviderModelToCostSchema)(json).pipe(
-      Effect.tapError((err) =>
-        Effect.logError("models.dev cost decode failed").pipe(
-          Effect.annotateLogs({
-            service: "DataManager",
-            operation: "populate",
-            key: `models.dev`,
-            cause: String(err),
+      Effect.mapError(
+        () =>
+          new DataFetchError({
+            reason: "DataParseFailed",
+            message: "models.dev cost schema decode failed",
           }),
-        ),
       ),
     );
 
@@ -155,47 +119,32 @@ const modelsDevAction = () => (json: Record<string, string[]>) =>
     }
 
     yield* Redis.bulkSetProviderModelCost(supportedCost);
+  });
 
+const fetchModelsDev = () =>
+  Effect.gen(function* () {
+    const json: unknown = yield* fetchJson(MODELS_DEV_BASE);
+    const supported = yield* processModelsDevModels(json);
+    yield* processModelsDevCosts(json);
     return supported;
   });
 
 const populate = () =>
   Effect.gen(function* () {
-    yield* Effect.logInfo("Populating data cache").pipe(
-      Effect.annotateLogs({ service: "DataManager", operation: "populate" }),
-    );
+    const l = dataManagerLog("populate");
+
+    yield* l.info("Starting data cache population", {
+      categoryCount: CATEGORIES.length,
+      orderCount: ORDERS.length,
+    });
 
     const categoryFetches = CATEGORIES.flatMap((category) =>
-      ORDERS.map((order) =>
-        fetchAndAction(openrouterCategoryUrl(category, order), openRouterAction(category, order)),
-      ),
-    );
-
-    const totalFetches = 1 + categoryFetches.length;
-    yield* Effect.logInfo("Starting concurrent data fetches").pipe(
-      Effect.annotateLogs({
-        service: "DataManager",
-        operation: "populate",
-        totalFetches,
-        categoryCount: CATEGORIES.length,
-        orderCount: ORDERS.length,
-      }),
+      ORDERS.map((order) => fetchOpenRouterCategory(category, order)),
     );
 
     const [modelsDev, ...openRouter] = yield* Effect.all(
-      [fetchAndAction(MODELS_DEV_BASE, modelsDevAction()), ...categoryFetches],
-      {
-        concurrency: "unbounded",
-      },
-    );
-
-    yield* Effect.logInfo("All data fetches completed").pipe(
-      Effect.annotateLogs({
-        service: "DataManager",
-        operation: "populate",
-        totalFetches,
-        openRouterSlugCount: (openRouter.flat() as string[]).length,
-      }),
+      [fetchModelsDev(), ...categoryFetches],
+      { concurrency: "unbounded" },
     );
 
     const modelMap = generateModelMap(
@@ -203,42 +152,25 @@ const populate = () =>
       modelsDev as Readonly<Record<string, string[]>>,
     );
 
-    const mapEntryCount = Object.keys(modelMap).length;
-    yield* Effect.logInfo("Model map generated").pipe(
-      Effect.annotateLogs({
-        service: "DataManager",
-        operation: "populate",
-        mapEntryCount,
-      }),
-    );
-
     yield* Redis.bulkSetProvidersForModels(modelMap);
     yield* Redis.markLastFetchPoint();
+
+    yield* l.info("Data cache populated", { mapEntryCount: Object.keys(modelMap).length });
   });
 
 export const runDataFetch = () =>
   Effect.gen(function* () {
+    const l = dataManagerLog("runDataFetch");
     const lastFetchedAt = yield* Redis.getLastFetchPoint();
 
     if (lastFetchedAt) {
-      yield* Effect.logDebug("Data cache is fresh, skipping fetch").pipe(
-        Effect.annotateLogs({
-          service: "DataManager",
-          operation: "runDataFetch",
-          lastFetchedAt: new Date(lastFetchedAt).toISOString(),
-          ttlHours: Duration.toHours(DATA_TTL),
-        }),
-      );
+      yield* l.debug("Data cache is fresh, skipping fetch", {
+        lastFetchedAt: new Date(lastFetchedAt).toISOString(),
+        ttlHours: Duration.toHours(DATA_TTL),
+      });
       return;
-    } else {
-      yield* Effect.logInfo(
-        "Either Data cache is stale or No data cache found, performing fetch",
-      ).pipe(Effect.annotateLogs({ service: "DataManager", operation: "runDataFetch" }));
     }
 
+    yield* l.info("Data cache stale or missing, performing fetch");
     yield* populate();
-
-    yield* Effect.logInfo("Data cache refreshed").pipe(
-      Effect.annotateLogs({ service: "DataManager", operation: "runDataFetch" }),
-    );
   });

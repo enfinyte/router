@@ -2,21 +2,20 @@ import { Array as Arr, Effect } from "effect";
 
 import type { IntentPair } from "../types";
 
+import { resolverLog } from "../log";
 import { getPotentialModelsForIntentPair } from "../data_manager";
 import * as Redis from "../redis/index";
 import { NoProviderAvailableError } from "../types";
 
 export const resolveIntentPair = (pair: IntentPair, userProviders: string[]) =>
   Effect.gen(function* () {
-    yield* Effect.logDebug("Resolving intent pair").pipe(
-      Effect.annotateLogs({
-        service: "Resolver",
-        operation: "resolveIntentPair",
-        intent: pair.intent,
-        intentPolicy: pair.intentPolicy,
-        providerCount: userProviders.length,
-      }),
-    );
+    const l = resolverLog("resolveIntentPair");
+
+    yield* l.debug("Resolving intent pair", {
+      intent: pair.intent,
+      intentPolicy: pair.intentPolicy,
+      providerCount: userProviders.length,
+    });
 
     const potentialModels = yield* getPotentialModelsForIntentPair(pair);
     const userProviderSet = new Set(userProviders);
@@ -36,14 +35,10 @@ export const resolveIntentPair = (pair: IntentPair, userProviders: string[]) =>
     );
 
     if (pairs.length > 0) {
-      yield* Effect.logInfo("Intent resolved to provider/model").pipe(
-        Effect.annotateLogs({
-          service: "Resolver",
-          operation: "resolveIntentPair",
-          intent: pair.intent,
-          intentPolicy: pair.intentPolicy,
-        }),
-      );
+      yield* l.info("Intent resolved to provider/model", {
+        intent: pair.intent,
+        intentPolicy: pair.intentPolicy,
+      });
       return pairs;
     }
 
@@ -52,17 +47,13 @@ export const resolveIntentPair = (pair: IntentPair, userProviders: string[]) =>
       (results) => Arr.dedupe(results.flat().map(({ provider }) => provider)),
     );
 
-    yield* Effect.logWarning("No matching provider found for intent").pipe(
-      Effect.annotateLogs({
-        service: "Resolver",
-        operation: "resolveIntentPair",
-        intent: pair.intent,
-        intentPolicy: pair.intentPolicy,
-        userProviders: userProviders.join(","),
-        availableProviders: availableProviders.join(","),
-        candidateCount: potentialModels.length,
-      }),
-    );
+    yield* l.warn("No matching provider found for intent", {
+      intent: pair.intent,
+      intentPolicy: pair.intentPolicy,
+      userProviders: userProviders.join(","),
+      availableProviders: availableProviders.join(","),
+      candidateCount: potentialModels.length,
+    });
 
     return yield* new NoProviderAvailableError({
       reason: "NoProviderConfigured",

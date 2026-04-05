@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect";
 import { Hono } from "hono";
-import { LedgerService } from "ledger";
+import { LedgerService } from "@enfinyte/services";
 import { getAuthenticatedUser } from "../middleware/auth";
 import { RequestValidationError } from "../errors";
 import { IntervalSchema } from "../schemas";

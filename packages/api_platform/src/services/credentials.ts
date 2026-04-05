@@ -1,5 +1,5 @@
 import { Effect, Data } from "effect";
-import { VaultService } from "vault";
+import { VaultService } from "@enfinyte/services";
 import { type ProviderCredentials, Providers } from "common";
 import { getProviderEntry } from "./provider-registry";
 

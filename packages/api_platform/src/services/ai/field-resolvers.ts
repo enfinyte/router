@@ -18,11 +18,6 @@ export const resolveTools = (tools: CreateResponseBody["tools"]): ResponseResour
     strict: t.strict ?? null,
   })) ?? [];
 
-export const resolveReasoning = (
-  reasoning: CreateResponseBody["reasoning"],
-): ResponseResource["reasoning"] =>
-  reasoning ? { effort: reasoning.effort ?? null, summary: reasoning.summary ?? null } : null;
-
 export const resolveTextFormat = (
   text: CreateResponseBody["text"],
 ): ResponseResource["text"] => {

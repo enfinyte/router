@@ -1,9 +1,7 @@
 import { HttpMiddleware, HttpServer } from "@effect/platform";
 import { BunContext, BunHttpServer, BunRuntime } from "@effect/platform-bun";
 import { Effect, flow, Layer } from "effect";
-import { fromEnv as LedgerServiceLive } from "ledger";
-import { ResolverServiceLive } from "resolver";
-import { VaultServiceLive } from "vault";
+import { LedgerServiceLive, ResolverServiceLive, VaultServiceLive } from "@enfinyte/services";
 
 import { router } from "./routes/index";
 import { AppConfig, AppConfigLive } from "./services/config";

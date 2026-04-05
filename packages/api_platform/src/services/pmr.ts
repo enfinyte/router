@@ -1,7 +1,7 @@
 import type { CreateResponseBody } from "common";
 
 import { Effect, Data } from "effect";
-import { ResolverService } from "resolver";
+import { ResolverService } from "@enfinyte/services";
 
 export class PMRError extends Data.TaggedError("PMRError")<{
   cause?: unknown;

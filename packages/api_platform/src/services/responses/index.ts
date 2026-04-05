@@ -1,8 +1,7 @@
 import type { CreateResponseBody, ResponseResource, StreamingEvent } from "common";
 
 import { Effect, Data, Stream } from "effect";
-import { LedgerService } from "ledger";
-import { ResolverService } from "resolver";
+import { LedgerService, ResolverService } from "@enfinyte/services";
 
 import type { RequestParams } from "../request-context";
 

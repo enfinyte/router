@@ -1,11 +1,10 @@
 import type { CreateResponseBody, ResolvedResponse, ResponseResource, Providers } from "common";
-import type { Transaction } from "ledger";
+import type { Transaction } from "@enfinyte/services";
 
 import { AISDKError, type TextStreamPart, type ToolSet } from "ai";
 import { APICallError, generateText, streamText } from "ai";
 import { Effect, Data, Either } from "effect";
-import { LedgerService } from "ledger";
-import { ResolverService } from "resolver";
+import { LedgerService, ResolverService } from "@enfinyte/services";
 
 import type { RequestParams } from "../request-context";
 
@@ -413,9 +412,9 @@ export const buildTransaction = (opts: {
     input_tokens: inputTokens,
     reasoning_tokens: reasoningTokens,
     output_tokens: outputTokens,
-    input_cost_usd: inputTokens != null && cost ? inputTokens * cost.input : null,
-    reasoning_cost_usd: reasoningTokens != null && cost ? reasoningTokens * cost.input : null,
-    output_cost_usd: outputTokens != null && cost ? outputTokens * cost.output : null,
+    input_cost_usd: inputTokens != null && cost ? (inputTokens * cost.input) / 1_000_000 : null,
+    reasoning_cost_usd: reasoningTokens != null && cost ? (reasoningTokens * cost.input) / 1_000_000 : null,
+    output_cost_usd: outputTokens != null && cost ? (outputTokens * cost.output) / 1_000_000 : null,
     http_status_code: httpStatusCode,
     error_type: errorType,
     is_streaming: isStreaming,

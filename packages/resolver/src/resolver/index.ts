@@ -2,6 +2,7 @@ import type { CreateResponseBody } from "common";
 
 import { Effect, pipe } from "effect";
 
+import { resolverLog } from "../log";
 import { parseImpl } from "../parser";
 import { parseIntentImpl } from "../parser/parse_intent";
 import { ResolveError } from "../types";
@@ -16,6 +17,8 @@ export const resolveImpl = (
   analysisTarget: string,
 ) =>
   Effect.gen(function* () {
+    const l = resolverLog("resolve");
+
     if (typeof options.model !== "string") {
       return yield* new ResolveError({
         reason: "InvalidModelType",
@@ -23,20 +26,32 @@ export const resolveImpl = (
       });
     }
 
-    if (options.model.startsWith("auto")) {
-      return yield* pipe(
-        options.model,
-        parseIntentImpl,
-        Effect.flatMap(resolveAuto(options, userId, userProviders, analysisTarget)),
-      );
-    }
+    yield* l.info("Resolve request received", {
+      model: options.model,
+      providerCount: userProviders.length,
+      analysisTarget: analysisTarget ?? "per_prompt",
+    });
 
-    return yield* pipe(
-      options.model,
-      parseImpl,
-      Effect.flatMap((parsed) => {
-        if (parsed._tag === "IntentPair") return resolveIntentPair(parsed, userProviders);
-        return resolveProviderModelPair(parsed);
-      }),
-    );
+    const result = yield* (() => {
+      if (options.model.startsWith("auto")) {
+        return pipe(
+          options.model,
+          parseIntentImpl,
+          Effect.flatMap(resolveAuto(options as CreateResponseBody, userId, userProviders, analysisTarget)),
+        );
+      }
+
+      return pipe(
+        options.model,
+        parseImpl,
+        Effect.flatMap((parsed) => {
+          if (parsed._tag === "IntentPair") return resolveIntentPair(parsed, userProviders);
+          return resolveProviderModelPair(parsed);
+        }),
+      );
+    })();
+
+    yield* l.info("Resolve completed", { pairs_length: result.length });
+
+    return result;
   });

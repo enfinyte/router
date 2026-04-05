@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { Hono } from "hono";
-import { ResolverService } from "resolver";
+import { ResolverService } from "@enfinyte/services";
 
 import { getAuthenticatedUser } from "../middleware/auth";
 import { runHandler } from "../runtime";
