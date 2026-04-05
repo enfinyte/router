@@ -33,7 +33,7 @@ describe("streamToEvents", () => {
 
       const { events } = streamToEvents(
         stream as never,
-        "resp-test-1",
+        0,
       );
       const collected = await collectEvents(events);
 
@@ -72,7 +72,7 @@ describe("streamToEvents", () => {
 
       const { events } = streamToEvents(
         stream as never,
-        "resp-test-2",
+        0,
       );
       const collected = await collectEvents(events);
 
@@ -94,7 +94,7 @@ describe("streamToEvents", () => {
 
       const { events } = streamToEvents(
         stream as never,
-        "resp-idx",
+        0,
       );
       const collected = await collectEvents(events);
 
@@ -118,7 +118,7 @@ describe("streamToEvents", () => {
 
       const { events } = streamToEvents(
         stream as never,
-        "resp-id",
+        0,
       );
       const collected = await collectEvents(events);
 
@@ -190,7 +190,7 @@ describe("streamToEvents", () => {
 
       const { events } = streamToEvents(
         stream as never,
-        "resp-tool-acc",
+        0,
       );
       const collected = await collectEvents(events);
 
@@ -210,7 +210,7 @@ describe("streamToEvents", () => {
 
       const { events, getAccumulatedState } = streamToEvents(
         stream as never,
-        "resp-tool-state",
+        0,
       );
       await collectEvents(events);
 
@@ -279,7 +279,7 @@ describe("streamToEvents", () => {
 
       const { events } = streamToEvents(
         stream as never,
-        "resp-reason-acc",
+        0,
       );
       const collected = await collectEvents(events);
 
@@ -297,7 +297,7 @@ describe("streamToEvents", () => {
 
       const { events, getAccumulatedState } = streamToEvents(
         stream as never,
-        "resp-reason-state",
+        0,
       );
       await collectEvents(events);
 
@@ -323,7 +323,7 @@ describe("streamToEvents", () => {
 
       const { events } = streamToEvents(
         stream as never,
-        "resp-multi",
+        0,
       );
       const collected = await collectEvents(events);
 
@@ -349,7 +349,7 @@ describe("streamToEvents", () => {
 
       const { events, getAccumulatedState } = streamToEvents(
         stream as never,
-        "resp-multi-state",
+        0,
       );
       await collectEvents(events);
 
@@ -371,7 +371,7 @@ describe("streamToEvents", () => {
 
       const { events } = streamToEvents(
         stream as never,
-        "resp-seq",
+        0,
       );
       const collected = await collectEvents(events);
 
@@ -397,7 +397,7 @@ describe("streamToEvents", () => {
 
       const { events } = streamToEvents(
         stream as never,
-        "resp-seq-multi",
+        0,
       );
       const collected = await collectEvents(events);
 
@@ -426,7 +426,7 @@ describe("streamToEvents", () => {
 
       const { events } = streamToEvents(
         stream as never,
-        "resp-err",
+        0,
       );
       const collected = await collectEvents(events);
 
@@ -448,7 +448,7 @@ describe("streamToEvents", () => {
 
       const { events } = streamToEvents(
         stream as never,
-        "resp-err-str",
+        0,
       );
       const collected = await collectEvents(events);
 
@@ -471,7 +471,7 @@ describe("streamToEvents", () => {
 
       const { events } = streamToEvents(
         stream as never,
-        "resp-err-name",
+        0,
       );
       const collected = await collectEvents(events);
 
@@ -489,7 +489,7 @@ describe("streamToEvents", () => {
 
       const { events } = streamToEvents(
         stream as never,
-        "resp-err-null",
+        0,
       );
       const collected = await collectEvents(events);
 
@@ -512,7 +512,7 @@ describe("streamToEvents", () => {
 
       const { events, getAccumulatedState } = streamToEvents(
         stream as never,
-        "resp-state",
+        0,
       );
       await collectEvents(events);
 
@@ -529,7 +529,7 @@ describe("streamToEvents", () => {
 
       const { events, getAccumulatedState } = streamToEvents(
         stream as never,
-        "resp-empty",
+        0,
       );
       await collectEvents(events);
 
@@ -549,7 +549,7 @@ describe("streamToEvents", () => {
 
       const { events } = streamToEvents(
         stream as never,
-        "resp-finish",
+        0,
       );
       const collected = await collectEvents(events);
 
@@ -563,7 +563,7 @@ describe("streamToEvents", () => {
 
       const { events } = streamToEvents(
         stream as never,
-        "resp-unknown",
+        0,
       );
       const collected = await collectEvents(events);
 

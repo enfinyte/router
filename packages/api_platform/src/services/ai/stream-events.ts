@@ -24,6 +24,38 @@ type ToolInputPart = {
 const getTextDelta = (part: ToolInputPart): string =>
   part.delta ?? part.text ?? part.argsTextDelta ?? "";
 
+const buildErrorEvent = (
+  error: unknown,
+  sequenceNumber: number,
+): StreamingEvent => {
+  const errorObject =
+    typeof error === "object" && error !== null
+      ? (error as Record<string, unknown>)
+      : undefined;
+  return {
+    type: "error",
+    sequence_number: sequenceNumber,
+    error: {
+      type: (typeof errorObject?.type === "string"
+        ? errorObject?.type
+        : typeof errorObject?.name === "string"
+          ? errorObject?.name
+          : "error") as string,
+      code: typeof errorObject?.code === "string" ? errorObject?.code : null,
+      message:
+        typeof errorObject?.message === "string"
+          ? errorObject?.message
+          : typeof error === "string"
+            ? error
+            : "Unknown error",
+      param: typeof errorObject?.param === "string" ? errorObject?.param : null,
+      ...(typeof errorObject?.headers === "object" && errorObject?.headers !== null
+        ? { headers: errorObject?.headers as Record<string, string> }
+        : {}),
+    },
+  };
+};
+
 export const streamToEvents = (
   fullStream: AsyncIterable<TextStreamPart<ToolSet>>,
   startingSequenceNumber = 0,
@@ -375,33 +407,7 @@ export const streamToEvents = (
           }
           case "error": {
             const errorValue = (part as { error?: unknown }).error;
-            const errorObject =
-              typeof errorValue === "object" && errorValue !== null
-                ? (errorValue as Record<string, unknown>)
-                : undefined;
-            const errorEvent: StreamingEvent = {
-              type: "error",
-              sequence_number: nextSequenceNumber(),
-              error: {
-                type: (typeof errorObject?.type === "string"
-                  ? errorObject?.type
-                  : typeof errorObject?.name === "string"
-                    ? errorObject?.name
-                    : "error") as string,
-                code: typeof errorObject?.code === "string" ? errorObject?.code : null,
-                message:
-                  typeof errorObject?.message === "string"
-                    ? errorObject?.message
-                    : typeof errorValue === "string"
-                      ? errorValue
-                      : "Unknown error",
-                param: typeof errorObject?.param === "string" ? errorObject?.param : null,
-                ...(typeof errorObject?.headers === "object" && errorObject?.headers !== null
-                  ? { headers: errorObject?.headers as Record<string, string> }
-                  : {}),
-              },
-            };
-            yield [errorEvent];
+            yield [buildErrorEvent(errorValue, nextSequenceNumber())];
             break;
           }
           case "finish": {
@@ -412,31 +418,7 @@ export const streamToEvents = (
           }
         }
       } catch (e) {
-        const errorObject =
-          typeof e === "object" && e !== null ? (e as Record<string, unknown>) : undefined;
-        const errorEvent: StreamingEvent = {
-          type: "error",
-          sequence_number: nextSequenceNumber(),
-          error: {
-            type: (typeof errorObject?.type === "string"
-              ? errorObject?.type
-              : typeof errorObject?.name === "string"
-                ? errorObject?.name
-                : "error") as string,
-            code: typeof errorObject?.code === "string" ? errorObject?.code : null,
-            message:
-              typeof errorObject?.message === "string"
-                ? errorObject?.message
-                : typeof e === "string"
-                  ? e
-                  : "Unknown error",
-            param: typeof errorObject?.param === "string" ? errorObject?.param : null,
-            ...(typeof errorObject?.headers === "object" && errorObject?.headers !== null
-              ? { headers: errorObject?.headers as Record<string, string> }
-              : {}),
-          },
-        };
-        yield [errorEvent];
+        yield [buildErrorEvent(e, nextSequenceNumber())];
       }
     }
   })();
